@@ -51,3 +51,14 @@ export function pastOrganicTime(time: string, now: Date) {
   // Last scheduled Indian time, including a clock tick at exactly that minute.
   return new Date(nextOrganicTime(time, now).valueOf() - day);
 }
+
+export function discoveryPhases(time: string, notifyTime: string, enrichTime?: string, resultsTime?: string) {
+  const minutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3));
+  const clock = (value: number) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+  const start = minutes(time);
+  const duration = (minutes(notifyTime) - start + 1440) % 1440 || 1440;
+  return {
+    enrichTime: enrichTime ?? clock((start + Math.floor(duration * 5 / 7)) % 1440),
+    resultsTime: resultsTime ?? clock((start + Math.floor(duration * 6 / 7)) % 1440),
+  };
+}

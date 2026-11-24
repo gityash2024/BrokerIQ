@@ -7,7 +7,9 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { OrganicDeliveryService } from '../src/modules/organic/organic-delivery.service';
-import { normalizeOrganicRecord, nextOrganicTime } from '../src/modules/organic/organic-record';
+import { OrganicService } from '../src/modules/organic/organic.service';
+import * as sourceAdapter from '../src/modules/organic/organic-source';
+import { discoveryPhases, normalizeOrganicRecord, nextOrganicTime } from '../src/modules/organic/organic-record';
 
 describe('Organic daily delivery', () => {
   let app: INestApplication;
@@ -30,6 +32,58 @@ describe('Organic daily delivery', () => {
     expect(normalizeOrganicRecord(property, [], false)?.data.phone).toBeUndefined();
     expect(normalizeOrganicRecord({ ...property, city: 'Noida' }, [], true)).toBeNull();
     expect(nextOrganicTime('07:00', new Date('2026-11-24T01:31:00Z')).toISOString()).toBe('2026-11-25T01:30:00.000Z');
+  });
+
+  it('saves a restart-safe scheduled run and publishes only the previous IST day after classification', async () => {
+    const key = randomUUID();
+    const service = app.get(OrganicService);
+    const config = { enabled: true, time: '00:00', enrichTime: '05:00', resultsTime: '06:00', notifyTime: '07:00' };
+    expect(discoveryPhases(config.time, config.notifyTime)).toEqual({ enrichTime: '05:00', resultsTime: '06:00' });
+    const source = await db.organicSource.create({ data: {
+      name: 'Isolated schedule source', url: 'https://example.org/schedule/' + key, permissionUrl: 'https://example.org/terms',
+      format: 'JSON', supports: ['SUPPLY'], enabled: true,
+    } });
+    const broken = await db.organicSource.create({ data: { name: 'Isolated failed source', url: source.url + '/failed',
+      permissionUrl: source.permissionUrl, format: 'JSON', supports: ['SUPPLY'], enabled: true } });
+    const publishedAt = '2026-11-23T22:00:00+05:30';
+    const entry = { title: 'Gurgaon Sector 30 rent ' + key, externalId: key, kind: 'SUPPLY' as const, url: source.url + '/listing',
+      purpose: 'RENT', ownership: 'OWNER_CONFIRMED', propertyType: 'Apartment', price: 50000, publishedAt };
+    const fetch = jest.spyOn(sourceAdapter, 'readOrganicSource').mockImplementation(async (url) => {
+      if (url === broken.url) throw new Error('Isolated fetch failure');
+      return { text: JSON.stringify([entry, { ...entry, externalId: key + '-late', publishedAt: '2026-11-24T04:00:00+05:30' }]), etag: null };
+    });
+    const readSettings = jest.spyOn(service, 'settingsFor').mockResolvedValue(config);
+    const date = new Date('2026-11-23T18:30:00.000Z');
+    const day = '2026-11-24';
+    const runKey = 'organic-discovery:SUPPLY:' + day;
+    try {
+      await Promise.all([service['scheduleRun']('SUPPLY', config, date), service['scheduleRun']('SUPPLY', config, date)]);
+      const jobs = await db.job.findMany({ where: { OR: [{ key: { startsWith: runKey + ':' } }, { key: 'organic-ready:SUPPLY:' + day }] }, orderBy: { runAt: 'asc' } });
+      expect(jobs.map(({ type, runAt }) => [type, runAt.toISOString()])).toEqual([
+        ['organic.collect', '2026-11-23T18:30:00.000Z'], ['organic.enrich', '2026-11-23T23:30:00.000Z'],
+        ['organic.publish', '2026-11-24T00:30:00.000Z'], ['organic.ready', '2026-11-24T01:30:00.000Z'],
+      ]);
+      await service['collectScheduled']('SUPPLY', runKey, day);
+      await service['collectScheduled']('SUPPLY', runKey, day);
+      expect(fetch).toHaveBeenCalledTimes(2);
+      const run = await db.organicRun.findUniqueOrThrow({ where: { key: runKey } });
+      expect(run).toMatchObject({ status: 'COLLECTED', report: { sources: 2, failed: 1 } });
+      await expect(service['publishScheduled']('SUPPLY', runKey)).rejects.toThrow('classification is still running');
+      await service['enrichScheduled']('SUPPLY', runKey);
+      expect(await db.organicSourceReference.count({ where: { sourceId: source.id } })).toBe(0);
+      await service['publishScheduled']('SUPPLY', runKey);
+      await service['publishScheduled']('SUPPLY', runKey);
+      expect(await db.organicSourceReference.count({ where: { sourceId: source.id } })).toBe(1);
+      const batch = await db.organicSourceBatch.findFirstOrThrow({ where: { runId: run.id, sourceId: source.id } });
+      expect(batch).toMatchObject({ status: 'PUBLISHED', processed: 1, inserted: 1, rows: null });
+      expect(await db.organicRun.findUnique({ where: { id: run.id } })).toMatchObject({ status: 'PARTIAL', report: { records: 1, failed: 1 } });
+    } finally {
+      fetch.mockRestore();
+      readSettings.mockRestore();
+      await db.job.deleteMany({ where: { OR: [{ key: { startsWith: runKey + ':' } }, { key: 'organic-ready:SUPPLY:' + day }] } });
+      await db.organicRun.deleteMany({ where: { key: runKey } });
+      await db.organicSource.updateMany({ where: { id: { in: [source.id, broken.id] } }, data: { enabled: false } });
+    }
   });
 
   it('transfers each qualifying lead only once, preserves firm scope, and rejects a foreign recipient', async () => {

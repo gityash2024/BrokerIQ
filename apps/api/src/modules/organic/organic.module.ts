@@ -13,7 +13,10 @@ const transferInput = z.object({
   targets: z.array(organicTarget).min(1).max(10),
 }).refine((input) => Boolean(input.ids) !== Boolean(input.query), 'Choose either records or filtered selection');
 const time = organicDeliveryInput.shape.time;
-const schedule = z.object({ enabled: z.boolean(), time, notifyTime: time });
+const schedule = z.object({ enabled: z.boolean(), time, enrichTime: time.optional(), resultsTime: time.optional(), notifyTime: time })
+  .refine(({ time, enrichTime, resultsTime, notifyTime }) =>
+    !enrichTime && !resultsTime || !!enrichTime && !!resultsTime && time < enrichTime && enrichTime < resultsTime && resultsTime < notifyTime,
+  'Set discovery, classification, results and notification in order within the same IST day');
 
 @Roles('SUPER_ADMIN')
 @Controller('admin/organic')

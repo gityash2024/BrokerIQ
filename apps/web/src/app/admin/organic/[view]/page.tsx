@@ -19,6 +19,7 @@ const input = 'w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm
 type Kind = 'SUPPLY' | 'DEMAND';
 type Firm = { id: string; name: string; status: string; localities: { name: string }[]; members: { id: string; name: string }[] };
 type Run = { id: string; kind: string; status: string; createdAt: string; windowTo: string | null; report?: Record<string, number> };
+type DiscoverySettings = { enabled: boolean; time: string; enrichTime: string; resultsTime: string; notifyTime: string };
 type Rule = OrganicDeliveryInput & { id: string; nextRunAt: string | null; cursorFrom: string };
 type Source = OrganicSourceInput & { id: string; lastSuccessAt: string | null; lastFailureAt: string | null; lastError: string | null; lastReport?: Record<string, number> };
 type RecordRow = {
@@ -71,7 +72,7 @@ function RecordsPage({ kind }: { kind: Kind }) {
   const data = useQuery({
     queryKey: ['organic-records', params],
     queryFn: () => api<{ rows: RecordRow[]; total: number; metrics: { status: string; purpose: string; category: string; priority: string; _count: { _all: number } }[];
-      runs: Run[]; settings: { enabled: boolean; time: string; notifyTime: string } }>(endpoint + '/records' + qs(params)),
+      runs: Run[]; settings: DiscoverySettings; nextDiscoveryAt: string | null }>(endpoint + '/records' + qs(params)),
     refetchInterval: 5000,
   });
   const sources = useQuery({ queryKey: ['organic-sources'], queryFn: () => api<Source[]>(endpoint + '/sources') });
@@ -102,7 +103,7 @@ function RecordsPage({ kind }: { kind: Kind }) {
       ].map(([label, count]) => <div className="card min-w-36 p-3" key={label}><p className="text-sm text-muted">{label}</p><strong className="text-xl">{count}</strong></div>)}
     </div>
     {data.data?.settings && <DiscoverySchedule key={kind + JSON.stringify(data.data.settings)} config={data.data.settings}
-      save={(body) => mutate('/discovery/' + kind, 'PATCH', body)} busy={busy} />}
+      save={(body) => mutate('/discovery/' + kind, 'PATCH', body)} busy={busy} nextDiscoveryAt={data.data.nextDiscoveryAt} />}
     <div className="card space-y-3 p-4">
       <div className="flex flex-wrap gap-2">
         {[['Today', 0], ['Yesterday', 1], ['Last 7 days', 6], ['Last 30 days', 29]].map(([label, days]) => (
@@ -185,13 +186,19 @@ function RecordsPage({ kind }: { kind: Kind }) {
   </div>;
 }
 
-function DiscoverySchedule({ config, save, busy }: { config: { enabled: boolean; time: string; notifyTime: string }; save: (config: unknown) => Promise<void>; busy: boolean }) {
+function DiscoverySchedule({ config, save, busy, nextDiscoveryAt }: { config: DiscoverySettings; save: (config: DiscoverySettings) => Promise<void>; busy: boolean; nextDiscoveryAt: string | null }) {
   const [value, setValue] = useState(config);
   return <div className="card flex flex-wrap items-end gap-3 p-4">
     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={value.enabled} onChange={(e) => setValue({ ...value, enabled: e.target.checked })} />Daily discovery</label>
-    <label className="text-sm">Discover at IST<input className={input} type="time" value={value.time} onChange={(e) => setValue({ ...value, time: e.target.value })} /></label>
-    <label className="text-sm">Notify at IST<input className={input} type="time" value={value.notifyTime} onChange={(e) => setValue({ ...value, notifyTime: e.target.value })} /></label>
+    {([
+      ['time', 'Collect sources at IST'], ['enrichTime', 'Classify at IST'],
+      ['resultsTime', 'Publish results at IST'], ['notifyTime', 'Notify at IST'],
+    ] as const).map(([key, label]) => (
+      <label key={key} className="text-sm">{label}<input className={input} type="time" value={value[key]}
+        onChange={(e) => setValue({ ...value, [key]: e.target.value })} /></label>
+    ))}
     <Button size="sm" variant="secondary" disabled={busy} onClick={() => void save(value)}>Save discovery schedule</Button>
+    {nextDiscoveryAt && <p className="w-full text-sm text-muted">Next collection · {timeLabel(nextDiscoveryAt)} IST</p>}
   </div>;
 }
 

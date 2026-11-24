@@ -7,7 +7,7 @@ import { ModulesService } from '../features/modules.service';
 
 export type JobHandler = (payload: any, job: Job) => Promise<void>;
 
-const heavyJobTypes = ['import.extract', 'import.pdf', 'property.video.extract', 'connect.process', 'organic.discovery', 'organic.manual-transfer'];
+const heavyJobTypes = ['import.extract', 'import.pdf', 'property.video.extract', 'connect.process', 'organic.discovery', 'organic.collect', 'organic.enrich', 'organic.publish', 'organic.manual-transfer'];
 
 export class JobDeferred extends Error {
   constructor(message: string, readonly until: Date) {

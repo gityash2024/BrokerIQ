@@ -1,20 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import { Prisma, type OrganicSource } from '@prisma/client';
+import { Prisma, type OrganicRun, type OrganicSource } from '@prisma/client';
 import { brokerRequirementSchema, canonicalInventorySector, inventoryInputSchema, ledgerMatch, organicRecordInput,
   type OrganicQuery, type OrganicRecordInput, type OrganicSourceInput } from '@brokeriq/shared';
 import { createHash } from 'node:crypto';
 import { env } from '../../config/env';
-import { JobsService } from '../../core/jobs/jobs.service';
+import { JobDeferred, JobsService } from '../../core/jobs/jobs.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { AiService } from '../../core/ai/ai.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { decodeOrganicSource, readOrganicSource, sourceEndpoint } from './organic-source';
-import { normalizeOrganicRecord, pastOrganicTime } from './organic-record';
+import { discoveryPhases, nextOrganicTime, normalizeOrganicRecord, pastOrganicTime } from './organic-record';
 
 type Kind = 'SUPPLY' | 'DEMAND';
-type DiscoverySettings = { enabled: boolean; time: string; notifyTime: string };
+type DiscoverySettings = { enabled: boolean; time: string; enrichTime?: string; resultsTime?: string; notifyTime: string };
+const terminal = ['COMPLETE', 'PARTIAL', 'NO_SOURCE', 'CANCELLED'];
 const defaults: DiscoverySettings = { enabled: false, time: '00:00', notifyTime: '07:00' };
 const day = 24 * 60 * 60_000;
 const tz = 330 * 60_000;
@@ -27,6 +28,9 @@ export class OrganicService {
   constructor(private readonly db: PrismaService, private readonly jobs: JobsService, private readonly settings: SettingsService,
     private readonly ai: AiService, private readonly notifications: NotificationsService) {
     jobs.register('organic.discovery', (job) => this.discover(job.kind, job.key, job.day, job.sourceId));
+    jobs.register('organic.collect', (job) => this.collectScheduled(job.kind, job.key, job.day));
+    jobs.register('organic.enrich', (job) => this.enrichScheduled(job.kind, job.key));
+    jobs.register('organic.publish', (job) => this.publishScheduled(job.kind, job.key));
     jobs.register('organic.ready', (job) => this.notifyReady(job.kind, job.day));
   }
 
@@ -35,7 +39,8 @@ export class OrganicService {
   }
 
   async settingsFor(kind: Kind) {
-    return { ...defaults, ...(await this.settings.getJson<Partial<DiscoverySettings>>(this.settingsKey(kind))) };
+    const config = { ...defaults, ...(await this.settings.getJson<Partial<DiscoverySettings>>(this.settingsKey(kind))) };
+    return { ...config, ...discoveryPhases(config.time, config.notifyTime, config.enrichTime, config.resultsTime) };
   }
 
   async updateSettings(kind: Kind, input: DiscoverySettings, actorId: string) {
@@ -76,12 +81,178 @@ export class OrganicService {
       if (!config.enabled) continue;
       const scheduled = pastOrganicTime(config.time, now);
       if (dayKey(scheduled) !== dayKey(now)) continue;
-      const day = dayKey(scheduled);
-      const key = 'organic-discovery:' + kind + ':' + day;
-      await this.jobs.enqueue('organic.discovery', { kind, key, day }, { key });
-      const ready = pastOrganicTime(config.notifyTime, now);
-      if (dayKey(ready) === day) await this.jobs.enqueue('organic.ready', { kind, day }, { key: 'organic-ready:' + kind + ':' + day });
+      await this.scheduleRun(kind, config, scheduled);
     }
+  }
+
+  private async scheduleRun(kind: Kind, config: Awaited<ReturnType<OrganicService['settingsFor']>>, scheduled: Date) {
+    const discoveryDay = dayKey(scheduled);
+    const key = 'organic-discovery:' + kind + ':' + discoveryDay;
+    const legacy = await this.db.job.findUnique({ where: { key }, select: { id: true } });
+    const payload = { kind, key, day: discoveryDay };
+    const notifyAt = nextOrganicTime(config.notifyTime, scheduled);
+    if (!legacy) {
+      await this.jobs.enqueue('organic.collect', payload, { key: key + ':collect', runAt: scheduled });
+      const enrichAt = nextOrganicTime(config.enrichTime, new Date(scheduled.valueOf() - 1));
+      await this.jobs.enqueue('organic.enrich', payload, { key: key + ':enrich', runAt: enrichAt });
+      const publishAt = nextOrganicTime(config.resultsTime, new Date(enrichAt.valueOf() - 1));
+      await this.jobs.enqueue('organic.publish', payload, { key: key + ':publish', runAt: publishAt });
+    }
+    await this.jobs.enqueue('organic.ready', payload, { key: 'organic-ready:' + kind + ':' + discoveryDay, runAt: notifyAt, maxAttempts: 10 });
+  }
+
+  private sourceState(source: OrganicSource) {
+    return digest(JSON.stringify([source.url, source.format, source.itemsPath, source.permissionUrl, source.contactRedistribution, source.supports]));
+  }
+
+  private async collectScheduled(kind: Kind, key: string, discoveryDay: string) {
+    const cutoff = new Date(discoveryDay + 'T00:00:00+05:30');
+    const run = await this.db.organicRun.upsert({ where: { key }, update: {}, create: {
+      kind, key, status: 'COLLECTING', windowFrom: new Date(cutoff.valueOf() - day), windowTo: cutoff,
+    } });
+    if (run.status !== 'COLLECTING' || !(await this.continueScheduled(kind, run))) return;
+    const sources = await this.db.organicSource.findMany({ where: { enabled: true, supports: { has: kind } },
+      orderBy: [{ priority: 'desc' }, { id: 'asc' }] });
+    const localities = await this.localityNames();
+    const attemptField = kind === 'SUPPLY' ? 'supplyAttemptAt' : 'demandAttemptAt';
+    for (const source of sources) {
+      const identity = { runId: run.id, sourceId: source.id };
+      const sourceState = this.sourceState(source);
+      if (await this.db.organicSourceBatch.findUnique({ where: { runId_sourceId: identity }, select: { status: true } })) continue;
+      const now = new Date();
+      const leased = await this.db.organicSource.updateMany({
+        where: { id: source.id, enabled: true, OR: [{ [attemptField]: null }, { [attemptField]: { lt: new Date(now.valueOf() - source.minIntervalMinutes * 60_000) } }] },
+        data: { [attemptField]: now, lastAttemptAt: now },
+      });
+      if (!leased.count) {
+        await this.db.organicSourceBatch.create({ data: { ...identity, sourceState, status: 'SKIPPED' } });
+        continue;
+      }
+      try {
+        const content = await readOrganicSource(source.url, null);
+        const entries = content.text ? decodeOrganicSource(content.text, source.format, source.itemsPath, source.supports, source.url) : [];
+        const rows = entries.flatMap((entry) => {
+          if (entry.kind !== kind || !this.inWindow(entry, now, run.windowFrom!, cutoff)) return [];
+          const normalized = normalizeOrganicRecord(entry, localities, source.contactRedistribution);
+          return normalized ? [normalized.data] : [];
+        });
+        await this.db.organicSourceBatch.create({ data: { ...identity, sourceState, status: 'COLLECTED', rows: rows as Prisma.InputJsonValue } });
+      } catch {
+        await this.db.organicSourceBatch.create({ data: { ...identity, sourceState, status: 'FAILED' } });
+        await this.recordSourceFailure(source.id);
+      }
+    }
+    const report = await this.batchReport(run.id);
+    await this.db.organicRun.update({ where: { id: run.id }, data: { status: 'COLLECTED', report } });
+  }
+
+  private async enrichScheduled(kind: Kind, key: string) {
+    const run = await this.db.organicRun.findUnique({ where: { key } });
+    if (!run || run.status === 'COLLECTING') {
+      await this.waitForPhase(key, 'collect', run, 'Source collection is still running');
+      return;
+    }
+    if (terminal.includes(run.status) || run.status === 'ENRICHED' || !(await this.continueScheduled(kind, run))) return;
+    await this.db.organicRun.update({ where: { id: run.id }, data: { status: 'ENRICHING' } });
+    const batches = await this.db.organicSourceBatch.findMany({ where: { runId: run.id, status: 'COLLECTED' } });
+    const localities = await this.localityNames();
+    for (const batch of batches) {
+      const where = { runId_sourceId: { runId: run.id, sourceId: batch.sourceId } };
+      const source = await this.db.organicSource.findUnique({ where: { id: batch.sourceId } });
+      if (!source?.enabled || this.sourceState(source) !== batch.sourceState) {
+        await this.db.organicSourceBatch.update({ where, data: { status: 'SKIPPED', rows: Prisma.DbNull } });
+        continue;
+      }
+      const rows = organicRecordInput.array().parse(batch.rows);
+      const enriched: OrganicRecordInput[] = [];
+      let attempts = 0;
+      for (const row of rows) {
+        const normalized = normalizeOrganicRecord(row, localities, source.contactRedistribution);
+        if (!normalized) continue;
+        const enrich = normalized.priority === 'REVIEW' && row.description && attempts++ < 5;
+        enriched.push(enrich ? await this.extractFields(normalized.data) : normalized.data);
+      }
+      await this.db.organicSourceBatch.update({ where, data: { status: 'ENRICHED', rows: enriched as Prisma.InputJsonValue } });
+    }
+    await this.db.organicRun.update({ where: { id: run.id }, data: { status: 'ENRICHED', report: await this.batchReport(run.id) } });
+  }
+
+  private async publishScheduled(kind: Kind, key: string) {
+    const run = await this.db.organicRun.findUnique({ where: { key } });
+    if (!run || ['COLLECTING', 'COLLECTED', 'ENRICHING'].includes(run.status)) {
+      await this.waitForPhase(key, 'enrich', run, 'Discovery classification is still running');
+      return;
+    }
+    if (terminal.includes(run.status) || !(await this.continueScheduled(kind, run))) return;
+    await this.db.organicRun.update({ where: { id: run.id }, data: { status: 'PUBLISHING' } });
+    const batches = await this.db.organicSourceBatch.findMany({ where: { runId: run.id, status: 'ENRICHED' } });
+    const localities = await this.localityNames();
+    for (const batch of batches) {
+      const where = { runId_sourceId: { runId: run.id, sourceId: batch.sourceId } };
+      const source = await this.db.organicSource.findUnique({ where: { id: batch.sourceId } });
+      if (!source?.enabled || this.sourceState(source) !== batch.sourceState) {
+        await this.db.organicSourceBatch.update({ where, data: { status: 'SKIPPED', rows: Prisma.DbNull } });
+        continue;
+      }
+      const rows = organicRecordInput.array().parse(batch.rows);
+      for (const row of rows.slice(batch.processed)) {
+        const normalized = normalizeOrganicRecord(row, localities, source.contactRedistribution);
+        if (!normalized) {
+          await this.db.organicSourceBatch.update({ where, data: { processed: { increment: 1 } } });
+          continue;
+        }
+        await this.saveRecord(source, normalized, { runId: run.id, sourceId: batch.sourceId });
+      }
+      const result = await this.db.organicSourceBatch.update({ where, data: { status: 'PUBLISHED', rows: Prisma.DbNull } });
+      await this.db.organicSource.update({ where: { id: source.id }, data: { lastSuccessAt: new Date(), lastError: null,
+        lastReport: { found: rows.length, inserted: result.inserted, duplicate: result.duplicates, reviewed: result.reviewed } } });
+    }
+    const report = await this.batchReport(run.id);
+    await this.db.organicRun.update({ where: { id: run.id }, data: { status: !report.sources ? 'NO_SOURCE' : report.failed ? 'PARTIAL' : 'COMPLETE',
+      report, finishedAt: new Date() } });
+  }
+
+  private async continueScheduled(kind: Kind, run: OrganicRun) {
+    if ((await this.settingsFor(kind)).enabled) return true;
+    await this.db.$transaction([
+      this.db.organicSourceBatch.updateMany({ where: { runId: run.id, status: { in: ['COLLECTED', 'ENRICHED'] } }, data: { rows: Prisma.DbNull, status: 'SKIPPED' } }),
+      this.db.organicRun.update({ where: { id: run.id }, data: { status: 'CANCELLED', finishedAt: new Date() } }),
+    ]);
+    return false;
+  }
+
+  private async batchReport(runId: string) {
+    const batches = await this.db.organicSourceBatch.findMany({ where: { runId },
+      select: { status: true, inserted: true, duplicates: true, reviewed: true } });
+    return batches.reduce((report, batch) => ({
+      sources: report.sources + 1, records: report.records + batch.inserted, duplicates: report.duplicates + batch.duplicates,
+      reviewed: report.reviewed + batch.reviewed, failed: report.failed + Number(batch.status === 'FAILED'), skipped: report.skipped + Number(batch.status === 'SKIPPED'),
+    }), { sources: 0, records: 0, duplicates: 0, reviewed: 0, failed: 0, skipped: 0 });
+  }
+
+  private async waitForPhase(key: string, phase: string, run: OrganicRun | null, pending: string) {
+    const previous = await this.db.job.findUnique({ where: { key: key + ':' + phase }, select: { status: true } });
+    if (previous?.status !== 'FAILED') throw new JobDeferred(pending, new Date(Date.now() + 60_000));
+    if (!run) throw new Error('Discovery phase failed before opening its run');
+    await this.db.$transaction([
+      this.db.organicSourceBatch.updateMany({ where: { runId: run.id, status: { in: ['COLLECTED', 'ENRICHED'] } }, data: { rows: Prisma.DbNull, status: 'SKIPPED' } }),
+      this.db.organicRun.update({ where: { id: run.id }, data: { status: 'PARTIAL', finishedAt: new Date() } }),
+    ]);
+  }
+
+  private async localityNames() {
+    return (await this.db.locality.findMany({ where: { isActive: true }, select: { name: true } })).map(({ name }) => name);
+  }
+
+  private inWindow(entry: OrganicRecordInput, now: Date, from?: Date, to?: Date) {
+    if (!entry.publishedAt) return true;
+    const published = new Date(entry.publishedAt);
+    const updated = entry.updatedAt ? new Date(entry.updatedAt) : published;
+    return published <= now && (!from || updated >= from) && (!to || published < to);
+  }
+
+  private recordSourceFailure(sourceId: string) {
+    return this.db.organicSource.update({ where: { id: sourceId }, data: { lastFailureAt: new Date(), lastError: 'Source could not be fetched or validated' } });
   }
 
   runNow(kind: Kind, sourceId?: string) {
@@ -102,7 +273,7 @@ export class OrganicService {
     } });
     const [sources, localities] = await Promise.all([
       this.db.organicSource.findMany({ where: { enabled: true, supports: { has: kind }, id: sourceId }, orderBy: [{ priority: 'desc' }, { id: 'asc' }] }),
-      this.db.locality.findMany({ where: { isActive: true }, select: { name: true } }),
+      this.localityNames(),
     ]);
     const report = { sources: sources.length, records: 0, duplicates: 0, failed: 0, skipped: 0, reviewed: 0 };
     const attemptField = kind === 'SUPPLY' ? 'supplyAttemptAt' : 'demandAttemptAt';
@@ -123,18 +294,12 @@ export class OrganicService {
         let attempts = 0;
         const entries = content.text ? decodeOrganicSource(content.text, source.format, source.itemsPath, source.supports, source.url) : [];
         for (const entry of entries) {
-          if (entry.kind !== kind) continue;
-          if (entry.publishedAt && new Date(entry.publishedAt) > now) continue;
-          if (scheduled && entry.publishedAt) {
-            const published = new Date(entry.publishedAt);
-            const updated = entry.updatedAt ? new Date(entry.updatedAt) : published;
-            if (published >= windowTo || updated < yesterday) continue;
-          }
-          let normalized = normalizeOrganicRecord(entry, localities.map(({ name }) => name), source.contactRedistribution);
+          if (entry.kind !== kind || !this.inWindow(entry, now, scheduled ? yesterday : undefined, scheduled ? windowTo : undefined)) continue;
+          let normalized = normalizeOrganicRecord(entry, localities, source.contactRedistribution);
           if (!normalized) continue;
           if (normalized.priority === 'REVIEW' && entry.description && attempts++ < 5) {
             const extracted = await this.extractFields(normalized.data);
-            normalized = normalizeOrganicRecord(extracted, localities.map(({ name }) => name), source.contactRedistribution) ?? normalized;
+            normalized = normalizeOrganicRecord(extracted, localities, source.contactRedistribution) ?? normalized;
           }
           const newRow = await this.saveRecord(source, normalized);
           if (newRow) inserted++; else duplicate++;
@@ -147,7 +312,7 @@ export class OrganicService {
           lastReport: { found: entries.length, inserted, duplicate, reviewed } } });
       } catch {
         report.failed++;
-        await this.db.organicSource.update({ where: { id: source.id }, data: { lastFailureAt: new Date(), lastError: 'Source could not be fetched or validated' } });
+        await this.recordSourceFailure(source.id);
       }
     }
     await this.db.organicRun.update({ where: { id: run.id }, data: { status: !sources.length ? 'NO_SOURCE' : report.failed ? 'PARTIAL' : 'COMPLETE',
@@ -166,7 +331,7 @@ export class OrganicService {
     } catch { return record; }
   }
 
-  private async saveRecord(source: OrganicSource, normalized: NonNullable<ReturnType<typeof normalizeOrganicRecord>>) {
+  private async saveRecord(source: OrganicSource, normalized: NonNullable<ReturnType<typeof normalizeOrganicRecord>>, batch?: { runId: string; sourceId: string }) {
     const { data, key, confidence, priority } = normalized;
     const identity = { sourceId: source.id, kind: data.kind, externalId: data.externalId ?? digest(data.url) };
     return this.db.$transaction(async (tx) => {
@@ -191,13 +356,18 @@ export class OrganicService {
         : await tx.organicRecord.create({ data: { ...fields, kind: data.kind, key, ...(approved ? { status: 'APPROVED', eligibleAt: new Date() } : {}) } });
       await tx.organicSourceReference.upsert({ where: { sourceId_kind_externalId: identity },
         create: { ...identity, recordId: record.id, url: data.url }, update: { url: data.url, lastSeenAt: new Date() } });
+      if (batch) await tx.organicSourceBatch.update({ where: { runId_sourceId: batch }, data: {
+        processed: { increment: 1 }, inserted: { increment: Number(!prior) }, duplicates: { increment: Number(Boolean(prior)) },
+        reviewed: { increment: Number(priority === 'REVIEW') },
+      } });
       return !prior;
     });
   }
 
   private async notifyReady(kind: Kind, key: string) {
     const run = await this.db.organicRun.findUnique({ where: { key: 'organic-discovery:' + kind + ':' + key } });
-    if (!run || ['PENDING', 'RUNNING'].includes(run.status)) throw new Error('Organic discovery is still running');
+    if (run?.status === 'CANCELLED') return;
+    if (!run || !terminal.includes(run.status)) throw new Error('Organic discovery is still running');
     const users = await this.db.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }, select: { id: true } });
     const title = kind === 'SUPPLY' ? 'Organic Property Supply' : 'Organic Buyer & Tenant Leads';
     await this.notifications.notify(users.map(({ id }) => id), { kind: 'ORGANIC_READY', title,
@@ -235,7 +405,7 @@ export class OrganicService {
       this.db.organicRun.findMany({ where: { kind: query.kind }, orderBy: { createdAt: 'desc' }, take: 15 }),
       this.settingsFor(query.kind),
     ]);
-    return { rows, total, metrics, runs, settings };
+    return { rows, total, metrics, runs, settings, nextDiscoveryAt: settings.enabled ? nextOrganicTime(settings.time) : null };
   }
 
   async selectedIds(ids?: string[], query?: OrganicQuery) {

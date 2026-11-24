@@ -2777,8 +2777,25 @@ model OrganicRun {
   report        Json?
   createdAt     DateTime @default(now())
   finishedAt    DateTime?
+  sourceBatches OrganicSourceBatch[]
   @@index([kind, createdAt])
   @@index([scheduleId, createdAt])
+}
+
+model OrganicSourceBatch {
+  runId       String
+  sourceId    String
+  sourceState String
+  status      String
+  rows        Json?
+  processed   Int @default(0)
+  inserted    Int @default(0)
+  duplicates  Int @default(0)
+  reviewed    Int @default(0)
+
+  run         OrganicRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@id([runId, sourceId])
 }
 
 model ConnectDevice {
