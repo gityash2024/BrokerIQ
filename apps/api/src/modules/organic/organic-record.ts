@@ -30,8 +30,8 @@ export function normalizeOrganicRecord(input: OrganicRecordInput, localities: st
   const requirement = contact && (data.sectors.length || data.locality) && data.purpose
     ? [contact, data.purpose, data.propertyType, [...data.sectors].sort().join(','), data.locality, data.bhk, data.minBudget, data.maxBudget].join('|') : null;
   const identity = (input.kind === 'SUPPLY' ? address : requirement) || input.url;
-  const key = createHash('sha256').update(normalized(identity)).digest('hex');
-  const supported = input.kind === 'SUPPLY' ? ['OWNER_CONFIRMED', 'OWNER_LIKELY'].includes(ownership ?? '') : directIntent.includes(intent ?? '');
+  const key = createHash('sha256').update((data.registryReference ? 'registry:' : '') + normalized(identity)).digest('hex');
+  const supported = !data.registryReference && (input.kind === 'SUPPLY' ? ['OWNER_CONFIRMED', 'OWNER_LIKELY'].includes(ownership ?? '') : directIntent.includes(intent ?? ''));
   const confidence = Math.min(100, 30 + (supported ? 25 : 0) + (sectors.length || local.length ? 15 : 0) + (purpose ? 15 : 0) +
     (data.propertyType ? 5 : 0) + (data.price || data.minBudget || data.maxBudget ? 5 : 0) + (data.publishedAt ? 5 : 0));
   const score = confidence + (data.urgency === 'IMMEDIATE' ? 10 : 0) + (contact ? 5 : 0);

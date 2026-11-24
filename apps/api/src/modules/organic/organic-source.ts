@@ -93,7 +93,33 @@ function htmlRows(input: string) {
   });
 }
 
+function registryProjects(input: string, baseUrl: string): OrganicRecordInput[] {
+  const data = JSON.parse(input);
+  if (!Array.isArray(data?.projects)) throw new Error('RERA project feed did not return a list');
+  return data.projects.slice(0, 500).flatMap((row: Record<string, unknown> | null): OrganicRecordInput[] => {
+    if (!row || row.state_code !== 'HR' || !/^(gurgaon|gurugram)$/i.test(string(row.district, 100))) return [];
+    const title = string(row.name, 300);
+    const reference = string(row.reg_no, 150);
+    const href = string(row.url, 900);
+    if (!title || !reference || !href) return [];
+    let link: URL;
+    try { link = new URL(href, baseUrl); } catch { return []; }
+    if (link.origin !== 'https://reale.in' || !link.pathname.startsWith('/haryana/p/')) return [];
+    const category = row.project_type === 'residential' ? 'RESIDENTIAL' : row.project_type === 'commercial' ? 'COMMERCIAL'
+      : row.project_type === 'plotted' ? 'LAND' : undefined;
+    const registered = string(row.registration_date, 10);
+    const project = organicRecordInput.safeParse({
+      kind: 'SUPPLY', title, url: link.href, externalId: reference, city: 'Gurugram', locality: string(row.locality, 300) || undefined,
+      address: string(row.address, 300) || undefined, category, ownership: 'DEVELOPER', availability: 'UNKNOWN',
+      registryReference: true, registryRegistration: reference, registryRegisteredAt: /^\d{4}-\d{2}-\d{2}$/.test(registered) ? registered : undefined,
+      description: 'Project registration reference. Data: reale.in (CC BY 4.0).',
+    });
+    return project.success ? [project.data] : [];
+  });
+}
+
 export function decodeOrganicSource(input: string, format: string, itemsPath: string, supports: string[], baseUrl: string) {
+  if (format === 'RERA_PROJECTS') return registryProjects(input, baseUrl);
   let decoded: unknown;
   if (format === 'RSS') decoded = feedRows(input);
   else if (format === 'HTML') decoded = htmlRows(input);

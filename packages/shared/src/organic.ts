@@ -46,13 +46,16 @@ export const organicRecordInput = z.object({
   displayName: text.optional(),
   phone: z.string().trim().min(1).max(30).optional(),
   contactUrl: url.optional(),
+  registryRegistration: text.optional(),
+  registryRegisteredAt: z.iso.date().optional(),
+  registryReference: z.boolean().optional(),
 });
 export type OrganicRecordInput = z.infer<typeof organicRecordInput>;
 export const organicSourceInput = z.object({
   name: text.max(100),
   url,
   permissionUrl: url,
-  format: z.enum(['JSON', 'RSS', 'HTML']),
+  format: z.enum(['JSON', 'RSS', 'HTML', 'RERA_PROJECTS']),
   supports: z.array(organicKind).min(1).max(2),
   enabled: z.boolean().default(false),
   contactRedistribution: z.boolean().default(false),
@@ -61,6 +64,18 @@ export const organicSourceInput = z.object({
   priority: z.number().int().min(0).max(100).default(50),
 });
 export type OrganicSourceInput = z.infer<typeof organicSourceInput>;
+export const realeGurugramSource: OrganicSourceInput = {
+  name: 'reale.in · Gurugram RERA projects (CC BY 4.0)',
+  url: 'https://reale.in/api/v1/projects?state=HR&district=gurugram&sort=newest&page=1',
+  permissionUrl: 'https://reale.in/data',
+  format: 'RERA_PROJECTS',
+  supports: ['SUPPLY'],
+  enabled: false,
+  contactRedistribution: false,
+  itemsPath: 'projects',
+  minIntervalMinutes: 1440,
+  priority: 25,
+};
 export const organicDeliveryInput = z.object({
   organizationId: z.string().min(1).max(80),
   brokerAdminId: z.string().min(1).max(80),

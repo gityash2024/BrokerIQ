@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { inventoryDate, readableValue, type OrganicDeliveryInput, type OrganicRecordInput, type OrganicSourceInput, type OrganicTarget } from '@brokeriq/shared';
+import { inventoryDate, readableValue, realeGurugramSource, type OrganicDeliveryInput, type OrganicRecordInput, type OrganicSourceInput, type OrganicTarget } from '@brokeriq/shared';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -160,11 +160,12 @@ function RecordsPage({ kind }: { kind: Kind }) {
     <RunHistory runs={data.data?.runs ?? []} />
     {detail && <Dialog open onOpenChange={(open) => { if (!open) setDetail(null); }} title={item.data?.title ?? 'Record details'} size="lg"
       footer={item.data && <>{['APPROVED', 'NEEDS_REVIEW', 'REJECTED', 'ARCHIVED'].map((status) => (
-        <Button size="sm" key={status} disabled={busy || item.data?.status === status} variant="secondary"
+        <Button size="sm" key={status} disabled={busy || item.data?.status === status || (status === 'APPROVED' && item.data?.values.registryReference)} variant="secondary"
           onClick={() => void mutate('/records/' + detail, 'PATCH', { status })}>{({ APPROVED: 'Approve', NEEDS_REVIEW: 'Review', REJECTED: 'Reject', ARCHIVED: 'Archive' })[status]}</Button>
       ))}</>}>
       {item.error && <ApiErrorState error={item.error} onRetry={() => item.refetch()} />}
       {item.data && <>
+        {item.data.values.registryReference && <p className="mb-3 text-sm text-muted">RERA project reference · availability and listing must be verified separately.</p>}
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
           {Object.entries(item.data.values).filter(([, value]) => value != null && value !== '').map(([key, value]) => (
             <div key={key}><dt className="font-semibold text-muted">{key.replace(/([A-Z])/g, ' $1')}</dt>
@@ -251,12 +252,14 @@ function SourcesPage() {
     finally { setBusy(false); }
   }
   return <div className="space-y-4">
-    <PageHeader title="Discovery sources" />
+    <PageHeader title="Discovery sources" actions={!data.data?.some((source) => source.url === realeGurugramSource.url) && (
+      <Button variant="secondary" onClick={() => { setId(''); setForm(realeGurugramSource); }}>Use Gurugram RERA project feed</Button>
+    )} />
     <form className="card grid gap-3 p-4 md:grid-cols-2" onSubmit={(e) => { e.preventDefault(); void act('/sources' + (id ? '/' + id : ''), id ? 'PATCH' : 'POST', form, true); }}>
       {([['name', 'Source name'], ['url', 'HTTPS feed or page'], ['permissionUrl', 'Collection and redistribution permission URL'], ['itemsPath', 'JSON item path']] as const).map(([key, label]) => (
         <label className="text-sm" key={key}>{label}<input className={input} required={key !== 'itemsPath'} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>
       ))}
-      <label className="text-sm">Source format<select className={input} value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as OrganicSourceInput['format'] })}><option>JSON</option><option>RSS</option><option>HTML</option></select></label>
+      <label className="text-sm">Source format<select className={input} value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as OrganicSourceInput['format'] })}><option>JSON</option><option>RSS</option><option>HTML</option><option value="RERA_PROJECTS">Gurugram RERA projects</option></select></label>
       {([['minIntervalMinutes', 'Minimum interval (minutes)'], ['priority', 'Priority']] as const).map(([key, label]) => <label className="text-sm" key={key}>{label}
         <input className={input} type="number" value={form[key]} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} /></label>)}
       <div className="flex flex-wrap gap-3">

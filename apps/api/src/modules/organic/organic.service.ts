@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { Prisma, type OrganicRun, type OrganicSource } from '@prisma/client';
-import { brokerRequirementSchema, canonicalInventorySector, inventoryInputSchema, ledgerMatch, organicRecordInput,
+import { brokerRequirementSchema, canonicalInventorySector, inventoryInputSchema, ledgerMatch, organicRecordInput, realeGurugramSource,
   type OrganicQuery, type OrganicRecordInput, type OrganicSourceInput } from '@brokeriq/shared';
 import { createHash } from 'node:crypto';
 import { env } from '../../config/env';
@@ -54,6 +54,10 @@ export class OrganicService {
 
   async saveSource(input: OrganicSourceInput, actor: string, id?: string) {
     try { sourceEndpoint(input.url); } catch { throw new BadRequestException('Use a public HTTPS source endpoint'); }
+    if (input.format === 'RERA_PROJECTS' && (input.url !== realeGurugramSource.url || input.permissionUrl !== realeGurugramSource.permissionUrl ||
+      input.contactRedistribution || input.supports.length !== 1 || input.supports[0] !== 'SUPPLY' || input.minIntervalMinutes < realeGurugramSource.minIntervalMinutes)) {
+      throw new BadRequestException('Use the licensed Gurugram registry profile without contact redistribution');
+    }
     try {
       return await this.db.$transaction(async (tx) => {
         const prior = id ? await tx.organicSource.findUnique({ where: { id } }) : null;
@@ -169,7 +173,7 @@ export class OrganicService {
       for (const row of rows) {
         const normalized = normalizeOrganicRecord(row, localities, source.contactRedistribution);
         if (!normalized) continue;
-        const enrich = normalized.priority === 'REVIEW' && row.description && attempts++ < 5;
+        const enrich = normalized.priority === 'REVIEW' && !row.registryReference && row.description && attempts++ < 5;
         enriched.push(enrich ? await this.extractFields(normalized.data) : normalized.data);
       }
       await this.db.organicSourceBatch.update({ where, data: { status: 'ENRICHED', rows: enriched as Prisma.InputJsonValue } });
@@ -297,7 +301,7 @@ export class OrganicService {
           if (entry.kind !== kind || !this.inWindow(entry, now, scheduled ? yesterday : undefined, scheduled ? windowTo : undefined)) continue;
           let normalized = normalizeOrganicRecord(entry, localities, source.contactRedistribution);
           if (!normalized) continue;
-          if (normalized.priority === 'REVIEW' && entry.description && attempts++ < 5) {
+          if (normalized.priority === 'REVIEW' && !entry.registryReference && entry.description && attempts++ < 5) {
             const extracted = await this.extractFields(normalized.data);
             normalized = normalizeOrganicRecord(extracted, localities, source.contactRedistribution) ?? normalized;
           }
@@ -420,6 +424,7 @@ export class OrganicService {
     const record = await this.db.organicRecord.findUnique({ where: { id }, include: { sourceRefs: { include: { source: { select: { name: true } } } },
       transfers: { orderBy: { createdAt: 'desc' } } } });
     if (!record) throw new NotFoundException('Organic record not found');
+    if (organicRecordInput.safeParse(record.values).data?.registryReference) return { ...record, matches: [] };
     const kind = record.kind === 'SUPPLY' ? 'DEMAND' : 'SUPPLY';
     const peers = await this.db.organicRecord.findMany({ where: { kind, status: 'APPROVED',
       purpose: record.purpose, ...(record.sectors.length ? { sectors: { hasSome: record.sectors } } : {}) }, take: 100, orderBy: { confidence: 'desc' } });
@@ -445,6 +450,8 @@ export class OrganicService {
     return this.db.$transaction(async (tx) => {
       const row = await tx.organicRecord.findUnique({ where: { id } });
       if (!row) throw new NotFoundException('Organic record not found');
+      if (status === 'APPROVED' && organicRecordInput.safeParse(row.values).data?.registryReference)
+        throw new BadRequestException('A project registration needs a separate verified property listing before distribution');
       const next = await tx.organicRecord.update({ where: { id }, data: { status,
         eligibleAt: status === 'APPROVED' ? row.eligibleAt ?? new Date() : null } });
       await tx.auditLog.create({ data: { actorId, actorRole: 'SUPER_ADMIN', action: 'organic.review', entity: 'OrganicRecord', entityId: id,
