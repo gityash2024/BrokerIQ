@@ -202,6 +202,7 @@ enum LeadSource {
   WALK_IN
   REFERRAL
   CALL
+  ORGANIC_DEMAND
   MANUAL
 }
 
@@ -2656,6 +2657,127 @@ model InventoryFolderDefinition {
   createdAt      DateTime @default(now())
   items          InventoryItem[]
   @@unique([organizationId, kind, key])
+}
+
+model OrganicSource {
+  id                      String   @id @default(cuid())
+  name                    String
+  url                     String   @unique
+  permissionUrl           String
+  format                  String
+  supports                String[]
+  enabled                 Boolean  @default(false)
+  contactRedistribution   Boolean  @default(false)
+  itemsPath               String   @default("")
+  minIntervalMinutes      Int      @default(60)
+  priority                Int      @default(50)
+  lastAttemptAt           DateTime?
+  lastSuccessAt           DateTime?
+  lastFailureAt           DateTime?
+  lastError               String?
+  lastReport              Json?
+  etag                    String?
+  supplyEtag              String?
+  supplyAttemptAt         DateTime?
+  demandEtag              String?
+  demandAttemptAt         DateTime?
+  updatedAt               DateTime @updatedAt
+  refs                    OrganicSourceReference[]
+}
+
+model OrganicRecord {
+  id            String   @id @default(cuid())
+  kind          String
+  key           String
+  title         String
+  status        String   @default("NEEDS_REVIEW")
+  purpose       String?
+  propertyType  String?
+  category      String?
+  sectors       String[]
+  locality      String?
+  society       String?
+  bhk           Int?
+  price         Float?
+  areaSqft      Float?
+  furnishing    String?
+  ownership     String?
+  intent        String?
+  urgency       String?
+  availability  String
+  priority      String
+  confidence    Int
+  values        Json
+  publishedAt   DateTime?
+  discoveredAt  DateTime @default(now())
+  sourceUpdatedAt DateTime?
+  eligibleAt    DateTime?
+  updatedAt     DateTime @updatedAt
+  sourceRefs    OrganicSourceReference[]
+  transfers     OrganicTransfer[]
+  @@unique([kind, key])
+  @@index([kind, publishedAt])
+  @@index([kind, status, eligibleAt])
+  @@index([sectors], type: Gin)
+}
+
+model OrganicSourceReference {
+  id            String @id @default(cuid())
+  sourceId      String
+  kind          String
+  externalId    String
+  url           String
+  recordId      String
+  lastSeenAt    DateTime @default(now())
+  source        OrganicSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  record        OrganicRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  @@unique([sourceId, kind, externalId])
+  @@index([recordId])
+}
+
+model OrganicTransfer {
+  id             String @id @default(cuid())
+  recordId       String
+  organizationId String
+  brokerAdminId  String
+  status         String
+  targetId       String?
+  targetType     String?
+  runId          String?
+  createdAt      DateTime @default(now())
+  record         OrganicRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  @@unique([recordId, organizationId])
+  @@index([organizationId, createdAt])
+  @@index([runId])
+}
+
+model OrganicDeliverySchedule {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  brokerAdminId  String
+  time           String
+  sectors        String[]
+  leadType       String
+  enabled        Boolean
+  cursorFrom     DateTime
+  nextRunAt      DateTime?
+  updatedAt      DateTime @updatedAt
+  @@index([enabled, nextRunAt])
+}
+
+model OrganicRun {
+  id            String @id @default(cuid())
+  kind          String
+  key           String @unique
+  scheduleId    String?
+  windowFrom    DateTime?
+  windowTo      DateTime?
+  status        String @default("PENDING")
+  report        Json?
+  createdAt     DateTime @default(now())
+  finishedAt    DateTime?
+  @@index([kind, createdAt])
+  @@index([scheduleId, createdAt])
 }
 
 

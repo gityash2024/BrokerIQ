@@ -59,6 +59,15 @@ function Inner({ children }: { children: React.ReactNode }) {
       ],
     },
     {
+      title: 'Organic automation',
+      items: [
+        { href: '/admin/organic/supply', label: 'Organic Property Supply', icon: Building2 },
+        { href: '/admin/organic/demand', label: 'Organic Buyer & Tenant Leads', icon: Users },
+        { href: '/admin/organic/sources', label: 'Discovery sources', icon: SlidersHorizontal },
+        { href: '/admin/organic/delivery', label: 'Daily Lead Delivery', icon: Clock },
+      ],
+    },
+    {
       title: 'Business records',
       items: recordSections.map(({ label, resources }) => ({
         href: '/admin/business?resource=' + resources[0],

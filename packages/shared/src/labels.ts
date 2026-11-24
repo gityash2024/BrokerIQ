@@ -125,6 +125,7 @@ export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
   WALK_IN: 'Walk-in',
   REFERRAL: 'Referral',
   CALL: 'Phone call',
+  ORGANIC_DEMAND: 'Organic Demand',
   MANUAL: 'Manual',
 };
 
@@ -143,6 +144,7 @@ export const LEAD_SOURCE_COLORS: Record<LeadSource, string> = {
   WALK_IN: '#CA8A04',
   REFERRAL: '#0D9488',
   CALL: '#0891B2',
+  ORGANIC_DEMAND: '#0F766E',
   MANUAL: '#64748B',
 };
 

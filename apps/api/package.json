@@ -36,6 +36,7 @@
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/websockets": "^11.1.6",
     "@prisma/client": "6.19.3",
+    "@xmldom/xmldom": "0.9.12",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "compression": "^1.8.1",

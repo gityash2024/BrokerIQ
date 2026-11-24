@@ -37,6 +37,7 @@ export * from './map-directions';
 export * from './sector-map-catalogue';
 export * from './inventory-folders';
 export * from './pdf-inventory';
+export * from './organic';
 export * from './workspace-navigation';
 export * from './notification-links';
 export * from './private-media';

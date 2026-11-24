@@ -47,6 +47,7 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
 import { DirectoryModule } from './modules/directory/directory.module';
 import { ImportsModule } from './modules/imports/imports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { OrganicModule } from './modules/organic/organic.module';
 import { TimeLoggingModule } from './modules/time-logging/time-logging.module';
 import { isInternalCall } from './common/internal';
 
@@ -94,6 +95,7 @@ import { isInternalCall } from './common/internal';
     ReferralsModule,
     InventoryModule,
     ImportsModule,
+    OrganicModule,
     DirectoryModule,
     TimeLoggingModule,
   ],

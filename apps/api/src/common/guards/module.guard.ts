@@ -25,6 +25,7 @@ export class ModuleGuard implements CanActivate {
         .replace(/\/+$/, '')
         .toLowerCase();
       if (!user.orgId) throw new ForbiddenException('Firm membership required');
+      if (path === '/connect/profile' && req.method === 'GET') return true;
       const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
       if (isPublic || /^\/auth(?:\/|$)/.test(path) || /^\/me(?:$|\/(?:privacy|consent|push-tokens|notifications)(?:\/|$))/.test(path)) return true;
       // Personal KYC is bound to the signed-in identity. Team review still requires the firm's grants.
@@ -108,6 +109,7 @@ export class ModuleGuard implements CanActivate {
         this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]) ||
         /^\/auth(?:\/|$)/.test(path) ||
         /^\/owner\/properties(?:\/|$)/.test(path) ||
+        path === '/connect/profile' ||
         /^\/media\/property-video(?:\/|$)/.test(path) ||
         (path === '/me/uploads/sign' && req.method === 'POST' && req.body?.kind === 'listing')
       )

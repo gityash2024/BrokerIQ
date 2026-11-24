@@ -185,6 +185,7 @@ export const LeadSource = {
   WALK_IN: 'WALK_IN',
   REFERRAL: 'REFERRAL',
   CALL: 'CALL',
+  ORGANIC_DEMAND: 'ORGANIC_DEMAND',
   MANUAL: 'MANUAL',
 } as const;
 export type LeadSource = (typeof LeadSource)[keyof typeof LeadSource];
