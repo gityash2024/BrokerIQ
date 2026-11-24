@@ -572,6 +572,18 @@ model RefreshToken {
   @@index([userId])
 }
 
+model ConnectLinkRequest {
+  id                String    @id @default(uuid()) @db.Uuid
+  verifierHash      String
+  codeHash          String
+  expiresAt         DateTime
+  approvedSessionId String?
+  approvedAt        DateTime?
+  consumedAt        DateTime?
+
+  @@index([expiresAt])
+}
+
 model LoginVerification {
   id             String    @id @default(cuid())
   userId         String

@@ -3,8 +3,8 @@ import { Alert, Linking } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectSurveyValue, hasDelegatedAccess,
-  type ConnectActionDraft, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
+import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectCall, formatConnectSurveyValue, hasDelegatedAccess,
+  type ConnectActionDraft, type ConnectCallMetadata, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
 import { toast } from '@/lib/toast';
 import { Button, Chip, Input, Row, Sheet, Txt } from '@/ui';
 import { NativeCard } from './screen';
@@ -20,6 +20,7 @@ type Event = { id: string; kind: string; status: string; capturedAt: string; rec
 const surveyLabels: Record<string, string> = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
 type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; recommendedAction?: ConnectActionDraft };
   survey?: ConnectSurveySuggestion[];
+  call?: ConnectCallMetadata;
   transcript?: { segments: { start: number; text: string }[] } } | null };
 
 export function NativeConnectProfile() {
@@ -145,7 +146,7 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
     <Txt v="bodyStrong">{leadId ? 'BrokerIQ Connect' : 'Recent Connect activity'}</Txt>
     {events.error && <Txt color="danger">{errorMessage(events.error)}</Txt>}
     {events.data?.items.length === 0 && <Txt color="muted">No captured activity yet.</Txt>}
-    {events.data?.items.map((event) => <Button key={event.id} title={event.kind + ' · ' + event.status} variant="secondary" size="sm"
+    {events.data?.items.map((event) => <Button key={event.id} title={(event.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : event.kind) + ' · ' + event.status} variant="secondary" size="sm"
       onPress={() => setId(event.id)} />)}
     <Sheet open={!!id} title="Connect activity" onClose={() => { if (!busy) setId(null); }} full footer={id && detail.data && <Row wrap gap={8}>
       {canReview && detail.data.status === 'REVIEW' && <>
@@ -163,7 +164,8 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
     </Row>}>
       {detail.error && <Txt color="danger">{errorMessage(detail.error)}</Txt>}
       {detail.data && <>
-        <Txt>{detail.data.kind} · {detail.data.status}</Txt>
+        <Txt>{detail.data.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : detail.data.kind} · {detail.data.status}</Txt>
+        {detail.data.details?.call && <Txt>{formatConnectCall(detail.data.details.call)}</Txt>}
         {detail.data.lastError && <Txt>{detail.data.lastError}</Txt>}
         {id && detail.data.recording && <Suspense fallback={<Txt>Loading private player…</Txt>}>
           <ConnectRecordingPlayer key={id} eventId={id} />

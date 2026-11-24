@@ -130,6 +130,39 @@ export class AuthController {
     return this.auth.replaceSession(body.challenge, body.sessionId, meta(req));
   }
 
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('connect-link/start')
+  startConnectLink(
+    @Body(new ZodPipe(z.object({ verifierHash: z.string().regex(/^[a-f0-9]{64}$/) }).strict())) body: { verifierHash: string },
+  ) {
+    return this.auth.startConnectLink(body.verifierHash);
+  }
+
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('connect-link/approve')
+  approveConnectLink(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ id: z.uuid(), code: z.string().regex(/^\d{6}$/) }).strict())) body: { id: string; code: string },
+    @Req() req: { sessionId: string },
+  ) {
+    return this.auth.approveConnectLink(user, req.sessionId, body.id, body.code);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('connect-link/exchange')
+  exchangeConnectLink(
+    @Body(new ZodPipe(z.object({ id: z.uuid(), verifier: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }).strict()))
+    body: { id: string; verifier: string },
+    @Req() req: any,
+  ) {
+    return this.auth.exchangeConnectLink(body.id, body.verifier, meta(req));
+  }
+
   @Get('sessions')
   sessions(@CurrentUser() user: RequestUser) {
     return this.auth.listSessions(user.id);

@@ -169,22 +169,91 @@ export class AuthService implements OnApplicationBootstrap {
         });
         return response;
       }
-      const active = await tx.refreshToken.findMany({
-        where: { userId: user.id, sessionVersion: current.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, ip: true, userAgent: true, createdAt: true, lastUsedAt: true, expiresAt: true },
+      return this.createSessionWithLimit(tx, current, meta, emailOtpVerified);
+    });
+  }
+
+  private async createSessionWithLimit(tx: Prisma.TransactionClient, user: UserWithOrg, meta: ClientMeta, emailOtpVerified: boolean, allowReplacement = true) {
+    const active = await tx.refreshToken.findMany({
+      where: { userId: user.id, sessionVersion: user.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, ip: true, userAgent: true, createdAt: true, lastUsedAt: true, expiresAt: true },
+    });
+    if (active.length >= 5) {
+      if (!allowReplacement)
+        throw new ConflictException('Sign out an unused device from BrokerIQ, then return to Connect.');
+      const challenge = this.jwt.sign(
+        { sub: user.id, purpose: 'replace-device-session', sessionVersion: user.sessionVersion, nonce: randomToken(24), emailOtpVerified },
+        { secret: env().JWT_REFRESH_SECRET, expiresIn: '5m' },
+      );
+      throw new AppException(HttpStatus.CONFLICT, ErrorCode.SESSION_LIMIT_REACHED, 'पाँच devices पर login है। जारी रखने के लिए एक device चुनें।', {
+        challenge,
+        sessions: active,
       });
-      if (active.length >= 5) {
-        const challenge = this.jwt.sign(
-          { sub: current.id, purpose: 'replace-device-session', sessionVersion: current.sessionVersion, nonce: randomToken(24), emailOtpVerified },
-          { secret: env().JWT_REFRESH_SECRET, expiresIn: '5m' },
-        );
-        throw new AppException(HttpStatus.CONFLICT, ErrorCode.SESSION_LIMIT_REACHED, 'पाँच devices पर login है। जारी रखने के लिए एक device चुनें।', {
-          challenge,
-          sessions: active,
-        });
-      }
-      return this.createSession(tx, current, meta);
+    }
+    return this.createSession(tx, user, meta);
+  }
+
+  private assertConnectLinkEnabled() {
+    if (!env().CONNECT_ENABLED) throw new IntegrationNotConfiguredException('brokeriq_connect', 'Enable BrokerIQ Connect before linking a device');
+  }
+
+  async startConnectLink(verifierHash: string) {
+    this.assertConnectLinkEnabled();
+    await this.prisma.connectLinkRequest.deleteMany({ where: { expiresAt: { lte: new Date() } } });
+    const code = randomOtp();
+    const request = await this.prisma.connectLinkRequest.create({
+      data: { verifierHash, codeHash: sha256(verifierHash + code), expiresAt: new Date(Date.now() + 3 * 60_000) },
+      select: { id: true, expiresAt: true },
+    });
+    return { ...request, code };
+  }
+
+  async approveConnectLink(user: { id: string; role: string; orgId: string | null }, sessionId: string, id: string, code: string) {
+    this.assertConnectLinkEnabled();
+    if (!user.orgId || !['BROKER_AGENT', 'BROKER_ADMIN'].includes(user.role))
+      throw new ForbiddenException('Connect requires a Broker Admin or Agent account.');
+    const request = await this.prisma.connectLinkRequest.findUnique({ where: { id } });
+    if (!request || request.codeHash !== sha256(request.verifierHash + code))
+      throw new UnauthorizedException('The Connect request or code is invalid.');
+    const now = new Date();
+    const saved = await this.prisma.connectLinkRequest.updateMany({
+      where: { id, expiresAt: { gt: now }, consumedAt: null, OR: [{ approvedSessionId: null }, { approvedSessionId: sessionId }] },
+      data: { approvedSessionId: sessionId, approvedAt: now },
+    });
+    if (saved.count !== 1) throw new UnauthorizedException('The Connect request has expired or was already approved.');
+    return { approved: true };
+  }
+
+  async exchangeConnectLink(id: string, verifier: string, meta: ClientMeta) {
+    this.assertConnectLinkEnabled();
+    const verifierHash = sha256(verifier);
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const request = await tx.connectLinkRequest.findFirst({ where: { id, verifierHash, expiresAt: { gt: now }, consumedAt: null } });
+      if (!request) throw new UnauthorizedException('The Connect request has expired or already been used.');
+      if (!request.approvedSessionId) return { pending: true as const };
+      const source = await tx.refreshToken.findUnique({ where: { id: request.approvedSessionId }, select: { userId: true } });
+      if (!source) throw new UnauthorizedException('The approving BrokerIQ session ended.');
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${source.userId + ':sessions'}))`;
+      const user = await tx.user.findUniqueOrThrow({ where: { id: source.userId }, include: { organization: true } });
+      this.assertEligible(user);
+      if (!user.organizationId || !['BROKER_AGENT', 'BROKER_ADMIN'].includes(user.role))
+        throw new ForbiddenException('Connect requires a Broker Admin or Agent account.');
+      const activeSource = await tx.refreshToken.findFirst({
+        where: { id: request.approvedSessionId, userId: user.id, sessionVersion: user.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } },
+        select: { id: true },
+      });
+      if (!activeSource) throw new UnauthorizedException('The approving BrokerIQ session ended.');
+      const updated = await tx.connectLinkRequest.updateMany({
+        where: { id, consumedAt: null, expiresAt: { gt: new Date() }, approvedSessionId: activeSource.id },
+        data: { consumedAt: new Date() },
+      });
+      if (updated.count !== 1) throw new UnauthorizedException('The Connect request has expired or already been used.');
+      const session = await this.createSessionWithLimit(tx, user, meta, true, false);
+      await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role, organizationId: user.organizationId, action: 'auth.connect_link',
+        entity: 'User', entityId: user.id, meta: { requestId: id } } });
+      return session;
     });
   }
 

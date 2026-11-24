@@ -28,3 +28,22 @@ export type ConnectSurveySuggestion = {
 
 export const formatConnectSurveyValue = (value: ConnectSurveySuggestion['proposed']) =>
   value === true ? 'Yes' : value === false ? 'No' : value == null ? 'Empty' : String(value);
+
+
+export type ConnectCallMetadata = {
+  direction: 'INBOUND' | 'OUTBOUND';
+  outcome: 'DETECTED' | 'COMPLETED' | 'MISSED' | 'REJECTED';
+  number?: string;
+  simLabel?: string;
+  durationSec?: number;
+};
+
+export function formatConnectCall(call: ConnectCallMetadata): string {
+  return [
+    call.direction === 'INBOUND' ? 'Incoming' : 'Outgoing',
+    call.outcome.toLowerCase(),
+    call.number || 'Unknown number',
+    call.simLabel,
+    call.durationSec === undefined ? undefined : call.durationSec + ' s',
+  ].filter(Boolean).join(' · ');
+}

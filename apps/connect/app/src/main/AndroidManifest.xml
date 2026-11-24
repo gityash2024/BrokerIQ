@@ -3,12 +3,25 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <application android:name=".ConnectApplication" android:label="BrokerIQ Connect"
-        android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.NoActionBar">
-        <activity android:name=".MainActivity" android:exported="true">
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <queries>
+        <intent><action android:name="android.provider.Telephony.SMS_DELIVER" /></intent>
+    </queries>
+    <application android:name=".ConnectApplication" android:label="BrokerIQ Connect" android:icon="@drawable/biq_brand" android:roundIcon="@drawable/biq_brand"
+        android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@style/Theme.BrokerIQ.Connect">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="brokeriq-connect" android:host="resume" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -16,6 +29,22 @@
                 <data android:mimeType="audio/*" />
             </intent-filter>
         </activity>
+        <activity android:name=".ConnectPhoneActivity" android:exported="true" android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tel" />
+            </intent-filter>
+        </activity>
+        <receiver android:name=".ConnectInCallService$ConnectCallAction" android:exported="false" />
+        <service android:name=".ConnectInCallService" android:exported="true" android:permission="android.permission.BIND_INCALL_SERVICE">
+            <meta-data android:name="android.telecom.IN_CALL_SERVICE_UI" android:value="true" />
+            <intent-filter><action android:name="android.telecom.InCallService" /></intent-filter>
+        </service>
         <service android:name=".BusinessNotifications" android:label="BrokerIQ Connect authorized notification capture"
             android:exported="true" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>

@@ -11,6 +11,7 @@ import { nativeConsumerPath as consumer, nativeGuestPath as guest, nativeModuleK
 const essential = [
   '/',
   '/login',
+  '/connect-approve',
   '/onboarding',
   '/data-consent',
   '/handle-share',

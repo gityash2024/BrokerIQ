@@ -20,7 +20,7 @@ import { transcribeConnectRecording } from './connect-transcription';
 import { customSurveySuggestions } from './connect-survey';
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
-const privateMessage = /\b(?:otp|password|passcode|one.time (?:code|password)|verification code|bank account|credited|debited)\b/i;
+const privateMessage = /\b(?:otp|password|passcode|one.time (?:code|password)|verification code|security code|authentication code|do not share|bank account|credited|debited)\b/i;
 const redact = (text: string) => text.replace(/(?:\+?91[\s.-]*)?[6-9](?:[\s.-]*\d){9}\b/g, '[contact]')
   .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[contact]');
 const firmPolicyKey = 'connect.automatic_updates';
@@ -161,7 +161,9 @@ export class ConnectService {
     await this.db.$transaction(async (tx) => {
       await tx.connectDevice.update({ where: { id: device.id }, data: { settings, consentAt: settings.consent ? device.consentAt ?? new Date() : null, lastSeenAt: new Date() } });
       await tx.auditLog.create({ data: { actorId: user.id, organizationId: device.organizationId, entity: 'ConnectDevice', entityId: device.id,
-        action: 'connect.consent', meta: { enabled: settings.consent, groupCount: settings.groups.length, calls: settings.calls, recordings: settings.recordings, whatsapp: settings.whatsapp } } });
+        action: 'connect.consent', meta: { enabled: settings.consent, groupCount: settings.groups.length, calls: settings.calls,
+          recordings: settings.recordings, whatsapp: settings.whatsapp, allWhatsapp: settings.allWhatsapp,
+          unmatchedCalls: settings.unmatchedCalls, smsNotifications: settings.smsNotifications } } });
     });
     return settings;
   }
@@ -207,12 +209,14 @@ export class ConnectService {
     });
     const events = await this.db.connectEvent.findMany({ where: { organizationId: device.organizationId, userId: user.id,
       callId: { in: calls.map(({ id }) => id) }, kind: 'CALL', status: { not: 'DELETED' } },
-      select: { callId: true, deviceId: true, status: true } });
+      select: { callId: true, deviceId: true, status: true, encryptedInput: true } });
     const byCall = new Map(events.map((event) => [event.callId, event]));
     return { items: calls.flatMap(({ fromNumber, toNumber, lead, ...call }) => {
       const event = byCall.get(call.id);
-      return event ? [{ ...call, leadName: lead?.name, number: fromNumber ?? toNumber,
-        sameDevice: event.deviceId === device.id, processingStatus: event.status }] : [];
+      if (!event) return [];
+      const simLabel = event.encryptedInput ? (JSON.parse(this.crypto.decrypt(event.encryptedInput)) as { simLabel?: string }).simLabel : undefined;
+      return [{ ...call, leadName: lead?.name, number: fromNumber ?? toNumber, simLabel,
+        sameDevice: event.deviceId === device.id, processingStatus: event.status }];
     }) };
   }
 
@@ -225,14 +229,21 @@ export class ConnectService {
       throw new ForbiddenException('Capture requires active permission and a new event');
     }
     const organizationId = device.organizationId;
-    const payload = input.kind === 'WHATSAPP' ? { ...input, text: input.text.trim(), senderPhone: normalizeIndianPhone(input.senderPhone) ?? undefined } : input;
-    const fingerprint = sha(input.kind === 'WHATSAPP'
-      ? ['whatsapp', input.group, at.valueOf(), input.text.trim()].join('|')
-      : ['call', user.id, input.leadId, input.direction, at.valueOf()].join('|'));
-    if (input.kind === 'WHATSAPP' && (!settings.whatsapp || !settings.groups.includes(input.group) || privateMessage.test(input.text))) {
-      throw new ForbiddenException('This notification is outside the approved capture settings');
+    const message = input.kind === 'WHATSAPP' || input.kind === 'SMS' ? input : null;
+    const payload = message ? { ...message, senderPhone: normalizeIndianPhone(message.senderPhone) ?? undefined } : input;
+    let fingerprint: string;
+    if (input.kind === 'CALL') {
+      if (!settings.calls) throw new ForbiddenException('Call capture is disabled');
+      fingerprint = sha(['call', user.id, input.leadId, input.direction, at.valueOf()].join('|'));
+    } else if (input.kind === 'UNMATCHED_CALL') {
+      if (!settings.calls || !settings.unmatchedCalls) throw new ForbiddenException('Unmatched call capture is disabled');
+      fingerprint = sha(['unmatched-call', user.id, input.number, input.direction, at.valueOf()].join('|'));
+    } else {
+      if (privateMessage.test(input.text) || !this.messageAllowed(settings, input.kind, input.group))
+        throw new ForbiddenException('This notification is outside the approved capture settings');
+      const scope = input.kind === 'SMS' || !settings.groups.includes(input.group) ? [user.id] : [];
+      fingerprint = sha([input.kind.toLowerCase(), ...scope, input.group, at.valueOf(), input.text].join('|'));
     }
-    if (input.kind === 'CALL' && !settings.calls) throw new ForbiddenException('Call capture is disabled');
     const event = await this.db.$transaction(async (tx) => {
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'connect:' + organizationId + ':' + fingerprint}))`);
       const prior = await tx.connectEvent.findUnique({ where: { organizationId_fingerprint: { organizationId, fingerprint } } });
@@ -257,8 +268,10 @@ export class ConnectService {
       await tx.connectDevice.update({ where: { id: device.id }, data: { lastSeenAt: now } });
       return tx.connectEvent.create({ data: { deviceId: device.id, userId: user.id, organizationId, fingerprint, kind: input.kind,
         capturedAt: at, leadId: input.kind === 'CALL' ? input.leadId : undefined, callId,
-        encryptedInput: input.kind === 'WHATSAPP' ? this.crypto.encrypt(JSON.stringify(payload)) : null,
-        status: input.kind === 'WHATSAPP' && settings.analysis ? 'PENDING' : 'SAVED',
+        encryptedInput: input.kind === 'CALL'
+          ? (input.simLabel ? this.crypto.encrypt(JSON.stringify({ simLabel: input.simLabel })) : null)
+          : this.crypto.encrypt(JSON.stringify(payload)),
+        status: message && settings.analysis ? 'PENDING' : 'SAVED',
       } });
     });
     if (event.status === 'PENDING') await this.queueEvent(event);
@@ -296,6 +309,12 @@ export class ConnectService {
     return { id: event.id, status: event.status };
   }
 
+  private messageAllowed(settings: ConnectSettings, kind: string, group?: string) {
+    if (kind === 'SMS') return settings.smsNotifications;
+    if (kind === 'WHATSAPP') return settings.whatsapp && (settings.allWhatsapp || Boolean(group && settings.groups.includes(group)));
+    return true;
+  }
+
   private queueEvent(event: { id: string; organizationId: string }, retry = false) {
     return this.jobs.enqueue('connect.process', { id: event.id, orgId: event.organizationId }, { key: 'connect:' + event.id, repeat: retry });
   }
@@ -326,7 +345,8 @@ export class ConnectService {
   async detail(user: RequestUser, id: string) {
     const row = await this.event(user, id);
     return { id: row.id, kind: row.kind, status: row.status, capturedAt: row.capturedAt, lastError: row.lastError, recording: !!row.recordingKey,
-      details: row.encryptedResult ? JSON.parse(this.crypto.decrypt(row.encryptedResult)) : null };
+      details: row.encryptedResult ? JSON.parse(this.crypto.decrypt(row.encryptedResult))
+        : row.kind === 'UNMATCHED_CALL' && row.encryptedInput ? { call: JSON.parse(this.crypto.decrypt(row.encryptedInput)) } : null };
   }
 
   async playback(user: RequestUser, id: string) {
@@ -489,7 +509,7 @@ export class ConnectService {
     if (!claimed.count) return;
     try {
       const input: { text?: string; group?: string; senderPhone?: string } = row.encryptedInput ? JSON.parse(this.crypto.decrypt(row.encryptedInput)) : {};
-      if (row.kind === 'WHATSAPP' && (!settings.whatsapp || !input.group || !settings.groups.includes(input.group))) {
+      if (!this.messageAllowed(settings, row.kind, input.group)) {
         await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
         return;
       }
@@ -525,7 +545,7 @@ export class ConnectService {
         const fresh = await tx.connectDevice.findUnique({ where: { id: row.deviceId } });
         const live = fresh && !fresh.revokedAt ? connectSettings.parse(fresh.settings) : connectSettings.parse({});
         const session = await tx.refreshToken.count({ where: { id: row.device.sessionId, userId: row.userId, revokedAt: null, expiresAt: { gt: new Date() } } });
-        if (!session || !live.consent || !live.analysis || (row.kind === 'WHATSAPP' && (!live.whatsapp || !input.group || !live.groups.includes(input.group)))) {
+        if (!session || !live.consent || !live.analysis || !this.messageAllowed(live, row.kind, input.group)) {
           await tx.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
           return;
         }
@@ -544,6 +564,8 @@ export class ConnectService {
           encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal })), status: 'REVIEW',
         } });
         if (!result.count || !proposal) return;
+        // Broader inbox capture creates review suggestions. Approved conversations retain existing automation.
+        if (row.kind === 'SMS' || (row.kind === 'WHATSAPP' && (!input.group || !live.groups.includes(input.group)))) return;
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${row.organizationId + ':' + firmPolicyKey}))`;
         const policy = await this.firmPolicy(tx, row.organizationId);
         const eligible = proposal.confidence >= 90 && Boolean(proposal.evidence && redact(text).includes(proposal.evidence));

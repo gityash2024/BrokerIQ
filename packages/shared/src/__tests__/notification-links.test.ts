@@ -6,6 +6,8 @@ import { defaultModulePolicies } from '../modules';
 test('bare native launch, canonical paths and host-style intents never produce unmatched routes', () => {
   for (const value of ['brokeriq:///', 'brokeriq://', 'brokeriq:/', '/', '']) assert.equal(normalizeNativeIntent(value), '/');
   assert.equal(normalizeNativeIntent('brokeriq://lead/abc'), '/lead/abc');
+  const connectRequest = 'connect-approve?request=4e37fed8-6d39-4a37-bdec-b4456609dc85';
+  assert.equal(normalizeNativeIntent('brokeriq://' + connectRequest), '/' + connectRequest);
   assert.equal(normalizeNativeIntent('brokeriq:///broker/leads/abc'), '/lead/abc');
   assert.equal(normalizeNativeIntent('brokeriq:///broker/leads/requirements'), '/requirements');
   assert.equal(normalizeNativeIntent('brokeriq://user/property/a-house'), '/property/a-house');

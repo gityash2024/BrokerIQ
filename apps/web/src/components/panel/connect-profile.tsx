@@ -5,8 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, apiBlob, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectSurveyValue, hasDelegatedAccess,
-  type ConnectActionDraft, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
+import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectCall, formatConnectSurveyValue, hasDelegatedAccess,
+  type ConnectActionDraft, type ConnectCallMetadata, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -20,6 +20,7 @@ type Event = { id: string; kind: string; status: string; capturedAt: string; rec
 const surveyLabels: Record<string, string> = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
 type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number; recommendedAction?: ConnectActionDraft };
   survey?: ConnectSurveySuggestion[];
+  call?: ConnectCallMetadata;
   transcript?: { language: string; segments: { start: number; end: number; text: string }[] } } | null };
 
 export function ConnectProfile() {
@@ -162,7 +163,7 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
     {data.error && <ApiErrorState error={data.error} onRetry={() => data.refetch()} />}
     {data.data?.items.length === 0 && <p className="text-sm text-muted">No captured activity yet.</p>}
     {data.data?.items.map((entry) => <button key={entry.id} className="block text-left text-sm text-brand-700 underline" onClick={() => { setAudio(null); setEvent(entry.id); }}>
-      {entry.kind} · {entry.status} · {new Date(entry.capturedAt).toLocaleString('en-IN')}
+      {entry.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : entry.kind} · {entry.status} · {new Date(entry.capturedAt).toLocaleString('en-IN')}
     </button>)}
     <Dialog open={!!eventId} onOpenChange={(open) => { if (!open) { setEvent(null); setAudio(null); } }} title="Connect activity" size="lg" footer={detail.data && <>
       {canReview && detail.data.status === 'REVIEW' && <>
@@ -174,7 +175,8 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
     </>}>
       {detail.error && <ApiErrorState error={detail.error} onRetry={() => detail.refetch()} />}
       {detail.data && <div className="space-y-3 text-sm">
-        <p>{detail.data.kind} · {detail.data.status}</p>
+        <p>{detail.data.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : detail.data.kind} · {detail.data.status}</p>
+        {detail.data.details?.call && <p>{formatConnectCall(detail.data.details.call)}</p>}
         {detail.data.lastError && <p>{detail.data.lastError}</p>}
         {detail.data.recording && (audio ? <audio controls src={audio} className="w-full" /> :
           <Button size="sm" variant="secondary" onClick={() => void getAudio(detail.data!.id)}>Load private recording</Button>)}

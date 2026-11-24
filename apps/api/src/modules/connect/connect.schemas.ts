@@ -6,8 +6,11 @@ const hash = z.string().regex(/^[0-9a-f]{64}$/);
 export const connectSettings = z.object({
   consent: z.boolean().default(false),
   calls: z.boolean().default(false),
+  unmatchedCalls: z.boolean().default(false),
   recordings: z.boolean().default(false),
   whatsapp: z.boolean().default(false),
+  allWhatsapp: z.boolean().default(false),
+  smsNotifications: z.boolean().default(false),
   analysis: z.boolean().default(false),
   createLeads: z.boolean().default(false),
   createInventory: z.boolean().default(false),
@@ -27,12 +30,18 @@ export const connectFirmPolicy = z.object({
 export type ConnectFirmPolicy = z.infer<typeof connectFirmPolicy>;
 export const connectRegistration = z.object({ installId: z.uuid(), label: z.string().trim().min(1).max(100), version: z.number().int().positive() });
 const event = { capturedAt: z.iso.datetime({ offset: true }) };
+const callFields = {
+  direction: z.enum(['INBOUND', 'OUTBOUND']),
+  simLabel: z.string().trim().min(1).max(80).optional(),
+  durationSec: z.number().int().min(0).max(86400).optional(),
+  outcome: z.enum(['DETECTED', 'COMPLETED', 'MISSED', 'REJECTED']).default('DETECTED'),
+};
 export const connectCapture = z.discriminatedUnion('kind', [
   z.object({ ...event, kind: z.literal('WHATSAPP'), packageName: z.enum(['com.whatsapp.w4b', 'com.whatsapp']),
     group: hash, text: z.string().trim().min(2).max(4000), senderPhone: z.string().max(24).optional() }),
-  z.object({ ...event, kind: z.literal('CALL'), direction: z.enum(['INBOUND', 'OUTBOUND']), leadId: id,
-    number: z.string().trim().min(8).max(25), durationSec: z.number().int().min(0).max(86400).optional(),
-    outcome: z.enum(['DETECTED', 'COMPLETED', 'MISSED', 'REJECTED']).default('DETECTED') }),
+  z.object({ ...event, kind: z.literal('SMS'), group: hash, text: z.string().trim().min(2).max(4000), senderPhone: z.string().max(24).optional() }),
+  z.object({ ...event, ...callFields, kind: z.literal('CALL'), leadId: id, number: z.string().trim().min(8).max(25) }),
+  z.object({ ...event, ...callFields, kind: z.literal('UNMATCHED_CALL'), number: z.string().regex(/^\+?[0-9]{1,25}$/).optional() }),
 ]);
 export const connectRecording = z.object({
   ...event,

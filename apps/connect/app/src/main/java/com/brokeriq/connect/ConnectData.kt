@@ -116,6 +116,7 @@ class ConnectApi(private val vault: Vault) {
     private val json = "application/json".toMediaType()
     private suspend fun request(method: String, path: String, body: JSONObject?, token: String?): JSONObject = withContext(Dispatchers.IO) {
         val call = Request.Builder().url(BuildConfig.BROKERIQ_API + path).apply {
+            header("User-Agent", "BrokerIQ Connect/" + BuildConfig.VERSION_NAME + " (Android " + android.os.Build.VERSION.RELEASE + ")")
             if (token != null) header("Authorization", "Bearer $token")
             method(method, if (method == "POST" || method == "PATCH") (body ?: JSONObject()).toString().toRequestBody(json) else null)
         }.build()

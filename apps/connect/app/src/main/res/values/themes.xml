@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.BrokerIQ.Connect" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#121B3B</item>
+        <item name="android:colorAccent">#5646E5</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#121B3B</item>
+    </style>
+</resources>

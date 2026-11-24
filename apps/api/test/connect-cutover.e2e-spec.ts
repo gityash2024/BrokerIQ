@@ -60,6 +60,29 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     const stored = (await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201)).body;
     await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201).expect(({ body }) => expect(body.id).toBe(stored.id));
     await http().get('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
+    const unmatched = { kind: 'UNMATCHED_CALL', capturedAt: recent.capturedAt, direction: 'OUTBOUND',
+      number: '+911244567890', durationSec: 32, outcome: 'COMPLETED', simLabel: 'Work SIM' };
+    const sms = { kind: 'SMS', group, capturedAt: recent.capturedAt, text: 'Looking for a rental in Sector 30' };
+    const broader = { ...recent, group: 'c'.repeat(64) };
+    await http().post('/api/connect/events').set(broker.headers).send(unmatched).expect(403);
+    await http().post('/api/connect/events').set(broker.headers).send(sms).expect(403);
+    await http().post('/api/connect/events').set(broker.headers).send(broader).expect(403);
+    const expanded = { consent: true, whatsapp: true, groups: [group], allWhatsapp: true, calls: true,
+      unmatchedCalls: true, smsNotifications: true };
+    await http().patch('/api/connect/settings').set(broker.headers).send(expanded).expect(200);
+    const made = (await http().post('/api/connect/events').set(broker.headers).send(unmatched).expect(201)).body;
+    expect(made).toMatchObject({ status: 'SAVED', callId: null });
+    await http().post('/api/connect/events').set(broker.headers).send(unmatched).expect(201)
+      .expect(({ body }) => expect(body.id).toBe(made.id));
+    await http().get('/api/connect/events/' + made.id).set(broker.headers).expect(200)
+      .expect(({ body }) => expect(body.details.call).toMatchObject({ number: unmatched.number, durationSec: 32, simLabel: 'Work SIM' }));
+    await http().get('/api/connect/events/' + made.id).set(outsider.headers).expect(404);
+    await http().post('/api/connect/events').set(broker.headers).send(sms).expect(201);
+    await http().post('/api/connect/events').set(broker.headers).send({ ...sms, text: 'Your security code is 123456' }).expect(403);
+    await http().post('/api/connect/events').set(broker.headers).send(broader).expect(201);
+    await http().patch('/api/connect/settings').set(broker.headers).send({ ...expanded, smsNotifications: false }).expect(200);
+    await http().post('/api/connect/events').set(broker.headers).send({ ...sms, text: 'New looking to rent' }).expect(403);
+
     await db.connectEvent.update({ where: { id: stored.id }, data: { status: 'REVIEW' } });
     const reviewPath = '/api/connect/events/' + stored.id + '/review';
     await http().patch(reviewPath).set(outsider.headers).send({ decision: 'REVIEWED' }).expect(404);

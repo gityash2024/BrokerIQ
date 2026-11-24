@@ -47,6 +47,7 @@ export function normalizeNativeIntent(value: string): string {
     if (/^\/(?:property|locality|broker|lead|inventory|chat|wa|import-review|project)\/[A-Za-z0-9_-]+(?:\?|$)/.test(path)) return path;
     const screens = new Set([
       'login',
+      'connect-approve',
       'onboarding',
       'data-consent',
       'handle-share',
