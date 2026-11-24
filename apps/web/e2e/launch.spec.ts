@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { API, createBrokerFixture } from './fixtures';
+import { moduleAllowed } from '@brokeriq/shared';
 let brokerEmail = '';
 test.beforeAll(async ({ request }) => {
   brokerEmail = (await createBrokerFixture(request)).email;
@@ -60,8 +61,10 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   // against the isolated database in source-ledger.e2e-spec.ts.
   page.once('dialog', (dialog) => dialog.accept());
   await page.keyboard.press('Escape');
+  const config = await (await request.get(API + '/public/config')).json();
   await page.goto('/broker/deals');
-  await expect(page.getByRole('heading', { name: 'Deals & commission' })).toBeVisible();
+  const dealsAvailable = moduleAllowed(config.modules, 'deals', 'BROKER_ADMIN');
+  await expect(page.getByRole('heading', { name: dealsAvailable ? 'Deals & commission' : 'Deals & invoices', exact: true })).toBeVisible();
 });
 test('admin module toggle blocks direct route and restores navigation', async ({ page, request }) => {
   await login(page, 'admin.web@e2e.test', process.env.SUPER_ADMIN_PASSWORD || 'Admin@12345');
