@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.role.RoleManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -57,6 +58,12 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val busy = MutableStateFlow(false)
     val step = MutableStateFlow("")
     val audio = MutableStateFlow<Uri?>(null)
+    val recentCalls = MutableStateFlow<List<JSONObject>>(emptyList())
+    val folderGranted = MutableStateFlow(app.recordingFolder.selected() != null)
+    val automaticRecordings = MutableStateFlow(app.recordingFolder.autoEnabled())
+    val folderDocuments = MutableStateFlow<List<RecordingDocument>>(emptyList())
+    var folderAudio by mutableStateOf<RecordingDocument?>(null)
+        private set
     val wifiAudio = MutableStateFlow(app.vault.json("local").optBoolean("wifiAudio"))
     val lastSync = MutableStateFlow(app.vault.read("lastSync"))
     val updateUrl = MutableStateFlow<String?>(null)
@@ -70,6 +77,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             busy.value = true
             try { feedback.value = ""; action() }
             catch (error: ConnectHttpError) { feedback.value = error.message.orEmpty() }
+            catch (error: IllegalArgumentException) { feedback.value = error.message ?: "Unsupported or unreadable file." }
             catch (_: Exception) { feedback.value = "Connection or file unavailable. Try again." }
             finally { busy.value = false }
         }
@@ -124,6 +132,16 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         app.vault.write("directory", directoryData.toString())
         directory.value = app.vault.directory()
         events.value = app.api.call("connect/events").optJSONArray("items")?.objects() ?: emptyList()
+        recentCalls.value = if (settings.value.flag("calls") || settings.value.flag("recordings")) {
+            try {
+                app.api.call("connect/calls").optJSONArray("items")?.objects().orEmpty()
+            } catch (error: ConnectHttpError) {
+                if (error.status != 404) throw error
+                emptyList()
+            }
+        } else emptyList()
+        folderGranted.value = app.recordingFolder.selected() != null
+        automaticRecordings.value = app.recordingFolder.autoEnabled()
         val profile = app.api.call("connect/profile")
         updateUrl.value = if (profile.optInt("latestVersion") > BuildConfig.VERSION_CODE) profile.optional("downloadUrl") else null
         conversations.value = app.vault.json("conversations")
@@ -140,6 +158,12 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         if (!result.optBoolean("consent")) {
             app.vault.write("approvedAt", null)
             approved.value = JSONObject()
+        }
+        if (!result.flag("recordings")) {
+            app.recordingFolder.remove()
+            automaticRecordings.value = false
+            folderGranted.value = false
+            folderDocuments.value = emptyList()
         }
         app.schedule()
         readActivity()
@@ -164,31 +188,50 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         readActivity()
         feedback.value = "Synchronization queued."
     }
+    fun chooseFolder(uri: Uri) = run {
+        check(settings.value.flag("recordings"))
+        app.recordingFolder.choose(uri)
+        folderGranted.value = true
+        automaticRecordings.value = false
+        folderDocuments.value = app.recordingFolder.files()
+    }
+    fun removeFolder() = run {
+        app.recordingFolder.remove()
+        folderGranted.value = false
+        automaticRecordings.value = false
+        folderDocuments.value = emptyList()
+        if (folderAudio != null) selectAudio(null)
+    }
+    fun scanFolder() = run {
+        folderGranted.value = app.recordingFolder.selected() != null
+        folderDocuments.value = app.recordingFolder.files()
+        if (!folderGranted.value) feedback.value = "Recording folder access expired. Choose the folder again."
+        else if (folderDocuments.value.isEmpty()) feedback.value = "No supported recordings in this directory."
+    }
+    fun autoRecordings(value: Boolean) = run {
+        check(settings.value.flag("recordings"))
+        app.recordingFolder.auto(value)
+        automaticRecordings.value = value
+        if (value) app.syncNow()
+    }
+    fun selectAudio(uri: Uri?, document: RecordingDocument? = null) {
+        folderAudio = document
+        audio.value = uri
+    }
     fun attach(callId: String, confirmed: Boolean) = run {
         check(confirmed && settings.value.flag("recordings"))
+        val owner = account.value ?: return@run
         val uri = audio.value ?: return@run
-        require(uri.scheme == "content")
-        val loaded = withContext(Dispatchers.IO) {
-            val mime = when (app.contentResolver.getType(uri)) {
-                "audio/mp4", "audio/m4a", "audio/x-m4a" -> "audio/mp4"
-                "audio/mpeg", "audio/mp3" -> "audio/mpeg"
-                "audio/aac", "audio/aacp" -> "audio/aac"
-                "audio/wav", "audio/x-wav", "audio/vnd.wave" -> "audio/wav"
-                else -> error("Unsupported recording format")
-            }
-            val bytes = app.contentResolver.openInputStream(uri)?.use { it.readNBytes(12 * 1024 * 1024 + 1) } ?: error("Recording could not be opened")
-            require(bytes.isNotEmpty() && bytes.size <= 12 * 1024 * 1024)
-            mime to bytes
-        }
-        val body = JSONObject().put("callId", callId).put("mime", loaded.first).put("capturedAt", Instant.now().toString())
-        app.enqueue("Private recording", body, hash(callId + "|" + java.util.Arrays.hashCode(loaded.second) + "|" + loaded.second.size), loaded.second)
-        audio.value = null
+        val loaded = app.recordingFolder.loadRecording(uri, folderAudio?.mime)
+        app.recordingFolder.upload(callId, loaded, owner)
+        selectAudio(null)
         feedback.value = "Recording saved to the encrypted outbox."
     }
     fun logout() = run {
         val id = app.vault.read("device")
         if (id != null) app.api.call("connect/devices/" + id, "DELETE")
         observe?.cancel()
+        app.recordingFolder.remove()
         account.value?.let { app.outbox.clear(it) }
         withContext(Dispatchers.IO) { app.filesDir.listFiles()?.filter { it.name.startsWith("recording-") }?.forEach { it.delete() } }
         listOf("session", "device", "settings", "directory", "conversations", "approvedAt", "lastSync").forEach { app.vault.write(it, null) }
@@ -198,6 +241,11 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         directory.value = emptyList()
         events.value = emptyList()
         pending.value = emptyList()
+        recentCalls.value = emptyList()
+        folderDocuments.value = emptyList()
+        automaticRecordings.value = false
+        folderGranted.value = false
+        selectAudio(null)
         conversations.value = JSONObject()
         approved.value = JSONObject()
     }
@@ -206,8 +254,13 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 class MainActivity : ComponentActivity() {
     private lateinit var model: ConnectViewModel
     private val openRecording = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) model.audio.value = uri
+        if (uri != null) model.selectAudio(uri)
     }
+    private val openRecordingFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) model.chooseFolder(uri)
+    }
+    private var accessRevision by mutableIntStateOf(0)
+    private val askContacts = registerForActivityResult(ActivityResultContracts.RequestPermission()) { accessRevision++ }
     private val requestRole = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { model.refresh() }
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -225,7 +278,7 @@ class MainActivity : ComponentActivity() {
     private fun handleShare(intent: Intent) {
         if (intent.action == Intent.ACTION_SEND) {
             val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-            if (uri?.scheme == "content") model.audio.value = uri
+            if (uri?.scheme == "content") model.selectAudio(uri)
         }
     }
 
@@ -242,6 +295,10 @@ class MainActivity : ComponentActivity() {
         val busy by model.busy.collectAsState()
         val challenge by model.step.collectAsState()
         val recording by model.audio.collectAsState()
+        val calls by model.recentCalls.collectAsState()
+        val hasFolder by model.folderGranted.collectAsState()
+        val automaticRecordings by model.automaticRecordings.collectAsState()
+        val folderDocuments by model.folderDocuments.collectAsState()
         val wifi by model.wifiAudio.collectAsState()
         val lastSync by model.lastSync.collectAsState()
         val update by model.updateUrl.collectAsState()
@@ -290,9 +347,22 @@ class MainActivity : ComponentActivity() {
                     leads.filter { it.name.contains(search, true) || it.phone.contains(search) }.take(30).forEach { lead ->
                         TextButton(onClick = { dial(lead.phone) }) { Text(lead.name + " · " + lead.phone) }
                     }
-                    Button(enabled = settings.flag("recordings"), onClick = { openRecording.launch(arrayOf("audio/*")) }) { Text("Choose recording") }
-                    events.filter { it.optString("kind") == "CALL" }.take(25).forEach { row ->
-                        Text("SIM call · " + row.optString("capturedAt") + " · " + row.optString("status"))
+                    if (settings.flag("recordings")) {
+                        Button(onClick = { openRecording.launch(arrayOf("audio/*")) }) { Text("Choose recording") }
+                        OutlinedButton(onClick = { openRecordingFolder.launch(null) }) { Text("Choose recording folder") }
+                        if (hasFolder) {
+                            Toggle("Auto-sync new recordings matched to one business call", automaticRecordings, !busy, model::autoRecordings)
+                            OutlinedButton(onClick = model::scanFolder, enabled = !busy) { Text("Browse recording folder") }
+                            OutlinedButton(onClick = model::removeFolder, enabled = !busy) { Text("Disconnect recording folder") }
+                            folderDocuments.take(20).forEach { file ->
+                                TextButton(onClick = { model.selectAudio(file.uri, file) }) { Text(file.name) }
+                            }
+                        }
+                    }
+                    calls.take(25).forEach { row ->
+                        Text(listOfNotNull(row.optional("leadName"), row.optional("direction")?.replaceFirstChar(Char::uppercase),
+                            row.optional("startedAt"), row.optional("status"),
+                            if (row.isNull("durationSec")) null else row.getInt("durationSec").toString() + " s", row.optional("processingStatus")).joinToString(" · "))
                     }
                 }
                 "WhatsApp" -> {
@@ -319,7 +389,12 @@ class MainActivity : ComponentActivity() {
                     val notifications = getSystemService(NotificationManager::class.java)
                     Text("Call identification role " + if (roles?.isRoleHeld(RoleManager.ROLE_CALL_SCREENING) == true) "active" else "requires Android approval")
                     Text("Notification access " + if (notifications?.isNotificationListenerAccessGranted(ComponentName(this@MainActivity, BusinessNotifications::class.java)) == true) "granted" else "not granted")
-                    Text("The system dialer keeps SIM selection and recording. Authorized recordings can be shared to Connect or chosen using the file picker.")
+                    val contactsAllowed = remember(accessRevision) { checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED }
+                    Text("Detect authorized lead numbers saved in phone contacts " + if (contactsAllowed) "granted" else "requires Android approval")
+                    OutlinedButton(enabled = settings.flag("calls") && !contactsAllowed, onClick = { askContacts.launch(Manifest.permission.READ_CONTACTS) }) {
+                        Text("Allow caller ID for saved phone numbers")
+                    }
+                    Text("The system dialer keeps SIM selection and recording. Some devices do not expose SIM slot or final call status to Connect.")
                     OutlinedButton(onClick = {
                         if (roles?.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING) == true) requestRole.launch(roles.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
                     }) { Text("Enable lead caller ID") }
@@ -338,12 +413,12 @@ class MainActivity : ComponentActivity() {
             if (recording != null && settings.flag("recordings")) {
                 Text("Associate shared recording with a synchronized call")
                 Toggle("I have permission to upload this recording", consentToRecording, !busy) { consentToRecording = it }
-                events.filter { it.optString("kind") == "CALL" && it.optional("callId") != null }.take(20).forEach { row ->
-                    OutlinedButton(enabled = consentToRecording && !busy, onClick = { model.attach(row.getString("callId"), consentToRecording) }) {
-                        Text("Attach to " + row.optString("capturedAt"))
+                calls.take(20).forEach { row ->
+                    OutlinedButton(enabled = consentToRecording && !busy, onClick = { model.attach(row.getString("id"), consentToRecording) }) {
+                        Text(listOfNotNull(row.optional("leadName"), row.optional("startedAt")).joinToString(" · "))
                     }
                 }
-                OutlinedButton(onClick = { model.audio.value = null }) { Text("Cancel recording") }
+                OutlinedButton(onClick = { model.selectAudio(null) }) { Text("Cancel recording") }
             }
         }
     }

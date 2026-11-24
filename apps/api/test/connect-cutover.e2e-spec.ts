@@ -72,6 +72,36 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     await http().get('/api/auth/me').set(webHeaders).expect(200);
   });
 
+  it('returns only the connected agent’s currently authorized business calls and identifies the capture device', async () => {
+    const key = randomUUID();
+    const firm = await db.organization.create({ data: { name: 'Connect calls scope', slug: 'connect-calls-' + key } });
+    const agent = await db.user.create({ data: { name: 'Call Agent', organizationId: firm.id, role: 'BROKER_AGENT',
+      email: key + '@e2e.test' }, include: { organization: true } });
+    const lead = await db.lead.create({ data: { name: 'Authorized lead', phone: '+919881188234', organizationId: firm.id, assignedToId: agent.id } });
+    const session = () => app.get(AuthService).issue(agent).then(({ accessToken }) => bearer(accessToken));
+    const first = await session();
+    const second = await session();
+    const web = await session();
+    await http().get('/api/connect/calls').set(web).expect(403);
+    for (const headers of [first, second]) {
+      await http().post('/api/connect/devices').set(headers).send({ installId: randomUUID(), label: 'Call handset', version: 2 }).expect(201);
+      await http().patch('/api/connect/settings').set(headers).send({ consent: true, calls: true, recordings: true }).expect(200);
+    }
+    const event = { capturedAt: new Date(Date.now() + 25).toISOString(), leadId: lead.id, kind: 'CALL',
+      number: lead.phone, direction: 'INBOUND', outcome: 'COMPLETED', durationSec: 42 };
+    const sent = (await http().post('/api/connect/events').set(first).send(event).expect(201)).body;
+    const row = { id: sent.callId, leadName: lead.name, number: lead.phone, direction: 'inbound', status: 'completed',
+      durationSec: 42, processingStatus: 'SAVED' };
+    await http().get('/api/connect/calls').set(first).expect(200)
+      .expect(({ body }) => expect(body.items).toMatchObject([{ ...row, sameDevice: true }]));
+    await http().get('/api/connect/calls').set(second).expect(200)
+      .expect(({ body }) => expect(body.items).toMatchObject([{ ...row, sameDevice: false }]));
+    await db.lead.update({ where: { id: lead.id }, data: { assignedToId: null } });
+    for (const path of ['/api/connect/calls', '/api/connect/events']) {
+      await http().get(path).set(first).expect(200).expect(({ body }) => expect(body.items).toEqual([]));
+    }
+  });
+
   it('fills only empty fields on an unverified scoped Survey draft and records the previous value', async () => {
     const key = randomUUID();
     const firm = await db.organization.create({ data: { name: 'Connect survey scope', slug: 'connect-survey-' + key } });

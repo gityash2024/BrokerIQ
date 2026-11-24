@@ -47,6 +47,12 @@ class ConnectController {
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Get('calls')
+  calls(@CurrentUser() user: RequestUser, @Req() request: SessionRequest) {
+    return this.connect.deviceCalls(user, request.sessionId);
+  }
+
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('events')
   capture(@CurrentUser() user: RequestUser, @Req() request: SessionRequest, @Body(new ZodPipe(connectCapture)) input: ConnectCapture) {
     return this.connect.capture(user, request.sessionId, input);

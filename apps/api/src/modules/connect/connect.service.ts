@@ -149,6 +149,27 @@ export class ConnectService {
     return { items: entries.slice(0, 500), next: entries.length > 500 ? entries[499].id : null };
   }
 
+  async deviceCalls(user: RequestUser, sessionId: string) {
+    const device = await this.device(user, sessionId);
+    const grants = connectSettings.parse(device.settings);
+    if (!grants.consent || (!grants.calls && !grants.recordings)) return { items: [] };
+    const calls = await this.db.call.findMany({
+      where: { organizationId: device.organizationId, agentId: user.id, source: 'BROKERIQ_CONNECT', lead: { is: this.leadScope(user) } },
+      select: { id: true, startedAt: true, direction: true, fromNumber: true, toNumber: true, durationSec: true,
+        status: true, lead: { select: { name: true } } },
+      take: 100, orderBy: { startedAt: 'desc' },
+    });
+    const events = await this.db.connectEvent.findMany({ where: { organizationId: device.organizationId, userId: user.id,
+      callId: { in: calls.map(({ id }) => id) }, kind: 'CALL', status: { not: 'DELETED' } },
+      select: { callId: true, deviceId: true, status: true } });
+    const byCall = new Map(events.map((event) => [event.callId, event]));
+    return { items: calls.flatMap(({ fromNumber, toNumber, lead, ...call }) => {
+      const event = byCall.get(call.id);
+      return event ? [{ ...call, leadName: lead?.name, number: fromNumber ?? toNumber,
+        sameDevice: event.deviceId === device.id, processingStatus: event.status }] : [];
+    }) };
+  }
+
   async capture(user: RequestUser, sessionId: string, input: ConnectCapture) {
     const device = await this.device(user, sessionId);
     const settings = connectSettings.parse(device.settings);
@@ -240,7 +261,12 @@ export class ConnectService {
   async activity(user: RequestUser, leadId?: string) {
     if (leadId && !(await this.db.lead.findFirst({ where: { id: leadId, ...this.leadScope(user) }, select: { id: true } }))) throw new NotFoundException('Lead not found');
     const rows = await this.db.connectEvent.findMany({ where: this.eventScope(user, leadId), select: eventProjection, take: 100, orderBy: { capturedAt: 'desc' } });
-    return { items: rows.map(({ recordingType, ...row }) => ({ ...row, recording: !!recordingType })) };
+    const ids = [...new Set(rows.flatMap(({ leadId: id }) => id ? [id] : []))];
+    const visible = new Set(ids.length ? (await this.db.lead.findMany({
+      where: { id: { in: ids }, ...this.leadScope(user) }, select: { id: true },
+    })).map(({ id }) => id) : []);
+    return { items: rows.filter(({ leadId: id }) => !id || visible.has(id))
+      .map(({ recordingType, ...row }) => ({ ...row, recording: Boolean(recordingType) })) };
   }
 
   private async event(user: RequestUser, id: string) {

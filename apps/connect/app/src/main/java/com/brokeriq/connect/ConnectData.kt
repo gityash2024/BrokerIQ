@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.util.AtomicFile
 import android.util.Base64
 import androidx.room.*
 import androidx.work.*
@@ -30,7 +31,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class Lead(val id: String, val name: String, val phone: String, val alternate: String?)
-fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+fun hash(value: String) = hash(value.toByteArray())
+fun hash(value: ByteArray) = MessageDigest.getInstance("SHA-256").digest(value).joinToString("") { "%02x".format(it.toInt() and 0xff) }
 fun mobile(value: String?): String? {
     val digits = value.orEmpty().filter(Char::isDigit)
     val national = when {
@@ -146,6 +148,7 @@ class ConnectApplication : Application() {
     lateinit var outbox: Outbox
         private set
     val syncGate = Mutex()
+    val recordingFolder = RecordingFolder(this)
     override fun onCreate() {
         super.onCreate()
         vault = Vault(this)
@@ -166,11 +169,22 @@ class ConnectApplication : Application() {
         WorkManager.getInstance(this).enqueueUniqueWork("connect-send", ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<ConnectWorker>().setConstraints(network).build())
     }
-    suspend fun enqueue(kind: String, body: JSONObject, id: String, recorded: ByteArray? = null) {
-        val account = account() ?: return
+    suspend fun enqueue(kind: String, body: JSONObject, id: String, recorded: ByteArray? = null, owner: String? = account()) {
+        if (owner == null || owner != account()) return
         withContext(Dispatchers.IO) {
-            if (recorded != null && !audio(id).exists()) audio(id).writeBytes(vault.seal(recorded))
-            outbox.add(OutboxEvent(id, account, kind, System.currentTimeMillis(), vault.seal(body.toString().toByteArray()), recorded != null))
+            if (owner != account()) return@withContext
+            if (recorded != null && !audio(id).exists()) {
+                val file = AtomicFile(audio(id))
+                val stream = file.startWrite()
+                try {
+                    stream.write(vault.seal(recorded))
+                    file.finishWrite(stream)
+                } catch (error: Exception) {
+                    file.failWrite(stream)
+                    throw error
+                }
+            }
+            outbox.add(OutboxEvent(id, owner, kind, System.currentTimeMillis(), vault.seal(body.toString().toByteArray()), recorded != null))
         }
         if (vault.json("settings").flag("backgroundSync")) syncNow()
     }
@@ -191,7 +205,7 @@ class ConnectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                             val wifi = app.vault.json("local").optBoolean("wifiAudio")
                             val network = applicationContext.getSystemService(android.net.ConnectivityManager::class.java)
                             if (wifi && network?.isActiveNetworkMetered == true) { retry = true; continue }
-                            val bytes = app.vault.unseal(app.audio(row.id).readBytes())
+                            val bytes = app.vault.unseal(AtomicFile(app.audio(row.id)).readFully())
                             body.put("base64", Base64.encodeToString(bytes, Base64.NO_WRAP))
                             "connect/recordings"
                         } else "connect/events"
@@ -203,7 +217,15 @@ class ConnectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                         if (error.status in 400..499 && error.status != 429) app.outbox.fail(row.id) else retry = true
                     } catch (_: Exception) { retry = true }
                 }
-                if (retry) Result.retry() else Result.success()
+                if (app.account() == owner && app.vault.json("settings").flag("recordings") && app.recordingFolder.autoEnabled()) {
+                    try {
+                        val calls = app.api.call("connect/calls").optJSONArray("items")?.objects().orEmpty()
+                        retry = app.recordingFolder.queueUnambiguous(owner, calls) > 0 || retry
+                    } catch (_: java.io.IOException) { retry = true }
+                    catch (error: ConnectHttpError) { retry = retry || error.status == 429 || error.status >= 500 }
+                    catch (_: SecurityException) { }
+                }
+                if (retry || app.outbox.pending(owner).isNotEmpty()) Result.retry() else Result.success()
             }
         }
     }
