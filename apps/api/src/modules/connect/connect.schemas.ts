@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { connectSurveyFieldsSchema } from '@brokeriq/shared';
 
 const id = z.string().min(1).max(100);
 const hash = z.string().regex(/^[0-9a-f]{64}$/);
@@ -14,11 +15,14 @@ export const connectSettings = z.object({
   backgroundSync: z.boolean().default(false),
   groups: z.array(hash).max(100).default([]),
 });
-export const connectFirmPolicy = z.object({
-  leads: z.boolean().default(false),
-  inventory: z.boolean().default(false),
-  survey: z.boolean().default(false),
+const firmPolicyFields = {
+  leads: z.boolean(), inventory: z.boolean(), survey: z.boolean(),
   retentionDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365), z.null()]).optional(),
+  surveyFields: connectSurveyFieldsSchema.optional(),
+};
+export const connectFirmPolicyUpdate = z.object(firmPolicyFields).partial().strict();
+export const connectFirmPolicy = z.object({
+  ...firmPolicyFields, leads: z.boolean().default(false), inventory: z.boolean().default(false), survey: z.boolean().default(false),
 }).strict();
 export type ConnectFirmPolicy = z.infer<typeof connectFirmPolicy>;
 export const connectRegistration = z.object({ installId: z.uuid(), label: z.string().trim().min(1).max(100), version: z.number().int().positive() });

@@ -3,31 +3,32 @@ import { Alert, Linking } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { hasDelegatedAccess, type ConnectActionDraft } from '@brokeriq/shared';
+import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectSurveyValue, hasDelegatedAccess,
+  type ConnectActionDraft, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
 import { toast } from '@/lib/toast';
-import { Button, Row, Sheet, Txt } from '@/ui';
+import { Button, Chip, Input, Row, Sheet, Txt } from '@/ui';
 import { NativeCard } from './screen';
 
 const ConnectRecordingPlayer = lazy(() => import('./connect-recording-player'));
 
 const firmOptions = { leads: 'Create leads and requirements', inventory: 'Create private property drafts', survey: 'Fill empty Survey fields' };
 type AutomationRule = keyof typeof firmOptions;
-type FirmPolicy = Record<AutomationRule, boolean> & { retentionDays?: number | null };
+type FirmPolicy = Record<AutomationRule, boolean> & { retentionDays?: number | null; surveyFields?: ConnectSurveyField[] };
 type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
-type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
-  applied: boolean; confidence: number; evidence: string };
-const surveyLabels = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
+const surveyLabels: Record<string, string> = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
 type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; recommendedAction?: ConnectActionDraft };
-  survey?: SurveySuggestion[];
+  survey?: ConnectSurveySuggestion[];
   transcript?: { segments: { start: number; text: string }[] } } | null };
 
 export function NativeConnectProfile() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [policyBusy, setPolicyBusy] = useState(false);
+  const [surveyField, setSurveyField] = useState<ConnectSurveyField>({ label: '', type: 'TEXT', required: false });
   const data = useQuery({ queryKey: ['connect-profile', user?.organization?.id, user?.id], queryFn: () => api<Profile>('/connect/profile'), enabled: !!user && open });
+  const surveyFields = data.data?.policy?.surveyFields ?? [];
   function revoke(id: string) {
     const ownerContext = captureAccountContext();
     Alert.alert('Revoke this device?', undefined, [{ text: 'Cancel', style: 'cancel' }, { text: 'Revoke', style: 'destructive', onPress: async () => {
@@ -40,10 +41,16 @@ export function NativeConnectProfile() {
     if (!policy || policyBusy) return;
     setPolicyBusy(true);
     try {
-      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, ...change } });
+      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: change });
       await data.refetch();
-    } catch (error) { toast.error(errorMessage(error)); }
+      return true;
+    } catch (error) { toast.error(errorMessage(error)); return false; }
     finally { setPolicyBusy(false); }
+  }
+  async function addSurveyField() {
+    const fields = connectSurveyFieldsSchema.safeParse([...surveyFields, surveyField]);
+    if (!fields.success) { toast.error(fields.error.issues[0].message); return; }
+    if (await updatePolicy({ surveyFields: fields.data })) setSurveyField({ label: '', type: 'TEXT', required: false });
   }
   if (!user) return null;
   return <>
@@ -77,6 +84,22 @@ export function NativeConnectProfile() {
                 ]);
               }} />)}
           </Row>
+          <Txt v="bodyStrong">Custom Survey fields</Txt>
+          {surveyFields.map((field, index) => <Row wrap gap={6} key={field.label}>
+            <Txt>{field.label} · {connectSurveyFieldTypes[field.type]}{field.required ? ' · Required' : ''}</Txt>
+            <Button title="Remove" accessibilityLabel={'Remove ' + field.label} size="sm" variant="ghost" disabled={policyBusy}
+              onPress={() => void updatePolicy({ surveyFields: surveyFields.filter((_, i) => i !== index) })} />
+          </Row>)}
+          {surveyFields.length < 12 && <>
+            <Input label="Survey field name" maxLength={48} value={surveyField.label}
+              onChangeText={(label) => setSurveyField({ ...surveyField, label })} />
+            <Row wrap gap={6}>
+              {Object.entries(connectSurveyFieldTypes).map(([type, label]) => <Chip key={type} label={label} active={surveyField.type === type}
+                onPress={() => setSurveyField({ ...surveyField, type: type as ConnectSurveyField['type'] })} />)}
+              <Chip label="Required" active={surveyField.required} onPress={() => setSurveyField({ ...surveyField, required: !surveyField.required })} />
+            </Row>
+            <Button title="Add field" size="sm" variant="secondary" disabled={policyBusy || surveyField.label.trim().length < 2} onPress={() => void addSurveyField()} />
+          </>}
         </NativeCard>}
         <NativeConnectLeadActivity enabled={data.data.enabled && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && hasDelegatedAccess(user, 'automation', 'view')} />
       </>}
@@ -153,7 +176,7 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
           </NativeCard>;
         })()}
         {detail.data.details?.survey?.map((field) => <NativeCard key={field.field}>
-          <Txt v="bodyStrong">{surveyLabels[field.field]} · {field.previous ?? 'Empty'} → {field.proposed}</Txt>
+          <Txt v="bodyStrong">{field.label ?? surveyLabels[field.field] ?? field.field} · {formatConnectSurveyValue(field.previous)} → {field.required && field.proposed == null ? 'Required review' : formatConnectSurveyValue(field.proposed)}</Txt>
           <Txt v="caption" color="muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</Txt>
           {!!field.evidence && <Txt v="small">{field.evidence}</Txt>}
         </NativeCard>)}

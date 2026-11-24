@@ -5,29 +5,30 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, apiBlob, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { hasDelegatedAccess, type ConnectActionDraft } from '@brokeriq/shared';
+import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectSurveyValue, hasDelegatedAccess,
+  type ConnectActionDraft, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const firmOptions = { leads: 'Create leads and requirements', inventory: 'Create private property drafts', survey: 'Fill empty Survey fields' };
 type AutomationRule = keyof typeof firmOptions;
-type FirmPolicy = Record<AutomationRule, boolean> & { retentionDays?: number | null };
+type FirmPolicy = Record<AutomationRule, boolean> & { retentionDays?: number | null; surveyFields?: ConnectSurveyField[] };
 type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
-type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
-  applied: boolean; confidence: number; evidence: string };
-const surveyLabels = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
+const surveyLabels: Record<string, string> = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
 type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number; recommendedAction?: ConnectActionDraft };
-  survey?: SurveySuggestion[];
+  survey?: ConnectSurveySuggestion[];
   transcript?: { language: string; segments: { start: number; end: number; text: string }[] } } | null };
 
 export function ConnectProfile() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [policyBusy, setPolicyBusy] = useState(false);
+  const [surveyField, setSurveyField] = useState<ConnectSurveyField>({ label: '', type: 'TEXT', required: false });
   const data = useQuery({ queryKey: ['connect-profile', user?.id, user?.organization?.id], queryFn: () => api<Profile>('/connect/profile'), enabled: !!user && open });
+  const surveyFields = data.data?.policy?.surveyFields ?? [];
   async function revoke(id: string) {
     if (!window.confirm('Revoke this connected device?')) return;
     try { await api('/connect/devices/' + id, { method: 'DELETE' }); await data.refetch(); }
@@ -39,10 +40,16 @@ export function ConnectProfile() {
     const ownerContext = captureAccountContext();
     setPolicyBusy(true);
     try {
-      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, ...change } });
+      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: change });
       await data.refetch();
-    } catch (error) { toast.error(errorMessage(error)); }
+      return true;
+    } catch (error) { toast.error(errorMessage(error)); return false; }
     finally { setPolicyBusy(false); }
+  }
+  async function addSurveyField() {
+    const fields = connectSurveyFieldsSchema.safeParse([...surveyFields, surveyField]);
+    if (!fields.success) { toast.error(fields.error.issues[0].message); return; }
+    if (await updatePolicy({ surveyFields: fields.data })) setSurveyField({ label: '', type: 'TEXT', required: false });
   }
   if (!user) return null;
   return <>
@@ -79,6 +86,25 @@ export function ConnectProfile() {
               {[30, 90, 180, 365].map((days) => <option key={days} value={days}>{days} days</option>)}
             </select>
           </label>
+          <div className="space-y-2 border-t border-line pt-2">
+            <p className="font-semibold">Custom Survey fields</p>
+            {surveyFields.map((field, index) => <div key={field.label} className="flex flex-wrap items-center gap-2 text-sm">
+              <span>{field.label} · {connectSurveyFieldTypes[field.type]}{field.required ? ' · Required' : ''}</span>
+              <Button size="sm" variant="ghost" aria-label={'Remove ' + field.label}
+                onClick={() => void updatePolicy({ surveyFields: surveyFields.filter((_, i) => i !== index) })}>Remove</Button>
+            </div>)}
+            {surveyFields.length < 12 && <div className="flex flex-wrap items-center gap-2 text-sm">
+              <input aria-label="Survey field name" placeholder="Field name" maxLength={48} className="rounded-lg border border-line bg-surface p-2"
+                value={surveyField.label} onChange={(event) => setSurveyField({ ...surveyField, label: event.target.value })} />
+              <select aria-label="Survey field type" className="rounded-lg border border-line bg-surface p-2" value={surveyField.type}
+                onChange={(event) => setSurveyField({ ...surveyField, type: event.target.value as ConnectSurveyField['type'] })}>
+                {Object.entries(connectSurveyFieldTypes).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
+              </select>
+              <label className="flex items-center gap-1"><input type="checkbox" checked={surveyField.required}
+                onChange={(event) => setSurveyField({ ...surveyField, required: event.target.checked })} />Required</label>
+              <Button size="sm" variant="secondary" disabled={surveyField.label.trim().length < 2} onClick={() => void addSurveyField()}>Add field</Button>
+            </div>}
+          </div>
         </fieldset>}
         <ConnectLeadActivity enabled={data.data.enabled && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && hasDelegatedAccess(user, 'automation', 'view')} />
       </div>}
@@ -160,7 +186,7 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
           </div>;
         })()}
         {detail.data.details?.survey?.map((field) => <div key={field.field} className="rounded-lg border border-line p-2">
-          <p><strong>{surveyLabels[field.field]}</strong> · {field.previous ?? 'Empty'} → {field.proposed}</p>
+          <p><strong>{field.label ?? surveyLabels[field.field] ?? field.field}</strong> · {formatConnectSurveyValue(field.previous)} → {field.required && field.proposed == null ? 'Required review' : formatConnectSurveyValue(field.proposed)}</p>
           <p className="text-xs text-muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</p>
           {field.evidence && <p className="text-xs">{field.evidence}</p>}
         </div>)}

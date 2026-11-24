@@ -35,8 +35,11 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     const policy = (await http().get('/api/connect/profile').set(broker.headers).expect(200)).body.policy;
     expect(policy).toEqual({ leads: false, inventory: false, survey: false });
     await http().patch('/api/connect/firm-policy').set(broker.headers).send({ ...policy, survey: true }).expect(200);
-    await http().get('/api/connect/profile').set(broker.headers).expect(200).expect(({ body }) => expect(body.policy.survey).toBe(true));
-    await http().get('/api/connect/profile').set(outsider.headers).expect(200).expect(({ body }) => expect(body.policy.survey).toBe(false));
+    const field = { label: 'Lift access', type: 'YES_NO', required: false };
+    await http().patch('/api/connect/firm-policy').set(broker.headers).send({ surveyFields: [field] }).expect(200);
+    await http().patch('/api/connect/firm-policy').set(broker.headers).send({ surveyFields: [field, { ...field, label: 'LIFT ACCESS' }] }).expect(400);
+    await http().get('/api/connect/profile').set(broker.headers).expect(200).expect(({ body }) => expect(body.policy).toMatchObject({ survey: true, surveyFields: [field] }));
+    await http().get('/api/connect/profile').set(outsider.headers).expect(200).expect(({ body }) => expect(body.policy).toEqual(policy));
     const group = 'b'.repeat(64);
     const event = { kind: 'WHATSAPP', capturedAt: new Date().toISOString(), packageName: 'com.whatsapp.w4b', group, text: '2 BHK in Sector 30' };
     const upload = { clientKey: key, fileName: 'known.zip', sourceType: 'CHAT_EXPORT', contentType: 'application/zip', target: 'AUTO', totalBytes: 400 };
@@ -146,18 +149,33 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     } });
     await db.siteVisit.create({ data: { organizationId: firm.id, leadId: lead.id, inventoryId: draft.id, scheduledAt: new Date() } });
     const row = { id: key, organizationId: firm.id, leadId: lead.id, userId: agent.id };
-    const evidence = '34 Crown Court is a 3 BHK for rent on the 2nd floor.';
+    const evidence = '34 Crown Court is a 3 BHK for rent on the 2nd floor. Lift access: yes. Visitor spaces: 2.5.';
     const proposal = { address: draft.address!, summary: evidence, evidence, purpose: 'RENT' as const, bedrooms: 3, floor: '2', intent: 'OFFER' as const,
       confidence: 97, objections: [], commitments: [], preferences: [], nextSteps: [] };
     const service = app.get(ConnectService);
-    const suggestions = await db.$transaction((tx) => service['surveySuggestions'](tx, row, proposal, evidence, true));
+    const definitions = [
+      { label: 'Lift access', type: 'YES_NO' as const, required: false },
+      { label: 'Visitor spaces', type: 'NUMBER' as const, required: false },
+      { label: 'Water source', type: 'TEXT' as const, required: true },
+    ];
+    const suggestions = await db.$transaction((tx) => service['surveySuggestions'](tx, row, proposal, evidence, true, definitions));
     expect(suggestions).toEqual(expect.arrayContaining([
       expect.objectContaining({ field: 'bhk', previous: null, proposed: 3, conflict: false, applied: true }),
       expect.objectContaining({ field: 'floor', previous: 'First floor', proposed: '2', conflict: true, applied: false }),
+      expect.objectContaining({ field: 'custom:lift access', proposed: true, applied: true }),
+      expect.objectContaining({ field: 'custom:visitor spaces', proposed: 2.5, applied: true }),
+      expect.objectContaining({ field: 'custom:water source', proposed: null, required: true, applied: false }),
     ]));
     expect(await db.inventoryItem.findUniqueOrThrow({ where: { id: draft.id } })).toMatchObject({
       bhk: 3, purpose: 'RENT', floor: 'First floor', revision: 2,
+      connectSurveyFields: { 'lift access': { label: 'Lift access', value: true }, 'visitor spaces': { label: 'Visitor spaces', value: 2.5 } },
     });
+    const updated = '34 Crown Court. Lift access: no. Visitor spaces: 2,500.';
+    const conflicting = await db.$transaction((tx) => service['surveySuggestions'](tx, row, { ...proposal, bedrooms: undefined, evidence: updated }, updated, true, definitions));
+    expect(conflicting).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'custom:lift access', previous: true, proposed: false,
+      conflict: true, applied: false })]));
+    expect(conflicting.some(({ field }) => field === 'custom:visitor spaces')).toBe(false);
+    expect(await db.inventoryItem.findUniqueOrThrow({ where: { id: draft.id }, select: { revision: true } })).toEqual({ revision: 2 });
     await db.lead.update({ where: { id: lead.id }, data: { assignedToId: null } });
     expect(await db.$transaction((tx) => service['surveySuggestions'](tx, row, proposal, evidence, true))).toEqual([]);
   });

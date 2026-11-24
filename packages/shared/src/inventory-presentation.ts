@@ -3,6 +3,7 @@ import type { LedgerItem, OwnerEditableProperty } from './inventory';
 import { INVENTORY_PROPERTY_TYPES, PROPERTY_FIELDS } from './property-fields';
 import { floorLabel } from './design';
 import { formatINR } from './utils';
+import { formatConnectSurveyValue } from './connect-survey';
 /** Accept the displayed code and the same code typed without its separator. */
 export function normalizePropertyCode(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -113,6 +114,7 @@ export function inventoryFactGroups(item: LedgerItem) {
     const value = item.details?.[field.key];
     if (value != null) add(field.group, field.label, readableValue(value));
   }
+  for (const field of Object.values(item.connectSurveyFields ?? {})) add('Custom Survey fields', field.label, formatConnectSurveyValue(field.value));
   return Object.entries(groups).map(([title, facts]) => ({ title, facts }));
 }
 

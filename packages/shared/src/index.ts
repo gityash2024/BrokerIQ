@@ -51,6 +51,7 @@ export * from './request-activity';
 export * from './lead-presentation';
 
 export * from './message-links';
+export * from './connect-survey';
 
 /** A Connect suggestion becomes an editable draft in the existing CRM forms. */
 export type ConnectActionDraft = { kind: 'FOLLOW_UP' | 'SITE_VISIT'; note: string; evidence: string; at?: string };

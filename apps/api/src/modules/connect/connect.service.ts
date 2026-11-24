@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
-import { canonicalInventorySector, normalizeIndianPhone } from '@brokeriq/shared';
+import { canonicalInventorySector, connectSurveyValuesSchema, normalizeIndianPhone, type ConnectSurveyField } from '@brokeriq/shared';
 import { z } from 'zod';
 import { env } from '../../config/env';
 import type { RequestUser } from '../../common/decorators';
@@ -16,6 +16,7 @@ import { AiService, OpenRouterQuotaDeferred } from '../../core/ai/ai.service';
 import { AuthService } from '../auth/auth.service';
 import { connectFirmPolicy, connectSettings, type ConnectCapture, type ConnectFirmPolicy, type ConnectRecording, type ConnectRegistration, type ConnectSettings } from './connect.schemas';
 import { transcribeConnectRecording } from './connect-transcription';
+import { customSurveySuggestions } from './connect-survey';
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const privateMessage = /\b(?:otp|password|passcode|one.time (?:code|password)|verification code|bank account|credited|debited)\b/i;
@@ -85,7 +86,7 @@ export class ConnectService {
     return connectFirmPolicy.parse(setting?.value ?? {});
   }
 
-  async updateFirmPolicy(user: RequestUser, input: ConnectFirmPolicy) {
+  async updateFirmPolicy(user: RequestUser, input: Partial<ConnectFirmPolicy>) {
     if (user.role !== 'BROKER_ADMIN' || user.delegatedActor) throw new ForbiddenException('Only the firm Broker Admin can configure automatic Connect updates');
     const organizationId = this.assertCaptureAllowed(user);
     const where = { organizationId, key: firmPolicyKey };
@@ -384,7 +385,7 @@ export class ConnectService {
   }
 
   private async surveySuggestions(tx: Prisma.TransactionClient, row: { id: string; leadId: string; userId: string; organizationId: string },
-    proposal: Insight, original: string, allowApply: boolean) {
+    proposal: Insight, original: string, allowApply: boolean, definitions: ConnectSurveyField[] = []) {
     if (proposal.intent !== 'OFFER' || !proposal.address || !original.toLowerCase().includes(proposal.address.toLowerCase())) return [];
     const member = await tx.user.findFirst({ where: { id: row.userId, organizationId: row.organizationId, status: 'ACTIVE', deletedAt: null },
       select: { role: true, delegatedPermissions: true } });
@@ -396,14 +397,14 @@ export class ConnectService {
       visits: { some: { leadId: row.leadId, organizationId: row.organizationId,
         lead: { deletedAt: null, ...(member.role === 'BROKER_AGENT' ? { assignedToId: row.userId } : {}) } } }, ...owners,
     }, take: 2, select: { id: true, furnishing: true, floor: true, bhk: true, purpose: true, status: true, verificationStatus: true,
-      publishedListingId: true, revision: true } });
+      publishedListingId: true, revision: true, connectSurveyFields: true, sourceType: true } });
     if (matches.length !== 1) return [];
     const survey = matches[0];
     const evidence = proposal.evidence ?? '';
     const floor = proposal.floor?.trim().replace(/[^a-zA-Z0-9 ]/g, '');
     const evidenceFloor = floor && /\bfloor\b/i.test(floor) ? new RegExp(`\\b${floor}\\b`, 'i') : floor
       ? new RegExp(`\\b(?:${floor}(?:st|nd|rd|th)?\\s+floor|floor\\s+${floor})\\b`, 'i') : null;
-    const suggestions = [
+    const standard = [
       { field: 'bhk' as const, proposed: proposal.bedrooms, verified: new RegExp(`\\b${proposal.bedrooms}\\s*BHK\\b`, 'i').test(evidence) },
       { field: 'floor' as const, proposed: proposal.floor, verified: Boolean(evidenceFloor?.test(evidence)) },
       { field: 'purpose' as const, proposed: proposal.purpose, verified: proposal.purpose === 'RENT' ? /\brent(?:al)?\b/i.test(evidence) : /\bfor sale\b/i.test(evidence) },
@@ -411,17 +412,25 @@ export class ConnectService {
       field, proposed, previous: survey[field], conflict: survey[field] !== null && survey[field] !== proposed,
       verified, confidence: proposal.confidence, evidence, inventoryId: survey.id, applied: false,
     }]);
-    const fill = suggestions.filter((suggestion) => suggestion.verified && suggestion.previous === null);
-    if (!allowApply || !evidence.toLowerCase().includes(proposal.address.toLowerCase()) || !fill.length || survey.status !== 'DRAFT' || survey.verificationStatus !== 'NEEDS_REVIEW' || survey.publishedListingId) return suggestions;
+    const stored = connectSurveyValuesSchema.safeParse(survey.connectSurveyFields).data ?? {};
+    const custom = survey.sourceType === 'SURVEY' ? customSurveySuggestions(definitions, stored, redact(original), proposal.confidence)
+      .map((field) => ({ ...field, inventoryId: survey.id })) : [];
+    const suggestions = [...standard, ...custom];
+    const emptyVerified = (suggestion: (typeof suggestions)[number]) => suggestion.verified && suggestion.previous === null && !suggestion.conflict;
+    const fill = standard.filter(emptyVerified);
+    const customFill = custom.filter((field) => emptyVerified(field) && evidence.includes(field.evidence));
+    if (!allowApply || !evidence.toLowerCase().includes(proposal.address.toLowerCase()) || (!fill.length && !customFill.length) ||
+      survey.sourceType !== 'SURVEY' || survey.status !== 'DRAFT' || survey.verificationStatus !== 'NEEDS_REVIEW' || survey.publishedListingId) return suggestions;
     const fields = Object.fromEntries(fill.map(({ field, proposed }) => [field, proposed]));
+    const customValues = Object.fromEntries(customFill.map(({ field, label, proposed }) => [field.slice('custom:'.length), { label, value: proposed }]));
     const changed = await tx.inventoryItem.updateMany({
       where: { id: survey.id, organizationId: row.organizationId, revision: survey.revision, sourceType: 'SURVEY', deletedAt: null, ...owners },
-      data: { ...fields, revision: { increment: 1 } },
+      data: { ...fields, ...(customFill.length ? { connectSurveyFields: { ...stored, ...customValues } } : {}), revision: { increment: 1 } },
     });
     if (changed.count) {
-      for (const field of fill) field.applied = true;
+      for (const field of [...fill, ...customFill]) field.applied = true;
       await tx.auditLog.create({ data: { actorId: row.userId, actorRole: member.role, organizationId: row.organizationId,
-        action: 'connect.survey.fill', entity: 'InventoryItem', entityId: survey.id, meta: { eventId: row.id, fields: Object.keys(fields) } } });
+        action: 'connect.survey.fill', entity: 'InventoryItem', entityId: survey.id, meta: { eventId: row.id, fields: [...fill, ...customFill].map(({ field }) => field) } } });
     }
     return suggestions;
   }
@@ -505,7 +514,7 @@ export class ConnectService {
         const policy = await this.firmPolicy(tx, row.organizationId);
         const eligible = proposal.confidence >= 90 && Boolean(proposal.evidence && redact(text).includes(proposal.evidence));
         if (row.leadId && live.fillSurvey) {
-          const survey = await this.surveySuggestions(tx, { ...row, leadId: row.leadId }, proposal, text, eligible && policy.survey);
+          const survey = await this.surveySuggestions(tx, { ...row, leadId: row.leadId }, proposal, text, eligible && policy.survey, policy.surveyFields);
           if (survey.length) await tx.connectEvent.update({ where: { id }, data: {
             encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal, survey })),
             status: survey.some((field) => field.applied) ? 'APPLIED' : 'REVIEW',

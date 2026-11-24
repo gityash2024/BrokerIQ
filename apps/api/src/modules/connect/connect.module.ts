@@ -5,7 +5,7 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { AuthModule } from '../auth/auth.module';
 import { ConnectService } from './connect.service';
-import { connectCapture, connectFirmPolicy, connectRecording, connectRegistration, connectSettings,
+import { connectCapture, connectFirmPolicyUpdate, connectRecording, connectRegistration, connectSettings,
   type ConnectCapture, type ConnectFirmPolicy, type ConnectRecording, type ConnectRegistration, type ConnectSettings } from './connect.schemas';
 
 type SessionRequest = Request & { sessionId: string };
@@ -20,7 +20,7 @@ class ConnectController {
 
   @Roles('BROKER_ADMIN')
   @Patch('firm-policy')
-  updateFirmPolicy(@CurrentUser() user: RequestUser, @Body(new ZodPipe(connectFirmPolicy)) input: ConnectFirmPolicy) {
+  updateFirmPolicy(@CurrentUser() user: RequestUser, @Body(new ZodPipe(connectFirmPolicyUpdate)) input: Partial<ConnectFirmPolicy>) {
     return this.connect.updateFirmPolicy(user, input);
   }
 

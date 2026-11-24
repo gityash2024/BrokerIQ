@@ -2607,6 +2607,7 @@ model InventoryItem {
   directoryMonth     String?
   customFolderId     String?
   details            Json      @default("{}")
+  connectSurveyFields Json     @default("{}")
   photoUrls          String[]  @default([])
   agentCoverPhotoUrl String?
   videoUrls          String[]  @default([])

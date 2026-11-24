@@ -507,6 +507,7 @@ export function offeredRequirement(input: InventoryInput): BrokerRequirementInpu
   });
 }
 export interface LedgerItem extends Omit<InventoryInput, 'contacts' | 'directoryMonth'> {
+  connectSurveyFields?: import('./connect-survey').ConnectSurveyValues;
   propertyCode?: string;
   agentCoverPhotoUrl?: string | null;
   detailAccess?: 'OWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'REVOKED' | 'EXPIRED' | 'LOCKED';
