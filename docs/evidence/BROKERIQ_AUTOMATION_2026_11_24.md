@@ -84,7 +84,7 @@ Baseline Web revision `bdbbd540d04e61b4bae9e0f46c3acddea620d79b`. Released Andro
 | Super Admin | Organic Supply, Demand, Sources and Delivery; admin sidebar and auth | Admin tooling is on Web. Existing native route policy tests. |
 | Platform staff | Existing route policy and API tests | Manual per-route execution remains open. |
 
-The full Web run before test fixture and selector corrections reported 18 passes and 13 failures. It exercised old assertions for lead creation, inventory tables and access controls. Narrow follow-up checks used the current entry points. A completely green full Web run and visual baselines for every route and role remain outstanding.
+Local typecheck passed across the five workspaces. The fresh PostgreSQL API regression passed 603 tests, with 34 configuration-dependent skips. The Android/iOS shared Mobile suite passed 166 tests. The latest complete Web run passed 24 of 33 and the static active workspace sweep at phone width passed. Of the nine failures, four passed with current entry points on targeted reruns: Team invite, Sub-Broker Admin invite, Scanner draft/WhatsApp import, and requirement import with ledger filters. Five Web checks remain unresolved. Area Directory already redirected to Available Inventory in the baseline revision. Device-level coverage and visual baselines for every route and role remain open.
 
 ## Pilot configuration
 

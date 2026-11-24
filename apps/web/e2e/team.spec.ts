@@ -18,14 +18,15 @@ test('team renders real stats after assignee screens, creates and lists an invit
   const row = page.getByRole('row').filter({ hasText: broker.email });
   await expect(row).toBeVisible();
   await expect(row.getByRole('cell').nth(6)).toHaveText('0');
-  await page.getByRole('button', { name: 'Member invite करें', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.locator('input').nth(0).fill('UI invite regression');
+  await page.getByRole('link', { name: 'Member invite करें', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Invite Team Member', exact: true })).toBeVisible();
+  const inviteForm = page.getByRole('main');
+  await inviteForm.getByLabel('नाम').fill('UI invite regression');
   const invitedEmail = `ui.agent.${Date.now()}@e2e.test`;
-  await dialog.locator('input[type=email]').fill(invitedEmail);
-  await dialog.getByRole('button', { name: 'Invite भेजें', exact: true }).click();
-  await expect(dialog.getByText('Invite link', { exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await inviteForm.getByLabel('Email').fill(invitedEmail);
+  await inviteForm.getByRole('button', { name: 'Send invite', exact: true }).click();
+  await expect(inviteForm.getByText('Invite link', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Back to team', exact: true }).click();
   await expect(page.getByText(invitedEmail, { exact: false })).toBeVisible();
   await page.reload();
   await expect(page.getByText(invitedEmail, { exact: false })).toBeVisible();
@@ -41,18 +42,19 @@ test('Broker Admin invites a Sub-Broker Admin with one action and the browser us
   await page.goto('/login');
   await page.evaluate((session) => localStorage.setItem('biq.auth', JSON.stringify(session)), broker.session);
   await page.goto('/broker/team');
-  await page.getByRole('button', { name: 'Member invite करें', exact: true }).click();
-  const dialog = page.getByRole('dialog');
+  await page.getByRole('link', { name: 'Member invite करें', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Invite Team Member', exact: true })).toBeVisible();
+  const inviteForm = page.getByRole('main');
   const identity = { name: 'Delegation regression', email: `delegate.${Date.now()}@e2e.test` };
-  await dialog.locator('input').first().fill(identity.name);
-  await dialog.locator('input[type=email]').fill(identity.email);
-  await dialog.locator('select').selectOption('SUB_BROKER_ADMIN');
-  await dialog.getByRole('group', { name: /Inventory/ }).getByRole('checkbox', { name: 'view', exact: true }).check();
+  await inviteForm.getByLabel('नाम').fill(identity.name);
+  await inviteForm.getByLabel('Email').fill(identity.email);
+  await inviteForm.getByLabel('Role').selectOption('SUB_BROKER_ADMIN');
+  await inviteForm.getByRole('group', { name: /Inventory/ }).getByRole('checkbox', { name: 'view', exact: true }).check();
   const created = page.waitForResponse((res) => res.url().endsWith('/broker/team/invite') && res.request().method() === 'POST');
-  await dialog.getByRole('button', { name: 'Invite भेजें', exact: true }).click();
+  await inviteForm.getByRole('button', { name: 'Send invite', exact: true }).click();
   const inviteResponse = await created;
   expect(inviteResponse.status()).toBe(201);
-  const token = new URL((await inviteResponse.json()).link).pathname.split('/').pop();
+  const token = (await inviteResponse.json()).link.split('/').pop();
   const accountResponse = await request.post(API + '/auth/register', {
     data: { ...identity, password: 'FixtureDelegate123', accountType: 'USER' },
   });
@@ -71,5 +73,5 @@ test('Broker Admin invites a Sub-Broker Admin with one action and the browser us
   await page.goto('/broker/inventory');
   await expect.poll(async () => (await request.get(API + '/inventory', { headers: { Authorization: 'Bearer ' + session.accessToken } })).status()).toBe(200);
   await page.goto('/broker/team');
-  await expect(page.getByRole('button', { name: 'Member invite करें', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Member invite करें', exact: true })).toHaveCount(0);
 });

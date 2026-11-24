@@ -44,7 +44,7 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
     data: { houseNo: '54', sector: 'Sector 45', purpose: 'RENT', monthlyRent: 20000 },
   });
   expect(property.status(), await property.text()).toBe(201);
-  await page.goto('/broker/inventory');
+  await page.goto('/broker/inventory/data');
   await page
     .getByRole('button', { name: /Filters/ })
     .first()
@@ -52,8 +52,8 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   await expect(page.getByRole('combobox').filter({ has: page.locator('option[value=UNKNOWN]') })).toBeVisible();
   await page.getByRole('button', { name: /Show results/ }).click();
   await expect(page.locator('table')).toBeVisible();
-  await page.getByRole('button', { name: 'Add property', exact: true }).click();
-  await page.getByText('Additional property details, facilities & media', { exact: true }).click();
+  await page.getByRole('link', { name: 'Add property', exact: true }).click();
+  await page.getByText('Additional property details', { exact: true }).click();
   await page.getByLabel('Additional rooms (use unspecified)', { exact: true }).fill('1');
   await expect(page.getByLabel('Additional rooms (use unspecified)', { exact: true })).toHaveValue('1');
   // Close without saving a synthetic property; persistence/filtering is covered
@@ -61,7 +61,7 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   page.once('dialog', (dialog) => dialog.accept());
   await page.keyboard.press('Escape');
   await page.goto('/broker/deals');
-  await expect(page.getByRole('heading', { name: 'Deals & invoices' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Deals & commission' })).toBeVisible();
 });
 test('admin module toggle blocks direct route and restores navigation', async ({ page, request }) => {
   await login(page, 'admin.web@e2e.test', process.env.SUPER_ADMIN_PASSWORD || 'Admin@12345');

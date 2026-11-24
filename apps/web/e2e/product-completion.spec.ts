@@ -7,7 +7,7 @@ test('scanner and chat exports are discoverable, private drafts survive reload a
   await page.goto('/');
   await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
   await page.goto('/broker/inventory');
-  await page.getByRole('link', { name: 'Scan / import', exact: true }).click();
+  await page.getByRole('link', { name: 'Scan property', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Scanner & import', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Camera scan', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: /WhatsApp export · TXT/ })).toBeVisible();
