@@ -27,14 +27,13 @@ export function AgentAssignmentDetails({
     enabled: !!kind,
   });
   function open(recordId: string) {
-    onClose();
     if (kind === 'properties') router.push({ pathname: '/inventory/[id]', params: { id: recordId } });
     else if (kind === 'requirements') router.push({ pathname: '/requirement-edit', params: { id: recordId } });
     else router.push({ pathname: '/lead/[id]', params: { id: recordId, tab: kind === 'leads' ? 'timeline' : 'tasks' } });
   }
 
   return (
-    <Sheet open full onClose={onClose} title={`${agent.name} · Assignments`} footer={<Button title="Close" variant="secondary" onPress={onClose} />}>
+    <Sheet open full inline onClose={onClose} title={`${agent.name} · Assignments`} footer={<Button title="Close" variant="secondary" onPress={onClose} />}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         {agentAssignmentColumns
           .filter(({ key }) => columns.includes(key))

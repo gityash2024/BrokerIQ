@@ -12,6 +12,7 @@ export function Dialog({
   children,
   footer,
   size = 'md',
+  scrollKey,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -20,6 +21,7 @@ export function Dialog({
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  scrollKey?: string;
 }) {
   const w = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size];
   const descriptionId = useId();
@@ -45,7 +47,7 @@ export function Dialog({
             </div>
           )}
           {!title && <D.Title className="sr-only">Workspace details</D.Title>}
-          <div className="min-h-0 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">{children}</div>
+          <div data-route-scroll={scrollKey} className="min-h-0 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">{children}</div>
           {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-6 py-4">{footer}</div>}
           <D.Close className="absolute top-3 right-3 grid size-11 place-items-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg" aria-label="Close">
             <X className="size-5" />

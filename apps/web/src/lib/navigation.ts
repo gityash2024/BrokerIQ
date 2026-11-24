@@ -92,12 +92,15 @@ export function installNavigationHistory() {
         }
         if (view.containers?.size) {
           const containers = document.querySelectorAll<HTMLElement>('[data-route-scroll]');
+          let restored = 0;
           containers.forEach((container) => {
             const saved = view.containers?.get(container.dataset.routeScroll ?? '');
             if (!saved) return;
+            restored++;
             container.scrollTo({ left: saved[0], top: saved[1], behavior: 'instant' });
-            waiting ||= Math.abs(container.scrollTop - saved[1]) > 1;
+            waiting ||= Math.abs(container.scrollTop - saved[1]) > 1 || Math.abs(container.scrollLeft - saved[0]) > 1;
           });
+          waiting ||= restored < view.containers.size;
         }
         if (waiting && performance.now() < deadline) {
           scrollFrame = window.requestAnimationFrame(restore);
@@ -196,6 +199,8 @@ export function pushRouteView(values: Record<string, unknown>) {
   if (!next || next.id === current.id) return false;
   const view = viewFor(next.id);
   view.values = new Map(previous?.values);
+  view.scroll = previous?.scroll;
+  if (previous?.containers) view.containers = new Map(previous.containers);
   for (const [key, value] of Object.entries(values)) view.values.set(key, value);
   publish();
   return true;

@@ -1,4 +1,4 @@
-import { AgentAssignmentDetails } from './agent-assignment-details';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -11,21 +11,25 @@ import { useTheme } from '@/lib/theme';
 import { Button, ErrorView, Input, Loader, Txt } from '@/ui';
 import { NativeCard } from './screen';
 
+export function useAgentAssignmentReport(enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['agent-assignments', user?.organization?.id, user?.id, user?.role],
+    queryFn: () => api<AgentAssignmentDashboard>('/broker/dashboard/agent-assignments'),
+    enabled,
+    refetchInterval: 60000,
+  });
+}
+
 export function AgentAssignments() {
   const { user } = useAuth();
   const { modules } = useConfig();
   const { c } = useTheme();
   const allowed = canViewAgentAssignmentDashboard(user) && moduleAllowed(modules, 'team', 'BROKER_ADMIN');
   const [open, setOpen] = useState(false);
-  const [agent, setAgent] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(12);
-  const query = useQuery({
-    queryKey: ['agent-assignments', user?.organization?.id, user?.id, user?.role],
-    queryFn: () => api<AgentAssignmentDashboard>('/broker/dashboard/agent-assignments'),
-    enabled: allowed && open,
-    refetchInterval: 60000,
-  });
+  const query = useAgentAssignmentReport(allowed && open);
   if (!allowed) return null;
   const columns = agentAssignmentColumns.filter(({ key }) => query.data?.columns.includes(key));
   const rows = query.data?.agents.filter(({ name }) => name.toLowerCase().includes(search.trim().toLowerCase())) ?? [];
@@ -68,7 +72,7 @@ export function AgentAssignments() {
                 {!rows.length && <Txt color="muted">No agents match your search.</Txt>}
                 {rows.slice(0, limit).map(({ id, name, counts }) => (
                   <View key={id} style={{ paddingTop: 8, borderTopWidth: 1, borderTopColor: c.line, gap: 4 }}>
-                    <Button title={name} accessibilityLabel={`Open assignments for ${name}`} size="sm" variant="secondary" style={{ alignSelf: 'flex-start' }} onPress={() => setAgent({ id, name })} />
+                    <Button title={name} accessibilityLabel={`Open assignments for ${name}`} size="sm" variant="secondary" style={{ alignSelf: 'flex-start' }} onPress={() => router.push({ pathname: '/agent-assignments/[id]', params: { id } })} />
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 2 }}>
                       {columns.map(({ key, label }) => (
                         <Txt key={key} v="caption" color="muted">
@@ -83,7 +87,6 @@ export function AgentAssignments() {
             )}
           </>
         ))}
-      {agent && query.data && <AgentAssignmentDetails key={agent.id} agent={agent} columns={query.data.columns} onClose={() => setAgent(null)} />}
     </NativeCard>
   );
 }

@@ -180,6 +180,7 @@ export default function RootLayout() {
                 <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
                 <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
                 <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
+                <Stack.Screen name="agent-assignments/[id]" options={{ presentation: 'transparentModal', animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' } }} />
               </Stack>
             </Gate>
             <NotificationNavigation />

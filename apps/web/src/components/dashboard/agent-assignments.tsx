@@ -1,8 +1,7 @@
 'use client';
-import { useRouteState } from '@/lib/navigation';
+import { hasPreviousPage, pushRouteView, useRouteState } from '@/lib/navigation';
 
 import { AgentAssignmentDetails } from './agent-assignment-details';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardList } from 'lucide-react';
 import { agentAssignmentColumns, canViewAgentAssignmentDashboard, moduleAllowed, type AgentAssignmentDashboard } from '@brokeriq/shared';
@@ -16,8 +15,8 @@ export function AgentAssignments() {
   const { user } = useAuth();
   const { modules } = useConfig();
   const allowed = canViewAgentAssignmentDashboard(user) && moduleAllowed(modules, 'team', 'BROKER_ADMIN');
-  const [open, setOpen] = useState(false);
-  const [agent, setAgent] = useState<{ id: string; name: string } | null>(null);
+  const [open, setOpen] = useRouteState('agent-assignments.open', false);
+  const [agentId, setAgentId] = useRouteState<string | null>('agent-assignments.agent', null);
   const [search, setSearch] = useRouteState('agent-assignments.search', '');
   const query = useQuery({
     queryKey: ['agent-assignments', user?.organization?.id, user?.id, user?.role],
@@ -28,6 +27,14 @@ export function AgentAssignments() {
   if (!allowed) return null;
   const columns = agentAssignmentColumns.filter(({ key }) => query.data?.columns.includes(key));
   const rows = query.data?.agents.filter(({ name }) => name.toLowerCase().includes(search.trim().toLowerCase()));
+  const agent = query.data?.agents.find(({ id }) => id === agentId);
+  const openAssignments = (id: string) => {
+    if (!pushRouteView({ 'agent-assignments.agent': id })) setAgentId(id);
+  };
+  const closeAssignments = () => {
+    if (hasPreviousPage({ samePath: true })) window.history.back();
+    else setAgentId(null);
+  };
 
   return (
     <section aria-label="Agent assignments" className="card min-w-0 p-4">
@@ -64,7 +71,7 @@ export function AgentAssignments() {
                   {!rows?.length ? (
                     <p className="text-sm text-muted">No agents match your search.</p>
                   ) : (
-                    <div className="max-h-96 overflow-auto rounded-xl border border-line">
+                    <div data-route-scroll="agent-assignments" className="max-h-96 overflow-auto rounded-xl border border-line">
                       <table className="w-full text-left text-sm">
                         <thead className="sticky top-0 bg-surface-2">
                           <tr>
@@ -82,7 +89,7 @@ export function AgentAssignments() {
                           {rows.map(({ id, name, counts }) => (
                             <tr key={id} className="border-t border-line">
                               <th scope="row" className="px-3 py-2 font-medium">
-                                <Button variant="link" aria-label={`Open assignments for ${name}`} onClick={() => setAgent({ id, name })}>{name}</Button>
+                                <Button variant="link" aria-label={`Open assignments for ${name}`} onClick={() => openAssignments(id)}>{name}</Button>
                               </th>
                               {columns.map(({ key }) => (
                                 <td key={key} className="px-3 py-2 text-right tabular-nums">
@@ -101,7 +108,7 @@ export function AgentAssignments() {
           )}
         </div>
       )}
-      {agent && query.data && <AgentAssignmentDetails key={agent.id} agent={agent} columns={query.data.columns} onClose={() => setAgent(null)} />}
+      {agent && query.data && <AgentAssignmentDetails key={agent.id} agent={agent} columns={query.data.columns} onClose={closeAssignments} />}
     </section>
   );
 }

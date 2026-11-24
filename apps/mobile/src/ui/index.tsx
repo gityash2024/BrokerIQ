@@ -774,6 +774,7 @@ export function Sheet({
   children,
   full,
   footer,
+  inline = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -781,13 +782,12 @@ export function Sheet({
   children: React.ReactNode;
   full?: boolean;
   footer?: React.ReactNode;
+  inline?: boolean;
 }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
-  return (
-    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      {/* Use the modal's actual available height; physical screen height can put
-          footer buttons underneath Android's navigation bar. */}
+  // Use the available height so the footer stays above Android navigation.
+  const content = (
       <KeyboardAvoidingView behavior={'padding'} style={{ flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
         {open && (
@@ -815,6 +815,11 @@ export function Sheet({
           </View>
         )}
       </KeyboardAvoidingView>
+  );
+  if (inline) return open ? <View accessibilityViewIsModal style={{ flex: 1 }}>{content}</View> : null;
+  return (
+    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      {content}
     </Modal>
   );
 }

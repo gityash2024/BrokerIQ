@@ -1,7 +1,6 @@
 'use client';
 import { useRouteState } from '@/lib/navigation';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
 import { agentAssignmentColumns, readableValue, type AgentAssignmentKind, type AgentAssignmentRecords } from '@brokeriq/shared';
@@ -21,7 +20,7 @@ export function AgentAssignmentDetails({
   onClose: () => void;
 }) {
   const { user } = useAuth();
-  const [selectedKind, setKind] = useState(columns[0]);
+  const [selectedKind, setKind] = useRouteState('agent-assignment-details.kind', columns[0]);
   const [page, setPage] = useRouteState('agent-assignment-details.page', 1);
   const kind = columns.includes(selectedKind) ? selectedKind : columns[0];
   const query = useQuery({
@@ -38,6 +37,7 @@ export function AgentAssignmentDetails({
       }}
       title={`${agent.name} · Assignments`}
       size="lg"
+      scrollKey="agent-assignment-details"
     >
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Assignment category">
