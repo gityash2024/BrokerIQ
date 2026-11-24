@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 
 private val sensitive = Regex("\\b(otp|password|passcode|verification code|one.time code|bank account|debited|credited)\\b", RegexOption.IGNORE_CASE)
@@ -61,16 +62,25 @@ class BusinessCalls : CallScreeningService() {
         val incoming = details.callDirection == Call.Details.DIRECTION_INCOMING
         if (incoming) respondToCall(details, CallResponse.Builder().setDisallowCall(false).build())
         val app = applicationContext as ConnectApplication
+        val owner = app.account() ?: return
         if (!app.vault.json("settings").flag("calls")) return
         val address = details.handle?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: return
         val number = mobile(address) ?: return
         serviceScope.launch {
-            val lead = app.vault.directory().filter { mobile(it.phone) == number || mobile(it.alternate) == number }.singleOrNull() ?: return@launch
+            if (owner != app.account() || !app.vault.json("settings").flag("calls")) return@launch
+            val candidates = app.vault.directory().filter { mobile(it.phone) == number || mobile(it.alternate) == number }.take(20)
+            if (candidates.isEmpty()) return@launch
             val at = details.creationTimeMillis.takeIf { it > 0 } ?: System.currentTimeMillis()
             val direction = if (incoming) "INBOUND" else "OUTBOUND"
-            val body = JSONObject().put("kind", "CALL").put("direction", direction).put("leadId", lead.id).put("number", number)
+            val body = JSONObject().put("kind", "CALL").put("direction", direction).put("number", number)
                 .put("outcome", "DETECTED").put("capturedAt", Instant.ofEpochMilli(at).toString())
-            app.enqueue("SIM call", body, hash("$direction|$at|" + lead.id))
+            val lead = candidates.singleOrNull()
+            if (lead == null) {
+                app.vault.rememberAmbiguous(hash("$owner|$direction|$at|$number"), JSONObject()
+                    .put("owner", owner).put("detectedAt", at).put("event", body).put("candidateIds", JSONArray(candidates.map { it.id })))
+                return@launch
+            }
+            app.enqueue("SIM call", body.put("leadId", lead.id), hash("$direction|$at|" + lead.id), owner = owner)
             showCaller(lead.name, at)
         }
     }

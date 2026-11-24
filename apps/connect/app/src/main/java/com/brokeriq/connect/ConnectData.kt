@@ -77,6 +77,19 @@ class Vault(context: Context) {
     fun directory(): List<Lead> = read("directory")?.let { JSONArray(it).objects().map { row ->
         Lead(row.getString("id"), row.getString("name"), row.getString("phone"), row.optional("alternatePhone"))
     } } ?: emptyList()
+    @Synchronized
+    fun rememberAmbiguous(id: String, event: JSONObject) {
+        val calls = json("ambiguousCalls")
+        calls.put(id, event)
+        val newest = calls.keys().asSequence().sortedByDescending { calls.getJSONObject(it).optLong("detectedAt") }.take(100)
+        write("ambiguousCalls", JSONObject().apply { newest.forEach { put(it, calls.getJSONObject(it)) } }.toString())
+    }
+    @Synchronized
+    fun forgetAmbiguous(id: String) {
+        val calls = json("ambiguousCalls")
+        calls.remove(id)
+        write("ambiguousCalls", calls.toString())
+    }
     fun installId(): String = read("installId") ?: UUID.randomUUID().toString().also { write("installId", it) }
 }
 

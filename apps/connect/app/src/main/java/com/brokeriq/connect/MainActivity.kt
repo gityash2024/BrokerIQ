@@ -59,6 +59,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val step = MutableStateFlow("")
     val audio = MutableStateFlow<Uri?>(null)
     val recentCalls = MutableStateFlow<List<JSONObject>>(emptyList())
+    val callReviews = MutableStateFlow(emptyList<Pair<String, JSONObject>>())
     val folderGranted = MutableStateFlow(app.recordingFolder.selected() != null)
     val automaticRecordings = MutableStateFlow(app.recordingFolder.autoEnabled())
     val folderDocuments = MutableStateFlow<List<RecordingDocument>>(emptyList())
@@ -69,7 +70,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val updateUrl = MutableStateFlow<String?>(null)
     private var observe: kotlinx.coroutines.Job? = null
 
-    init { if (account.value != null) { observeQueue(); refresh() } }
+    init { if (account.value != null) { observeQueue(); showCallReviews(); refresh() } }
 
     private fun run(action: suspend () -> Unit) {
         if (busy.value) return
@@ -119,6 +120,35 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             app.outbox.watch(owner).catch { }.collect { pending.value = it }
         }
     }
+    fun showCallReviews() {
+        val owner = account.value
+        val saved = app.vault.json("ambiguousCalls")
+        callReviews.value = if (owner != null && settings.value.flag("calls")) saved.keys().asSequence().mapNotNull { id ->
+            saved.optJSONObject(id)?.takeIf { it.optional("owner") == owner }?.let { id to it }
+        }.sortedByDescending { (_, item) -> item.optLong("detectedAt") }.take(25).toList() else emptyList()
+    }
+    fun resolveCall(id: String, leadId: String) = run {
+        val owner = account.value ?: return@run
+        check(settings.value.flag("calls"))
+        val row = app.vault.json("ambiguousCalls").optJSONObject(id)?.takeIf { it.optional("owner") == owner } ?: return@run
+        val event = row.getJSONObject("event")
+        val approved = row.getJSONArray("candidateIds")
+        val number = event.getString("number")
+        require((0 until approved.length()).any { approved.optString(it) == leadId } &&
+            app.vault.directory().any { it.id == leadId && (mobile(it.phone) == number || mobile(it.alternate) == number) }) {
+            "This lead is no longer available for this number."
+        }
+        val at = row.getLong("detectedAt")
+        val direction = event.getString("direction")
+        app.enqueue("SIM call", event.put("leadId", leadId), hash("$direction|$at|$leadId"), owner = owner)
+        app.vault.forgetAmbiguous(id)
+        showCallReviews()
+    }
+    fun dismissCall(id: String) {
+        app.vault.forgetAmbiguous(id)
+        showCallReviews()
+    }
+
     private suspend fun readActivity() {
         val directoryData = JSONArray()
         if (settings.value.flag("calls")) {
@@ -131,6 +161,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
         app.vault.write("directory", directoryData.toString())
         directory.value = app.vault.directory()
+        showCallReviews()
         events.value = app.api.call("connect/events").optJSONArray("items")?.objects() ?: emptyList()
         recentCalls.value = if (settings.value.flag("calls") || settings.value.flag("recordings")) {
             try {
@@ -158,6 +189,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         if (!result.optBoolean("consent")) {
             app.vault.write("approvedAt", null)
             approved.value = JSONObject()
+        }
+        if (!result.flag("calls")) {
+            app.vault.write("ambiguousCalls", null)
+            callReviews.value = emptyList()
         }
         if (!result.flag("recordings")) {
             app.recordingFolder.remove()
@@ -234,7 +269,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         app.recordingFolder.remove()
         account.value?.let { app.outbox.clear(it) }
         withContext(Dispatchers.IO) { app.filesDir.listFiles()?.filter { it.name.startsWith("recording-") }?.forEach { it.delete() } }
-        listOf("session", "device", "settings", "directory", "conversations", "approvedAt", "lastSync").forEach { app.vault.write(it, null) }
+        listOf("session", "device", "settings", "directory", "conversations", "approvedAt", "lastSync", "ambiguousCalls").forEach { app.vault.write(it, null) }
         app.schedule(false)
         account.value = null
         settings.value = JSONObject()
@@ -242,6 +277,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         events.value = emptyList()
         pending.value = emptyList()
         recentCalls.value = emptyList()
+        callReviews.value = emptyList()
         folderDocuments.value = emptyList()
         automaticRecordings.value = false
         folderGranted.value = false
@@ -296,6 +332,7 @@ class MainActivity : ComponentActivity() {
         val challenge by model.step.collectAsState()
         val recording by model.audio.collectAsState()
         val calls by model.recentCalls.collectAsState()
+        val callReviews by model.callReviews.collectAsState()
         val hasFolder by model.folderGranted.collectAsState()
         val automaticRecordings by model.automaticRecordings.collectAsState()
         val folderDocuments by model.folderDocuments.collectAsState()
@@ -357,6 +394,19 @@ class MainActivity : ComponentActivity() {
                             folderDocuments.take(20).forEach { file ->
                                 TextButton(onClick = { model.selectAudio(file.uri, file) }) { Text(file.name) }
                             }
+                        }
+                    }
+                    if (settings.flag("calls")) {
+                        OutlinedButton(onClick = model::showCallReviews) { Text("Refresh call matches") }
+                        callReviews.forEach { (id, item) ->
+                            val info = item.optJSONObject("event")
+                            val candidates = item.optJSONArray("candidateIds")
+                            val candidateIds = (0 until (candidates?.length() ?: 0)).map { candidates?.optString(it) }.toSet()
+                            Text("Choose a lead for " + info?.optString("capturedAt").orEmpty(), style = MaterialTheme.typography.titleSmall)
+                            leads.filter { it.id in candidateIds }.forEach { lead ->
+                                OutlinedButton(enabled = !busy, onClick = { model.resolveCall(id, lead.id) }) { Text(lead.name) }
+                            }
+                            TextButton(onClick = { model.dismissCall(id) }) { Text("Dismiss unmatched call") }
                         }
                     }
                     calls.take(25).forEach { row ->

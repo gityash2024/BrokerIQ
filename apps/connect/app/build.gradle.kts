@@ -12,8 +12,8 @@ android {
         applicationId = "com.brokeriq.connect"
         minSdk = 30
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
         val api = providers.gradleProperty("brokeriqApi").orElse("https://brokeriqapi.mymultimeds.com/api/").get()
         require(api.startsWith("https://") && api.endsWith("/") && !api.contains('"')) { "Use an HTTPS BrokerIQ API URL ending in /" }
         buildConfigField("String", "BROKERIQ_API", "\"$api\"")
