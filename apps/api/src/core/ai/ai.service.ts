@@ -126,7 +126,7 @@ export class AiService {
   }
 
   /** Try free OpenRouter first, then configured alternatives. */
-  async providers(captureVision = false): Promise<Provider[]> {
+  async providers(captureVision = false, freeOnly = false): Promise<Provider[]> {
     const app = await this.settings.getAppConfig();
     const order = [...new Set(['openrouter', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName =>
       (PROVIDERS as string[]).includes(p),
@@ -136,6 +136,10 @@ export class AiService {
       const v = await this.settings.resolve(name).catch(() => null);
       if (v && (v.apiKey || (name === 'qwen_local' && v.textModel))) {
         const provider = this.toProvider(name, v);
+        if (name === 'openrouter' && freeOnly) {
+          provider.textModels = [...new Set([...provider.textModels, 'openrouter/free'])];
+          provider.visionModels = [...new Set([...provider.visionModels, 'openrouter/free'])];
+        }
         if (captureVision) {
           if (name !== 'openrouter') continue;
           provider.visionModels = [...new Set([...provider.visionModels, 'openrouter/free'])];
@@ -348,7 +352,7 @@ export class AiService {
     kind: 'text' | 'vision' | 'tools' | 'json',
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
-    const providers = (await this.providers(kind === 'vision' && (opts.feature === 'capture' || opts.feature === 'property_video'))).filter((p) =>
+    const providers = (await this.providers(kind === 'vision' && (opts.feature === 'capture' || opts.feature === 'property_video'), opts.openRouterOnly)).filter((p) =>
       !opts.openRouterOnly || p.name === 'openrouter',
     ).filter((p) =>
       kind === 'vision'

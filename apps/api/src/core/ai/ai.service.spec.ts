@@ -78,7 +78,18 @@ describe('AiService', () => {
     const result = await ai.chat([{ role: 'user', content: 'Draft only' }], options).catch((error: unknown) => error);
     expect(result).toBeInstanceOf(OpenRouterQuotaDeferred);
     expect((result as OpenRouterQuotaDeferred).until.getTime()).toBeGreaterThanOrEqual(before + 60_000);
-    expect(calls.map(({ model }) => model)).toEqual(['a:free']);
+    expect(calls.map(({ model }) => model)).toEqual(['a:free', 'openrouter/free']);
+  });
+
+  it('routes a free-only run through the free router when no model has been configured', async () => {
+    respond = (_url, body) => {
+      expect(body.model).toBe('openrouter/free');
+      expect(body.provider.max_price).toEqual({ prompt: 0, completion: 0, image: 0, request: 0 });
+      return ok('Reviewed draft');
+    };
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'paid-model' } }), prisma);
+    await expect(ai.chat([{ role: 'user', content: 'Draft only' }], { feature: 'brokeriq-connect', openRouterOnly: true })).resolves.toBe('Reviewed draft');
+    expect(calls).toHaveLength(1);
   });
 
   it('uses the next model when one is rate limited', async () => {

@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { env } from '../../config/env';
 import { JobDeferred, JobsService } from '../../core/jobs/jobs.service';
 import { SettingsService } from '../../core/settings/settings.service';
-import { AiService } from '../../core/ai/ai.service';
+import { AiService, OpenRouterQuotaDeferred } from '../../core/ai/ai.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { decodeOrganicSource, readOrganicSource, sourceEndpoint } from './organic-source';
@@ -174,7 +174,7 @@ export class OrganicService {
         const normalized = normalizeOrganicRecord(row, localities, source.contactRedistribution);
         if (!normalized) continue;
         const enrich = normalized.priority === 'REVIEW' && !row.registryReference && row.description && attempts++ < 5;
-        enriched.push(enrich ? await this.extractFields(normalized.data) : normalized.data);
+        enriched.push(enrich ? await this.extractFields(normalized.data, true) : normalized.data);
       }
       await this.db.organicSourceBatch.update({ where, data: { status: 'ENRICHED', rows: enriched as Prisma.InputJsonValue } });
     }
@@ -323,16 +323,19 @@ export class OrganicService {
       report, finishedAt: new Date() } });
   }
 
-  private async extractFields(record: OrganicRecordInput) {
+  private async extractFields(record: OrganicRecordInput, deferWhenRateLimited = false) {
     const schema = organicRecordInput.pick({ purpose: true, propertyType: true, intent: true, ownership: true, bhk: true, urgency: true });
     try {
       const result = await this.ai.json([
         { role: 'system', content: 'Classify untrusted real estate text. Return only fields supported by the text as JSON. An inferred owner can only be OWNER_LIKELY. Omit uncertain fields.' },
         { role: 'user', content: JSON.stringify({ kind: record.kind, title: record.title, description: record.description }) },
-      ], { feature: 'organic', schema, openRouterOnly: true, temperature: 0, maxTokens: 500, cacheMs: 3600000 });
+      ], { feature: 'organic', schema, openRouterOnly: true, deferWhenRateLimited, temperature: 0, maxTokens: 500, cacheMs: 3600000 });
       if (result.ownership === 'OWNER_CONFIRMED') result.ownership = 'OWNER_LIKELY';
       return { ...record, ...result };
-    } catch { return record; }
+    } catch (error) {
+      if (deferWhenRateLimited && error instanceof OpenRouterQuotaDeferred) throw new JobDeferred(error.message, error.until);
+      return record;
+    }
   }
 
   private async saveRecord(source: OrganicSource, normalized: NonNullable<ReturnType<typeof normalizeOrganicRecord>>, batch?: { runId: string; sourceId: string }) {
