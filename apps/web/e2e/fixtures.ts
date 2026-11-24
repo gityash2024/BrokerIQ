@@ -22,9 +22,10 @@ export async function createBrokerFixture(request: APIRequestContext) {
       })
     ).status(),
   ).toBe(201);
-  // The loopback-only test API trusts its immediate proxy. Give programmatic fixture
-  // setup its own source address so it does not consume the browser login budget.
-  const fixtureIp = '2001:db8::' + randomUUID().slice(0, 8).match(/.{4}/g)!.join(':');
+  // The loopback-only test API groups IPv6 clients by subnet. Allocate a distinct
+  // documentation subnet for each fixture while leaving browser rate limits enabled.
+  const subnet = randomUUID().slice(0, 8).match(/.{4}/g)!.join(':');
+  const fixtureIp = '2001:db8:' + subnet + '::1';
   const login = await request.post(API + '/auth/login', {
     data: { email, password },
     headers: { 'X-Forwarded-For': fixtureIp },
