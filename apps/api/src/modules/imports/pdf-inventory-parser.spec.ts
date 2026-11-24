@@ -24,4 +24,17 @@ describe('PDF rental table extraction', () => {
     expect(entries).toHaveLength(1);
     expect(entries?.[0]).toMatchObject({ configuration: '1RK', contacts: ['+919811100001', '+919811100002'], monthlyRent: 32000 });
   });
+
+  it.each([
+    ['32TH', 'Property address', 'UNKNOWN', true],
+    ['32TH NOT VACANT', 'Property address', 'UNKNOWN', true],
+    ['VACANT NOT CONFIRMED', 'Property address', 'UNKNOWN', true],
+    ['32TH VACANT', 'Property address / ?', 'AVAILABLE', true],
+    ['32TH VACANT', 'Property address', 'AVAILABLE', false],
+    ['32TH RENTED', 'Property address', 'RENTED', false],
+  ])('routes %s at %s to the correct review state', (notes, address, availability, needsReview) => {
+    const line = row(['SEC-30', address, '1400FT', 'GF', '3', 'Owner', '9811100001', notes]);
+    const entries = parseRentalTable(['FLAT RENT GURGAON', header, line].join('\n'), 4);
+    expect(entries).toEqual([expect.objectContaining({ availability, needsReview, notes })]);
+  });
 });

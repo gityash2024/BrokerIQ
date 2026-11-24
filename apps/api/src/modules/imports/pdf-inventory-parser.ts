@@ -35,6 +35,13 @@ function monthlyRent(notes: string) {
   return marked ? Number(marked[1].replaceAll(',', '')) : null;
 }
 
+function rentalAvailability(notes: string): PdfInventoryFields['availability'] {
+  if (/\b(?:NOT CONFIRM(?:ED)?|UNCERTAIN)\b/i.test(notes)) return 'UNKNOWN';
+  if (/\b(?:NOT\s+(?:YET\s+)?(?:RENTED|LET OUT|AVAILABLE|VACANT)|NO LONGER\s+(?:AVAILABLE|VACANT))\b/i.test(notes)) return 'UNKNOWN';
+  if (/\b(?:RENTED|LET OUT|RENT OUT)\b/i.test(notes)) return 'RENTED';
+  return /\b(?:AVAILABLE NOW|VACANT)\b/i.test(notes) ? 'AVAILABLE' : 'UNKNOWN';
+}
+
 export function parseRentalTable(text: string, pageNo: number) {
   const lines = text.split(/\r?\n/);
   const header = lines.findIndex((line) => indices(line) !== null);
@@ -84,6 +91,7 @@ export function parseRentalTable(text: string, pageNo: number) {
     const notesClean = notes.replace(phonesPattern, '').trim();
     const configuration = configPattern.test(config) ? (/(?:BHK|RK|BR)$/i.test(config) ? config.toUpperCase().replace(/\s+/g, ' ') : config + ' BHK') : null;
     const resultAddress = [addressPrefix, address].filter(Boolean).join(' ').slice(0, 300) || null;
+    const availability = rentalAvailability(notesClean);
     addressPrefix = '';
     result.push({
       pageNo, rowNo: row + 1, rawText, locality: locality || null,
@@ -95,9 +103,9 @@ export function parseRentalTable(text: string, pageNo: number) {
       monthlyRent: monthlyRent(notesClean),
       furnishing: /\b(?:SEMI(?:[ -]FRNSD|[ -]FURNISHED)|SFD)\b/i.test(notesClean) ? 'Semi furnished' :
         /\b(?:UNFURNISHED|UNFRNSD)\b/i.test(notesClean) ? 'Unfurnished' : /\b(?:FRNSD|FURNISHED|FFD)\b/i.test(notesClean) ? 'Furnished' : null,
-      availability: /\b(?:RENTED|LET OUT|RENT OUT)\b/i.test(notesClean) ? 'RENTED' : /\b(?:AVAILABLE NOW|VACANT)\b/i.test(notesClean) ? 'AVAILABLE' : 'UNKNOWN',
+      availability,
       notes: notesClean || null,
-      needsReview: !locality || !resultAddress || !configuration || !areaMatch || /\b(?:NOT CONFIRM|UNCERTAIN)\b/i.test(notesClean),
+      needsReview: !locality || !resultAddress || resultAddress.includes('?') || !configuration || !areaMatch || availability === 'UNKNOWN',
     });
   }
   return result;
