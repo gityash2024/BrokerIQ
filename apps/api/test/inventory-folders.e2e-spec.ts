@@ -81,6 +81,25 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     await app?.close();
   });
 
+  it('separates PDF property access from private contact and source text access', async () => {
+    const batch = await db.importBatch.create({ data: { organizationId: firmId, sourceType: 'PDF', sourceHash: randomUUID(), status: 'COMPLETE' } });
+    const row = await db.pdfInventoryRow.create({ data: { organizationId: firmId, batchId: batch.id, pageNo: 4, rowNo: 1,
+      address: 'Sample property', rawText: 'Sample private contact text', ownerName: 'Private owner', contacts: ['+919700000112'],
+      notes: 'Private remarks', monthlyRent: 24000 } });
+    const scoped = '/api/inventory-pdf?batchId=' + batch.id;
+    await api().get(scoped).set(headers()).expect(200).expect(({ body }) => expect(body.items[0]).toMatchObject({
+      id: row.id, ownerName: row.ownerName, rawText: row.rawText, contacts: row.contacts,
+    }));
+    await api().get(scoped).set(headers(delegate)).expect(200).expect(({ body }) => expect(body.items[0]).toMatchObject({
+      id: row.id, ownerName: null, rawText: '', contacts: [], notes: null, monthlyRent: 24000,
+    }));
+    await api().get(scoped + '&search=9700000112').set(headers(delegate)).expect(200).expect(({ body }) => expect(body.total).toBe(0));
+    const patch = '/api/inventory-pdf/' + row.id;
+    await api().patch(patch).set(headers(delegate)).send({ ownerName: 'Changed owner', expectedUpdatedAt: row.updatedAt }).expect(403);
+    await api().patch(patch).set(headers(delegate)).send({ monthlyRent: 25000, expectedUpdatedAt: row.updatedAt }).expect(200);
+    await api().get(scoped).set(headers(outsider)).expect(200).expect(({ body }) => expect(body.total).toBe(0));
+  });
+
   it('opens a new sector before any property exists and scopes custom folders to their firm', async () => {
     const create = (kind: 'SECTOR' | 'CUSTOM', label: string, token = admin) =>
       api().post('/api/inventory/folder-definitions').set(headers(token)).send({ kind, label }).expect(201);

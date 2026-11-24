@@ -270,6 +270,7 @@ export async function captureFile(
   directoryMonth?: string,
   registerSessionId?: string,
   registerSector?: string,
+  registerFolderId?: string,
 ) {
   assertAccountContext(owner);
   const id = Crypto.randomUUID();
@@ -311,7 +312,7 @@ export async function captureFile(
       groupName,
       target,
       directoryMonth,
-      ...(registerPageNo ? { registerSessionId, registerPageNo, registerSector } : {}),
+      ...(registerPageNo ? { registerSessionId, registerPageNo, registerSector, registerFolderId } : {}),
     },
     id,
     owner,
@@ -475,6 +476,7 @@ export async function syncDrafts() {
                     registerSessionId: body.registerSessionId,
                     registerPageNo: body.registerPageNo,
                     registerSector: body.registerSector,
+                    registerFolderId: body.registerFolderId,
                   },
                   async (offset, length) => {
                     handle.offset = offset;

@@ -33,8 +33,9 @@ export default function PdfInventoryPage() {
   const canCreate = allowed && hasDelegatedAccess(user, 'inventory', 'create');
   const canEdit = allowed && hasDelegatedAccess(user, 'inventory', 'edit');
   const canDelete = allowed && hasDelegatedAccess(user, 'inventory', 'delete');
+  const canReadContacts = allowed && hasDelegatedAccess(user, 'inventory', 'approve_details');
   const data = useQuery({
-    queryKey: ['pdf-inventory', user?.organization?.id, user?.id, search, page],
+    queryKey: ['pdf-inventory', user?.organization?.id, user?.id, search, page, canReadContacts],
     queryFn: () => api<{ items: PdfInventoryRow[]; batches: PdfInventoryBatch[]; total: number }>(endpoint + qs({ ...JSON.parse(search), page })),
     enabled: allowed,
     refetchInterval: (state) => state.state.data?.batches.some(({ status }) => status === 'PENDING' || status === 'PROCESSING') ? 3000 : false,
@@ -147,13 +148,14 @@ export default function PdfInventoryPage() {
         <span>Page {page}</span>
         <Button size="sm" variant="secondary" disabled={page * 30 >= (data.data?.total ?? 0)} onClick={() => setPage(page + 1)}>Next</Button>
       </div>
-      {selected && <RowEditor key={selected.id} row={selected} canEdit={canEdit} canDelete={canDelete} close={() => setSelected(null)}
+      {selected && <RowEditor key={selected.id} row={selected} canEdit={canEdit} canDelete={canDelete} canReadContacts={canReadContacts} close={() => setSelected(null)}
         refresh={() => cache.invalidateQueries({ queryKey: ['pdf-inventory'] })} />}
     </div>
   );
 }
 
-function RowEditor({ row, canEdit, canDelete, close, refresh }: { row: PdfInventoryRow; canEdit: boolean; canDelete: boolean; close: () => void; refresh: () => Promise<void> }) {
+function RowEditor({ row, canEdit, canDelete, canReadContacts, close, refresh }: { row: PdfInventoryRow; canEdit: boolean; canDelete: boolean; canReadContacts: boolean; close: () => void; refresh: () => Promise<void> }) {
+  const editableFields = pdfInventoryEditableFields.filter(([key]) => canReadContacts || (key !== 'ownerName' && key !== 'notes'));
   const [fields, setFields] = useState<Record<string, string>>(() => Object.fromEntries(
     [...pdfInventoryEditableFields.map(([key]) => [key, String(row[key] ?? '')]), ['availability', row.availability ?? 'UNKNOWN'], ['contacts', row.contacts?.join(', ') ?? '']],
   ));
@@ -163,13 +165,13 @@ function RowEditor({ row, canEdit, canDelete, close, refresh }: { row: PdfInvent
     if (archive && !window.confirm('Archive this PDF property?')) return;
     const contacts = fields.contacts.split(/[ ,;\n]+/).filter(Boolean).map(normalizeIndianPhone);
     if (!archive && contacts.some((value) => !value)) return toast.error('Enter valid Indian mobile numbers separated by commas');
-    const changes = Object.fromEntries(pdfInventoryEditableFields.map(([key]) => [
+    const changes = Object.fromEntries(editableFields.map(([key]) => [
       key, !fields[key].trim() ? null : key === 'areaSqft' || key === 'monthlyRent' ? Number(fields[key]) : fields[key],
     ]));
     setBusy(true);
     try {
       await api(`${endpoint}/${row.id}`, archive ? { method: 'DELETE' } : {
-        method: 'PATCH', body: { ...changes, availability: fields.availability, contacts: [...new Set(contacts)], expectedUpdatedAt: row.updatedAt, reviewed: true },
+        method: 'PATCH', body: { ...changes, availability: fields.availability, ...(canReadContacts ? { contacts: [...new Set(contacts)] } : {}), expectedUpdatedAt: row.updatedAt, reviewed: true },
       });
       await refresh();
       close();
@@ -182,16 +184,16 @@ function RowEditor({ row, canEdit, canDelete, close, refresh }: { row: PdfInvent
       footer={<>{canDelete && <Button variant="secondary" disabled={busy} onClick={() => void save(true)}>Archive</Button>}
         {canEdit && <Button disabled={busy} onClick={() => void save()}>Save review</Button>}</>}>
       <div className="grid gap-3 sm:grid-cols-2">
-        {pdfInventoryEditableFields.map(([key, label]) => <label key={key} className="text-sm">{label}
+        {editableFields.map(([key, label]) => <label key={key} className="text-sm">{label}
           <input className={input} readOnly={!canEdit} value={fields[key]} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} />
         </label>)}
-        <label className="text-sm">Contacts<input className={input} readOnly={!canEdit} value={fields.contacts} onChange={(event) => setFields({ ...fields, contacts: event.target.value })} /></label>
+        {canReadContacts && <label className="text-sm">Contacts<input className={input} readOnly={!canEdit} value={fields.contacts} onChange={(event) => setFields({ ...fields, contacts: event.target.value })} /></label>}
         <label className="text-sm">Availability<select className={input} disabled={!canEdit} value={fields.availability} onChange={(event) => setFields({ ...fields, availability: event.target.value })}>
           <option>UNKNOWN</option><option>AVAILABLE</option><option>RENTED</option>
         </select></label>
       </div>
       <p className="mt-4 text-sm font-semibold">Source · page {row.pageNo}, row {row.rowNo}</p>
-      <pre className="whitespace-pre-wrap break-words text-xs">{row.rawText}</pre>
+      {canReadContacts && <pre className="whitespace-pre-wrap break-words text-xs">{row.rawText}</pre>}
     </Dialog>
   );
 }

@@ -647,6 +647,7 @@ export class ImportsService {
               await this.inventory.create(
                 {
                   ...fields,
+                  customFolderId: unit.customFolderId ?? registerContext(entry.batch)?.customFolderId ?? undefined,
                   organizationId: entry.batch.organizationId,
                   ...(surveySource ? { survey: true as const, purpose: unit.purpose ?? ('RENT' as const) } : {}),
                   ...(survey

@@ -7,6 +7,7 @@ const contextSchema = z.object({
   sessionId: z.string().uuid(),
   pageNo: z.number().int().min(1).max(10000),
   sector: z.string().max(100).nullable().optional(),
+  customFolderId: z.string().min(1).max(100).nullable().optional(),
 });
 
 export function registerContext(batch: Pick<ImportBatch, 'metadata'>) {

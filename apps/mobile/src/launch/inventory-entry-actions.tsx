@@ -53,7 +53,7 @@ export function NativeInventoryEntryActions({ params, survey = false }: { params
         style={{ flexGrow: 1, flexBasis: 140, minHeight: 44, borderRadius: 16, paddingHorizontal: 10 }}
         onPress={() =>
           router.push(
-            survey ? { pathname: '/scanner', params: { target: 'SURVEY', ...(params?.sector ? { sector: params.sector } : {}) } } : '/scanner?target=INVENTORY',
+            survey ? { pathname: '/scanner', params: { target: 'SURVEY', ...(params?.sector ? { sector: params.sector } : {}), ...(params?.customFolderId ? { customFolderId: params.customFolderId } : {}) } } : '/scanner?target=INVENTORY',
           )
         }
       />

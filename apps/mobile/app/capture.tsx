@@ -31,17 +31,20 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
     target: requested,
     directoryMonth: requestedMonth,
     sector: requestedSector,
-  } = useLocalSearchParams<{ target?: string; directoryMonth?: string; sector?: string }>();
+    customFolderId: requestedFolder,
+  } = useLocalSearchParams<{ target?: string; directoryMonth?: string; sector?: string; customFolderId?: string }>();
   const survey = scanner && requested === 'SURVEY';
   const surveySector = survey ? requestedSector?.trim() || null : null;
-  const composeKey = survey ? 'survey-composer:' + (surveySector ?? '') : 'message-composer';
+  const composeKey = survey ? 'survey-composer:' + (surveySector ?? '') + (requestedFolder ? ':' + requestedFolder : '') : 'message-composer';
   const suggestedMonth = inventoryMonthSchema.safeParse(requestedMonth);
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const { c } = useTheme();
   const cutover = useConfig().flags.connect_whatsapp_cutover === true;
   const { user } = useAuth();
   const [registerSector, setRegisterSector] = useState<string | null>(surveySector);
+  const [registerFolderId, setRegisterFolderId] = useState<string | null>(requestedFolder ?? null);
   const folderDefinitions = useInventoryFolderDefinitions(scanner);
+  const customFolders = (folderDefinitions.data ?? []).filter(({ kind }) => kind === 'CUSTOM');
   const savedSectors = (folderDefinitions.data ?? []).filter(({ kind }) => kind === 'SECTOR').map(({ label }) => label);
   const localities = useQuery({
     queryKey: ['localities-all'],
@@ -75,6 +78,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
           setText(saved.text ?? '');
           setGroup(saved.group ?? '');
           setRegisterSector(saved.registerSector ?? surveySector);
+          setRegisterFolderId(saved.registerFolderId ?? requestedFolder ?? null);
           if (saved.registerSessionId) setRegisterSessionId(saved.registerSessionId);
           if (!survey && (!requested || saved.entryTarget === requested)) setTarget(saved.target ?? 'AUTO');
           if (!suggestedMonth.success && saved.directoryMonth) setDirectoryMonth(saved.directoryMonth);
@@ -95,14 +99,14 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
         draftId.current = await saveDraft(
           'CAPTURE_COMPOSE',
           composeKey,
-          { text, group, target, directoryMonth, entryTarget: requested, registerSessionId, registerSector },
+          { text, group, target, directoryMonth, entryTarget: requested, registerSessionId, registerSector, registerFolderId },
           draftId.current,
           owner.current,
         );
         setStatus('Draft saved on this device');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, [text, group, target, directoryMonth, ready, registerSessionId, registerSector]);
+  }, [text, group, target, directoryMonth, ready, registerSessionId, registerSector, registerFolderId]);
   async function preserve(files: Source[]) {
     await writes.current;
     pendingFiles.current = files;
@@ -117,6 +121,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
         captureMonth,
         scanner ? registerSessionId : undefined,
         scanner ? (registerSector ?? undefined) : undefined,
+        scanner ? (registerFolderId ?? undefined) : undefined,
       );
       pendingFiles.current = pendingFiles.current.filter((p) => p !== file);
       setSources((current) => [...current, file.name]);
@@ -200,8 +205,16 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
                   setSources([]);
                 }}
               />
-              <NativeInventoryFolderControls sectorsOnly onCreated={(folder) => {
-                setRegisterSector(folder.label);
+              <ChoiceField access={ready && !busy} label="Save in custom folder" value={registerFolderId}
+                choices={customFolders.map(({ id }) => id)} labels={Object.fromEntries(customFolders.map(({ id, label }) => [id, label]))}
+                emptyLabel="No custom folder" onChange={(folderId) => {
+                  setRegisterFolderId(folderId);
+                  setRegisterSessionId(Crypto.randomUUID());
+                  setSources([]);
+                }} />
+              <NativeInventoryFolderControls onCreated={(folder) => {
+                if (folder.kind === 'SECTOR') setRegisterSector(folder.label);
+                else setRegisterFolderId(folder.id);
                 setRegisterSessionId(Crypto.randomUUID());
                 setSources([]);
               }} />

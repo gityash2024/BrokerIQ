@@ -22,10 +22,11 @@ export const uploadStartSchema = z
     directoryMonth: inventoryMonthSchema.optional(),
     registerSessionId: z.string().uuid().optional(),
     registerSector: z.string().trim().min(1).max(100).optional(),
+    registerFolderId: z.string().min(1).max(100).optional(),
     registerPageNo: z.number().int().min(1).max(10000).optional(),
   })
   .refine((value) => Boolean(value.registerSessionId) === Boolean(value.registerPageNo), 'Register session and page are required together')
-  .refine((value) => !value.registerSector || Boolean(value.registerSessionId), 'Select a register before its sector')
+  .refine((value) => !(value.registerSector || value.registerFolderId) || Boolean(value.registerSessionId), 'Select a register before its sector')
   .refine((value) => !value.registerSessionId || value.sourceType === 'IMAGE', 'Register pages must be images')
   .refine(
     (value) => value.target !== 'SURVEY' || (value.sourceType === 'IMAGE' && Boolean(value.registerSector)),
@@ -87,6 +88,9 @@ export class ImportUploadsService {
     const scope = this.scope(user);
     const where = { organizationId_createdById_clientKey: { ...scope, clientKey: input.clientKey } };
     const cutover = env().CONNECT_ENABLED && env().CONNECT_WHATSAPP_CUTOVER && input.sourceType === 'CHAT_EXPORT';
+    if (input.registerFolderId && !(await this.prisma.inventoryFolderDefinition.count({
+      where: { id: input.registerFolderId, organizationId: scope.organizationId, kind: 'CUSTOM' },
+    }))) throw new NotFoundException('Selected register folder was not found');
     const row = cutover ? await this.prisma.importUpload.findUnique({ where }) : await this.prisma.importUpload
       .upsert({
         where,
@@ -107,7 +111,8 @@ export class ImportUploadsService {
     if (
       (row.registerSessionId ?? '') !== (input.registerSessionId ?? '') ||
       (row.registerPageNo ?? null) !== (input.registerPageNo ?? null) ||
-      (row.registerSector ?? '') !== (input.registerSector ?? '')
+      (row.registerSector ?? '') !== (input.registerSector ?? '') ||
+      (row.registerFolderId ?? '') !== (input.registerFolderId ?? '')
     )
       throw new ConflictException('Register page identity changed. Resume the original upload.');
     return this.state(row);
@@ -186,7 +191,7 @@ export class ImportUploadsService {
               requestedTarget: row.target,
               totalBytes: row.totalBytes,
               chunked: true,
-              ...(row.registerSessionId ? { register: { sessionId: row.registerSessionId, pageNo: row.registerPageNo, sector: row.registerSector } } : {}),
+              ...(row.registerSessionId ? { register: { sessionId: row.registerSessionId, pageNo: row.registerPageNo, sector: row.registerSector, customFolderId: row.registerFolderId } } : {}),
               ...(row.target === 'INVENTORY' && row.directoryMonth ? { directoryMonth: row.directoryMonth } : {}),
             },
           },

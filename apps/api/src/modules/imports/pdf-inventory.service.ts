@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -24,10 +24,13 @@ const batchSelect = { id: true, fileName: true, status: true, lastError: true, c
 const inferredFloors = z.array(z.object({ row: z.number().int(), floor: z.string().max(30) })).max(30);
 const floorInterpretations: Record<string, string[]> = { UG: ['Upper ground floor'], LG: ['Lower ground floor'], STILT: ['Stilt floor'] };
 const cleanRow = ({ id, batchId, pageNo, rowNo, rawText, locality, sector, address, propertyType, areaSqft, floor, configuration, furnishing,
-  monthlyRent, availability, ownerName, contacts, notes, review, updatedAt }: Prisma.PdfInventoryRowGetPayload<object>) => ({
-  id, batchId, pageNo, rowNo, rawText, locality, sector, address, propertyType, areaSqft, floor, configuration, furnishing,
-  monthlyRent, availability, ownerName, contacts, notes, review, updatedAt,
+  monthlyRent, availability, ownerName, contacts, notes, review, updatedAt }: Prisma.PdfInventoryRowGetPayload<object>, canReadContacts: boolean) => ({
+  id, batchId, pageNo, rowNo, locality, sector, address, propertyType, areaSqft, floor, configuration, furnishing,
+  monthlyRent, availability, review, updatedAt,
+  rawText: canReadContacts ? rawText : '', ownerName: canReadContacts ? ownerName : null, contacts: canReadContacts ? contacts : [],
+  notes: canReadContacts ? notes : null,
 });
+const hasPdfContactAccess = (user: RequestUser) => !user.delegatedActor || Boolean(user.delegatedPermissions?.includes('inventory:approve_details'));
 
 @Injectable()
 export class PdfInventoryService {
@@ -38,6 +41,7 @@ export class PdfInventoryService {
 
   async list(user: RequestUser, filters: PdfInventoryFilters) {
     const organizationId = requireOrg(user);
+    const canReadContacts = hasPdfContactAccess(user);
     const where: Prisma.PdfInventoryRowWhereInput = {
       organizationId, deletedAt: null, batchId: filters.batchId,
       availability: filters.availability, review: filters.review,
@@ -50,7 +54,11 @@ export class PdfInventoryService {
     if (filters.search) {
       const term = { contains: filters.search, mode: 'insensitive' } as const;
       const contact = normalizeIndianPhone(filters.search);
-      where.OR = [{ address: term }, { ownerName: term }, { locality: term }, { sector: term }, ...(contact ? [{ contacts: { has: contact } }] : [])];
+      where.OR = [{ address: term }, { locality: term }, { sector: term }];
+      if (canReadContacts) {
+        where.OR.push({ ownerName: term });
+        if (contact) where.OR.push({ contacts: { has: contact } });
+      }
     }
     const [items, total, batches] = await Promise.all([
       this.db.pdfInventoryRow.findMany({ where, take: 30, skip: (filters.page - 1) * 30,
@@ -58,12 +66,16 @@ export class PdfInventoryService {
       this.db.pdfInventoryRow.count({ where }),
       this.db.importBatch.findMany({ where: { sourceType: 'PDF', organizationId }, orderBy: { createdAt: 'desc' }, take: 100, select: batchSelect }),
     ]);
-    return { items: items.map(cleanRow), total, page: filters.page, batches };
+    return { items: items.map((row) => cleanRow(row, canReadContacts)), total, page: filters.page, batches };
   }
 
   async update(id: string, user: RequestUser, dto: PdfInventoryUpdate) {
     const organizationId = requireOrg(user);
     const { expectedUpdatedAt, reviewed, ...fields } = dto;
+    const canReadContacts = hasPdfContactAccess(user);
+    if (!canReadContacts && (fields.ownerName !== undefined || fields.contacts !== undefined || fields.notes !== undefined)) {
+      throw new ForbiddenException('Private PDF contact details require approval access');
+    }
     return this.db.$transaction(async (tx) => {
       const where = { id, organizationId, deletedAt: null };
       const row = await tx.pdfInventoryRow.findFirst({ where });
@@ -74,7 +86,7 @@ export class PdfInventoryService {
       if (!saved.count) throw new ConflictException('This property changed. Refresh and try again.');
       await tx.auditLog.create({ data: { actorId: user.id, organizationId, entity: 'PdfInventoryRow', entityId: id,
         action: 'inventory.pdf.edit', meta: { fields: Object.keys(fields), reviewed: reviewed === true } } });
-      return cleanRow(await tx.pdfInventoryRow.findUniqueOrThrow({ where: { id } }));
+      return cleanRow(await tx.pdfInventoryRow.findUniqueOrThrow({ where: { id } }), canReadContacts);
     });
   }
 

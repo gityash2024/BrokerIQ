@@ -30,8 +30,9 @@ export default function PdfInventoryScreen() {
   const canCreate = allowed && hasDelegatedAccess(user, 'inventory', 'create');
   const canEdit = allowed && hasDelegatedAccess(user, 'inventory', 'edit');
   const canDelete = allowed && hasDelegatedAccess(user, 'inventory', 'delete');
+  const canReadContacts = allowed && hasDelegatedAccess(user, 'inventory', 'approve_details');
   const data = useQuery({
-    queryKey: ['pdf-inventory', user?.organization?.id, user?.id, filters, page],
+    queryKey: ['pdf-inventory', user?.organization?.id, user?.id, filters, page, canReadContacts],
     queryFn: () => api<{ items: PdfInventoryRow[]; batches: PdfInventoryBatch[]; total: number }>(endpoint + qs({ ...filters, page })),
     enabled: allowed,
     refetchInterval: (state) => state.state.data?.batches.some(({ status }) => status === 'PENDING' || status === 'PROCESSING') ? 3000 : false,
@@ -128,13 +129,14 @@ export default function PdfInventoryScreen() {
         <ChoiceField label="PDF batch" value={draft.batchId || null} choices={data.data?.batches.map(({ id }) => id) ?? []} emptyLabel="All PDFs"
           labels={Object.fromEntries(data.data?.batches.map(({ id, fileName }) => [id, fileName ?? id]) ?? [])} onChange={(value) => setDraft({ ...draft, batchId: value ?? '' })} />
       </Sheet>
-      {allowed && row && <RowEditor key={row.id} row={row} canEdit={canEdit} canDelete={canDelete}
+      {allowed && row && <RowEditor key={row.id} row={row} canEdit={canEdit} canDelete={canDelete} canReadContacts={canReadContacts}
         close={() => setRow(null)} refresh={() => cache.invalidateQueries({ queryKey: ['pdf-inventory'] })} />}
     </BrokerScreen>
   );
 }
 
-function RowEditor({ row, canEdit, canDelete, close, refresh }: { row: PdfInventoryRow; canEdit: boolean; canDelete: boolean; close: () => void; refresh: () => Promise<void> }) {
+function RowEditor({ row, canEdit, canDelete, canReadContacts, close, refresh }: { row: PdfInventoryRow; canEdit: boolean; canDelete: boolean; canReadContacts: boolean; close: () => void; refresh: () => Promise<void> }) {
+  const editableFields = pdfInventoryEditableFields.filter(([key]) => canReadContacts || (key !== 'ownerName' && key !== 'notes'));
   const [fields, setFields] = useState<Record<string, string>>(() => Object.fromEntries(
     [...pdfInventoryEditableFields.map(([key]) => [key, String(row[key] ?? '')]), ['contacts', row.contacts?.join(', ') ?? ''], ['availability', row.availability ?? 'UNKNOWN']],
   ));
@@ -143,13 +145,13 @@ function RowEditor({ row, canEdit, canDelete, close, refresh }: { row: PdfInvent
   async function save(archive: boolean, ownerContext = captureAccountContext()) {
     const contacts = fields.contacts.split(/[ ,;\n]+/).filter(Boolean).map(normalizeIndianPhone);
     if (!archive && contacts.some((value) => !value)) return toast.error('Enter valid Indian mobile numbers separated by commas');
-    const changes = Object.fromEntries(pdfInventoryEditableFields.map(([key]) => [
+    const changes = Object.fromEntries(editableFields.map(([key]) => [
       key, !fields[key].trim() ? null : key === 'areaSqft' || key === 'monthlyRent' ? Number(fields[key]) : fields[key],
     ]));
     setBusy(true);
     try {
       await api(`${endpoint}/${row.id}`, archive ? { method: 'DELETE', ownerContext } : {
-        method: 'PATCH', ownerContext, body: { ...changes, availability: fields.availability, contacts: [...new Set(contacts)], expectedUpdatedAt: row.updatedAt, reviewed: true },
+        method: 'PATCH', ownerContext, body: { ...changes, availability: fields.availability, ...(canReadContacts ? { contacts: [...new Set(contacts)] } : {}), expectedUpdatedAt: row.updatedAt, reviewed: true },
       });
       await refresh();
       close();
@@ -165,14 +167,14 @@ function RowEditor({ row, canEdit, canDelete, close, refresh }: { row: PdfInvent
       }} />}
       {canEdit && <Button title="Save review" disabled={busy} onPress={() => void save(false)} />}
     </Row>}>
-      {pdfInventoryEditableFields.map(([key, label]) => (
+      {editableFields.map(([key, label]) => (
         <Input key={key} label={label} value={fields[key]} editable={canEdit} onChangeText={(value) => setFields({ ...fields, [key]: value })} />
       ))}
-      <Input label="Contacts" value={fields.contacts} editable={canEdit} onChangeText={(value) => setFields({ ...fields, contacts: value })} />
+      {canReadContacts && <Input label="Contacts" value={fields.contacts} editable={canEdit} onChangeText={(value) => setFields({ ...fields, contacts: value })} />}
       {canEdit ? <ChoiceField label="Availability" value={fields.availability} choices={['UNKNOWN', 'AVAILABLE', 'RENTED']}
         onChange={(value) => setFields({ ...fields, availability: value ?? 'UNKNOWN' })} /> : <Txt>{fields.availability}</Txt>}
       <Txt v="bodyStrong">Source · page {row.pageNo}, row {row.rowNo}</Txt>
-      <Txt>{row.rawText}</Txt>
+      {canReadContacts && <Txt>{row.rawText}</Txt>}
     </Sheet>
   );
 }

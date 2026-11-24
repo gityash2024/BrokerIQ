@@ -2940,6 +2940,7 @@ model ImportUpload {
   directoryMonth String?
   registerSessionId String?
   registerPageNo Int?
+  registerFolderId String?
   registerSector String?
   totalBytes     Int
   receivedBytes  Int @default(0)

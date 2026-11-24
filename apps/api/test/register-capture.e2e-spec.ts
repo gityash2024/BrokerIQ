@@ -68,7 +68,7 @@ describe('Register scan context, source facts and rented-only approval', () => {
     available?.mockRestore();
     await app?.close();
   });
-  async function upload(pageNo: number, target = 'INVENTORY', registerSessionId = sessionId, pageImage = image) {
+  async function upload(pageNo: number, target = 'INVENTORY', registerSessionId = sessionId, pageImage = image, registerFolderId?: string) {
     const input = {
       clientKey: registerSessionId + '-' + pageNo,
       fileName: 'register.png',
@@ -79,6 +79,7 @@ describe('Register scan context, source facts and rented-only approval', () => {
       registerSessionId,
       registerPageNo: pageNo,
       registerSector: 'Sector 46',
+      registerFolderId,
     };
     const upload = (await api().post('/api/imports/uploads').set(header()).send(input).expect(201)).body;
     await api()
@@ -240,14 +241,15 @@ describe('Register scan context, source facts and rented-only approval', () => {
     expect(fresh.metadata).not.toHaveProperty('register.sector');
   });
   it('saves reviewed survey scan rows in their sector while preserving the original source link', async () => {
-    const survey = await upload(1, 'SURVEY', randomUUID());
+    const custom = (await api().post('/api/inventory/folder-definitions').set(header()).send({ kind: 'CUSTOM', label: 'Register survey batch' }).expect(201)).body;
+    const survey = await upload(1, 'SURVEY', randomUUID(), image, custom.id);
     await api()
       .post('/api/imports/uploads')
       .set(header())
       .send({ ...survey, clientKey: randomUUID(), registerSector: undefined })
       .expect(400);
     const captured = await extract(1, '980 9876543210 3rd Floor SFD', null);
-    expect(captured.metadata.requestedTarget).toBe('SURVEY');
+    expect(captured.metadata).toMatchObject({ requestedTarget: 'SURVEY', register: { customFolderId: custom.id } });
     const entry = captured.entries[0];
     const entity = entry.extracted[0];
     expect(entity.inventory).toMatchObject({ houseNo: '980', sector: 'Sector 46', floor: '3', furnishing: 'SEMI_FURNISHED' });
@@ -262,6 +264,7 @@ describe('Register scan context, source facts and rented-only approval', () => {
     expect(rows[0]).toMatchObject({
       sourceType: 'SURVEY',
       sector: 'Sector 46',
+      customFolderId: custom.id,
       status: 'DRAFT',
       details: { possessionDate: '2027-01-05', petFriendly: false },
     });

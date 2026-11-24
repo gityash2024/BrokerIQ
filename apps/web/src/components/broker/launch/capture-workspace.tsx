@@ -31,7 +31,9 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const params = useSearchParams();
   const survey = scanner && params.get('target') === 'SURVEY';
   const requestedSector = survey ? (params.get('sector')?.trim() ?? '') : '';
-  const composeKey = survey ? 'survey-capture:' + requestedSector : 'capture';
+  const requestedFolder = scanner ? (params.get('customFolderId') ?? '') : '';
+  const composeKey = survey && requestedFolder ? 'survey-capture:' + requestedSector + ':' + requestedFolder
+    : survey ? 'survey-capture:' + requestedSector : 'capture';
   const { user } = useAuth();
   const cutover = useConfig().flags.connect_whatsapp_cutover === true;
   const owner = useRef(captureAccountContext()).current;
@@ -52,7 +54,9 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const captureMonth = target === 'INVENTORY' ? directoryMonth : undefined;
   const [registerSector, setRegisterSector] = useState(requestedSector);
+  const [registerFolderId, setRegisterFolderId] = useState(requestedFolder);
   const folderDefinitions = useInventoryFolderDefinitions(scanner);
+  const customFolders = (folderDefinitions.data ?? []).filter(({ kind }) => kind === 'CUSTOM');
   const savedSectors = (folderDefinitions.data ?? []).filter(({ kind }) => kind === 'SECTOR').map(({ label }) => label);
   const localities = useQuery({
     queryKey: ['localities-all'],
@@ -90,6 +94,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
         registerSessionId?: string;
         registerNextPage?: number;
         registerSector?: string;
+        registerFolderId?: string;
       }>(owner, composeKey, startSeparate)
         .then((saved) => {
           if (!live) return;
@@ -97,6 +102,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
             setText(saved.text);
             setGroup(saved.group);
             setRegisterSector(saved.registerSector ?? requestedSector);
+            setRegisterFolderId(saved.registerFolderId ?? requestedFolder);
             if (saved.registerSessionId) setRegisterSessionId(saved.registerSessionId);
             registerNextPage.current = saved.registerNextPage ?? 1;
             if (!survey && (!params.get('target') || saved.entryTarget === params.get('target'))) setTarget(saved.target);
@@ -128,13 +134,14 @@ function Workspace({ scanner }: { scanner: boolean }) {
           registerSessionId,
           registerNextPage: registerNextPage.current,
           registerSector,
+          registerFolderId,
         }),
       )
       .then(() => {
         if (version === revision.current) setStatus('Encrypted draft saved in this browser');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, [text, group, target, directoryMonth, ready, owner, registerSessionId, registerSector, composeKey]);
+  }, [text, group, target, directoryMonth, ready, owner, registerSessionId, registerSector, registerFolderId, composeKey]);
   async function capture(body: Record<string, unknown>, name: string) {
     const result = await api<{ id: string }>('/imports', {
       ownerContext: owner,
@@ -180,7 +187,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
         byte.toString(16).padStart(2, '0'),
       ).join('');
       const draftName = `capture-upload:${identityHash}`;
-      let upload = await readPrivateDraft<{ clientKey: string; registerSessionId?: string; registerPageNo?: number; registerSector?: string }>(
+      let upload = await readPrivateDraft<{ clientKey: string; registerSessionId?: string; registerPageNo?: number; registerSector?: string; registerFolderId?: string }>(
         owner,
         draftName,
         startSeparate,
@@ -189,13 +196,13 @@ function Workspace({ scanner }: { scanner: boolean }) {
         upload = {
           clientKey: crypto.randomUUID(),
           ...(scanner && contentType.startsWith('image/')
-            ? { registerSessionId, registerPageNo: registerNextPage.current, registerSector: registerSector || undefined }
+            ? { registerSessionId, registerPageNo: registerNextPage.current, registerSector: registerSector || undefined, registerFolderId: registerFolderId || undefined }
             : {}),
         };
         await writePrivateDraft(owner, draftName, upload);
         if (upload.registerPageNo) {
           registerNextPage.current = upload.registerPageNo + 1;
-          await writePrivateDraft(owner, 'capture', {
+          await writePrivateDraft(owner, composeKey, {
             text,
             group,
             target,
@@ -203,6 +210,8 @@ function Workspace({ scanner }: { scanner: boolean }) {
             entryTarget: params.get('target'),
             registerSessionId,
             registerNextPage: registerNextPage.current,
+            registerSector,
+            registerFolderId,
           });
         }
       }
@@ -220,6 +229,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
           registerSessionId: upload.registerSessionId,
           registerPageNo: upload.registerPageNo,
           registerSector: upload.registerSector,
+          registerFolderId: upload.registerFolderId,
         },
         (offset, length) =>
           new Promise<string>((resolve, reject) => {
@@ -265,8 +275,20 @@ function Workspace({ scanner }: { scanner: boolean }) {
               ))}
             </select>
           </label>
-          <InventoryFolderControls sectorsOnly onCreated={(folder) => {
-            setRegisterSector(folder.label);
+          <label className="block text-sm font-semibold">Save in custom folder
+            <select className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2" disabled={busy} value={registerFolderId} onChange={(event) => {
+              setRegisterFolderId(event.target.value);
+              setRegisterSessionId(crypto.randomUUID());
+              registerNextPage.current = 1;
+              setCompleted([]);
+            }}>
+              <option value="">No custom folder</option>
+              {customFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.label}</option>)}
+            </select>
+          </label>
+          <InventoryFolderControls onCreated={(folder) => {
+            if (folder.kind === 'SECTOR') setRegisterSector(folder.label);
+            else setRegisterFolderId(folder.id);
             setRegisterSessionId(crypto.randomUUID());
             registerNextPage.current = 1;
             setCompleted([]);

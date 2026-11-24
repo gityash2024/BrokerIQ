@@ -38,6 +38,7 @@ export interface ImportUploadInput {
   registerSessionId?: string;
   registerPageNo?: number;
   registerSector?: string;
+  registerFolderId?: string;
 }
 
 export type ImportUploadRequest = <T>(path: string, body?: unknown) => Promise<T>;

@@ -21,7 +21,7 @@ export function InventoryEntryActions({ createHref, survey = false, sector, cust
         <Plus className="size-4" /> {survey ? 'Add survey property' : 'Add property'}
       </Button>
       <Button
-        href={survey ? '/broker/scanner?target=SURVEY' + (sector ? '&sector=' + encodeURIComponent(sector) : '') : '/broker/scanner?target=INVENTORY'}
+        href={survey ? '/broker/scanner?target=SURVEY' + (sector ? '&sector=' + encodeURIComponent(sector) : '') + (customFolderId ? '&customFolderId=' + encodeURIComponent(customFolderId) : '') : '/broker/scanner?target=INVENTORY'}
         variant="secondary"
         disabled={!canImport}
         title={!canImport ? 'Inventory create and capture access required' : undefined}
