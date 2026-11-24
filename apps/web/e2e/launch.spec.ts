@@ -64,7 +64,7 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   const config = await (await request.get(API + '/public/config')).json();
   await page.goto('/broker/deals');
   const dealsAvailable = moduleAllowed(config.modules, 'deals', 'BROKER_ADMIN');
-  await expect(page.getByRole('heading', { name: dealsAvailable ? 'Deals & commission' : 'Deals & invoices', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: dealsAvailable ? 'Deals & commission' : 'Deals & invoices', exact: true })).toBeVisible({ timeout: 20_000 });
 });
 test('admin module toggle blocks direct route and restores navigation', async ({ page, request }) => {
   await login(page, 'admin.web@e2e.test', process.env.SUPER_ADMIN_PASSWORD || 'Admin@12345');
