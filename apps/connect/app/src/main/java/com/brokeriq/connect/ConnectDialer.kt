@@ -296,8 +296,24 @@ class ConnectPhoneActivity : ComponentActivity() {
                 while (true) { now = System.currentTimeMillis(); delay(1000) }
             } else if (receivedCall) finish()
         }
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp),
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                if (current != null && current.phase != Call.STATE_RINGING) {
+                    Surface(tonalElevation = 2.dp) {
+                        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center) {
+                            Button(
+                                onClick = { current.call.disconnect() },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            ) { Text("End call") }
+                        }
+                    }
+                }
+            },
+        ) { padding ->
+            Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 ConnectWorkspaceHeader("Phone", current != null)
                 if (current == null) {
@@ -386,9 +402,6 @@ class ConnectPhoneActivity : ComponentActivity() {
                             }
                         }
                         DialKeys { tone = it }
-                    }
-                    Button(onClick = { call.disconnect() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                        Text("End call")
                     }
                 }
             }
