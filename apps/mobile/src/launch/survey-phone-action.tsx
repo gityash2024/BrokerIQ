@@ -19,6 +19,7 @@ import { ChoiceField } from './form';
 import { queueSurveyPhone } from './drafts';
 import { SurveyContactFields } from './survey-contact-fields';
 import { SurveyLocationField } from './survey-location-field';
+import { SurveyPropertyMatches } from './survey-property-matches';
 import { NativePropertyMedia } from './property-media';
 
 export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed: boolean; sector?: string; customFolderId?: string }) {
@@ -26,6 +27,8 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
   const [houseNo, setHouseNo] = useState('');
+  const [manualSector, setManualSector] = useState('');
+  const selectedSector = sector ?? (manualSector.trim() || undefined);
   const [units, setUnits] = useState<SurveyUnitsInput['units']>([{}]);
   function updateUnit(index: number, value: Partial<SurveyUnitsInput['units'][number]>) {
     setUnits((rows) => rows.map((row, i) => (i === index ? { ...row, ...value } : row)));
@@ -55,13 +58,14 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
           houseNo,
           units,
           contacts: filled.map(({ name, phone }) => ({ name, phone: normalizeIndianPhone(phone)!, role: 'OWNER' })),
-          sector,
+          sector: selectedSector,
           customFolderId,
           directionsUrl: normalizeInventoryDirections(directions) ?? undefined,
         },
         captureAccountContext(),
       );
       setHouseNo('');
+      setManualSector('');
       setUnits([{}]);
       setDirections('');
       setContacts([]);
@@ -96,7 +100,9 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
         }}
         title="Add survey phone"
       >
+        {!sector && <Input label="Sector / locality" value={manualSector} maxLength={200} editable={!busy} onChangeText={setManualSector} />}
         <Input label="House / plot no." value={houseNo} editable={!busy} onChangeText={setHouseNo} />
+        {open && <SurveyPropertyMatches sector={selectedSector} houseNo={houseNo} />}
         {units.map((unit, index) => (
           <View key={index} style={{ gap: 6 }}>
             <Txt v="bodyStrong">Unit {index + 1}</Txt>

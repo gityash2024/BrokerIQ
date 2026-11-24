@@ -81,6 +81,54 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     await app?.close();
   });
 
+  it('finds matching units in each inventory view and queues the same eligible record for a repeat Survey', async () => {
+    const houseNo = 'Revisit 40';
+    const address = { ...unit, houseNo, sector: 'Sector 64' };
+    const photoUrls = ['https://inventory.example/revisit.jpg'];
+    const existing = (await api().post('/api/inventory').set(headers()).send({
+      ...address, floor: 'Ground', availability: 'UNAVAILABLE', status: 'INACTIVE', photoUrls, assignedToId: agentId,
+      date: '2020-01-01T00:00:00.000Z',
+    }).expect(201)).body;
+    const available = (await api().post('/api/inventory').set(headers()).send({
+      ...address, floor: 'First', directoryMonth: inventoryMonth(),
+    }).expect(201)).body;
+    const pending = (await api().post('/api/inventory').set(headers()).send({
+      ...address, floor: 'Second', survey: true, details: { possessionDate: inventoryDate() },
+    }).expect(201)).body;
+    await api().post('/api/inventory').set(headers(outsider)).send(address).expect(201);
+    const lookup = (token = admin, number = houseNo) => api().get('/api/inventory/survey-property-matches')
+      .query({ sector: 'Sec-64', houseNo: number }).set(headers(token)).expect(200);
+    expect((await lookup(admin, '# ' + houseNo)).body).toHaveLength(3);
+    expect((await lookup()).body).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: existing.id, view: 'ALL', canReturnToSurvey: true }),
+      expect.objectContaining({ id: available.id, view: 'AVAILABLE', canReturnToSurvey: false }),
+      expect.objectContaining({ id: pending.id, view: 'SURVEY', canReturnToSurvey: false }),
+    ]));
+    expect((await lookup(otherAgent)).body).toEqual([]);
+    expect((await lookup(agent)).body).toEqual([expect.objectContaining({ id: existing.id, canReturnToSurvey: true })]);
+    const reopen = (item: { id: string; revision: number }, token = admin) => api().patch(`/api/inventory/${item.id}/reopen-survey`)
+      .set(headers(token)).send({ expectedRevision: item.revision });
+    await reopen(available).expect(409);
+    await reopen(existing, outsider).expect(404);
+    await reopen(existing, otherAgent).expect(404);
+    const attempts = await Promise.all([reopen(existing, delegate).expect(200), reopen(existing, agent).expect(200)]);
+    expect(attempts.map(({ body }) => body.revision)).toEqual([existing.revision + 1, existing.revision + 1]);
+    expect(await db.auditLog.count({ where: { entityId: existing.id, action: 'inventory.survey.reopen' } })).toBe(1);
+    const queue = '/api/inventory?folderMode=SURVEY&folderSector=Sector%2064';
+    const since = new Date(Date.now() - 30000).toISOString();
+    expect((await api().get(queue).query({ dateFrom: since }).set(headers()).expect(200)).body.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: existing.id, propertyCode: existing.propertyCode, sourceType: existing.sourceType,
+        status: 'INACTIVE', availability: 'UNAVAILABLE', photoUrls }),
+    ]));
+    const logged = (await api().patch(`/api/inventory/${existing.id}/survey-call`).set(headers()).send({ expectedRevision: existing.revision + 1 }).expect(200)).body;
+    await api().patch(`/api/inventory/${existing.id}`).set(headers()).send({
+      directoryMonth: inventoryMonth(), expectedRevision: logged.revision,
+    }).expect(200);
+    expect((await lookup()).body.find(({ id }: { id: string }) => id === existing.id)).toMatchObject({ view: 'AVAILABLE', canReturnToSurvey: false });
+    expect((await api().get(queue).set(headers()).expect(200)).body.items.some(({ id }: { id: string }) => id === existing.id)).toBe(false);
+    expect(await db.inventoryItem.count({ where: { organizationId: firmId, houseNo } })).toBe(3);
+  });
+
   it('separates PDF property access from private contact and source text access', async () => {
     const batch = await db.importBatch.create({ data: { organizationId: firmId, sourceType: 'PDF', sourceHash: randomUUID(), status: 'COMPLETE' } });
     const row = await db.pdfInventoryRow.create({ data: { organizationId: firmId, batchId: batch.id, pageNo: 4, rowNo: 1,

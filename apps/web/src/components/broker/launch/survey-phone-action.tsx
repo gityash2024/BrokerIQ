@@ -18,6 +18,7 @@ import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SurveyLocationField } from './survey-location-field';
+import { SurveyPropertyMatches } from './survey-property-matches';
 import { PropertyMedia } from './property-media';
 
 const blankContact = () => ({ name: '', phone: '', role: 'OWNER' as const });
@@ -26,6 +27,8 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [houseNo, setHouseNo] = useState('');
+  const [manualSector, setManualSector] = useState('');
+  const selectedSector = sector ?? (manualSector.trim() || undefined);
   const [units, setUnits] = useState<SurveyUnitsInput['units']>([{}]);
   function updateUnit(index: number, value: Partial<SurveyUnitsInput['units'][number]>) {
     mutationId.current = null;
@@ -52,7 +55,7 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
       houseNo,
       units,
       contacts: filled,
-      sector,
+      sector: selectedSector,
       customFolderId,
       directionsUrl: normalizeInventoryDirections(directions) ?? undefined,
       clientMutationId: mutationId.current,
@@ -69,6 +72,7 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
       setContacts([blankContact()]);
       setUnits([{}]);
       setHouseNo('');
+      setManualSector('');
       setDirections('');
       mutationId.current = null;
       setOpen(false);
@@ -104,6 +108,13 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
             void save();
           }}
         >
+          {!sector && <label className="block text-sm font-semibold">
+            Sector / locality
+            <input maxLength={200} value={manualSector} disabled={busy} onChange={(event) => {
+              setManualSector(event.target.value);
+              mutationId.current = null;
+            }} className="mt-1 block min-h-10 w-full rounded-lg border border-line bg-surface px-2" />
+          </label>}
           <label className="block text-sm font-semibold">
             House / plot no.
             <input
@@ -118,6 +129,7 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
               className="mt-1 block min-h-10 w-full rounded-lg border border-line bg-surface px-2"
             />
           </label>
+          {open && <SurveyPropertyMatches sector={selectedSector} houseNo={houseNo} />}
           {units.map((unit, index) => (
             <fieldset key={index} className="rounded-xl border border-line p-2">
               <legend className="px-1 text-sm font-semibold">Unit {index + 1}</legend>

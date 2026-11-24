@@ -40,6 +40,7 @@ import { PropertyDateField } from '@/launch/property-date-field';
 import { ChoiceField } from '@/launch/form';
 import { SurveyContactFields } from '@/launch/survey-contact-fields';
 import { SurveyLocationField } from '@/launch/survey-location-field';
+import { SurveyPropertyMatches } from '@/launch/survey-property-matches';
 import { InventoryUnitFields, type InventoryUnitDraft } from '@/launch/inventory-unit-fields';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -375,6 +376,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
                 />
                 {field('houseNo', 'House / plot no.', false, true)}
               </Row>
+              {createSurvey && <SurveyPropertyMatches sector={form.sector} houseNo={form.houseNo} linkToProperty />}
               {localities.isError && <Button title="Retry sectors" size="sm" variant="ghost" onPress={() => void localities.refetch()} />}
               <SurveyLocationField
                 value={form.directionsUrl}

@@ -1,5 +1,50 @@
 import { expect, test } from '@playwright/test';
 import { API, createBrokerFixture } from './fixtures';
+import { inventoryMonth } from '@brokeriq/shared';
+
+test('Survey address lookup identifies existing units and returns only the selected historical record', async ({ page, request }) => {
+  const { session } = await createBrokerFixture(request);
+  const headers = { Authorization: 'Bearer ' + session.accessToken };
+  const houseNo = 'Revisit 48';
+  const property = {
+    houseNo, sector: 'Sector 30', purpose: 'RENT', category: 'RESIDENTIAL', propertyType: 'APARTMENT',
+    bhk: 2, roomKind: 'BHK', furnishing: 'SEMI_FURNISHED', area: 1000, areaUnit: 'SQ_FT', monthlyRent: 32000,
+  };
+  const create = async (data: Record<string, unknown>) => {
+    const result = await request.post(API + '/inventory', { headers, data: { ...property, ...data } });
+    expect(result.status()).toBe(201);
+    return result.json();
+  };
+  const existing = await create({ floor: 'Ground' });
+  const available = await create({ floor: 'First', directoryMonth: inventoryMonth() });
+  await page.goto('/');
+  await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/broker/inventory/new?survey=1&sector=Sector%2030');
+  const house = page.getByLabel('House / plot no.', { exact: true });
+  await house.fill(houseNo);
+  await expect(page.getByText('First · Available Inventory', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ground · All Inventory', { exact: true })).toBeVisible();
+  const availableLink = page.getByRole('link', { name: available.propertyCode, exact: true });
+  await expect(availableLink).toBeVisible();
+  const reopen = page.getByRole('button', { name: 'Return to Survey', exact: true });
+  await expect(reopen).toHaveCount(1);
+  page.once('dialog', (dialog) => dialog.accept());
+  await reopen.click();
+  await expect(page.getByText('Ground · Survey', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: existing.propertyCode, exact: true })).toHaveAttribute('href', `/broker/inventory/${existing.id}`);
+  await expect(house).toHaveValue(houseNo);
+  await expect(reopen).toHaveCount(0);
+
+  await page.goto('/broker/inventory?survey=1');
+  await page.getByRole('button', { name: 'Add survey phone', exact: true }).click();
+  const quick = page.getByRole('dialog', { name: 'Add survey phone', exact: true });
+  await quick.getByLabel('Sector / locality', { exact: true }).fill('Sec-30');
+  await quick.getByLabel('House / plot no.', { exact: true }).fill(houseNo);
+  await expect(quick.getByText('Ground · Survey', { exact: true })).toBeVisible();
+  await expect(quick.getByText('First · Available Inventory', { exact: true })).toBeVisible();
+});
+
 test('scanner and chat exports are discoverable, private drafts survive reload and imports stay in review', async ({ page, request }, testInfo) => {
   const { session, password } = await createBrokerFixture(request);
   const errors: string[] = [];

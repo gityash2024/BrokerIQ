@@ -30,6 +30,7 @@ import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { PropertyExtras, readPropertyExtras } from './property-extras';
 import { PropertyMedia } from './property-media';
 import { SurveyLocationField } from './survey-location-field';
+import { SurveyPropertyMatches } from './survey-property-matches';
 import { InventoryFolderControls, useInventoryFolderDefinitions } from './inventory-folder-controls';
 import { InventoryUnitFields } from './inventory-unit-fields';
 
@@ -364,6 +365,9 @@ export function PropertyForm({
             )}
           </label>
           {field('houseNo')}
+          {!ownerMode && !('id' in initial) && (
+            <div className="col-span-full empty:hidden"><SurveyPropertyMatches sector={location.sector} houseNo={location.houseNo} /></div>
+          )}
           {captureSurveyLocation && (
             <div className="col-span-full">
               <SurveyLocationField value={directions} onChange={setDirections} disabled={busy} onReading={setReadingLocation} />

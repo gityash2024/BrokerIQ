@@ -158,6 +158,20 @@ export const surveyUnitsInputSchema = surveyPhoneInputSchema.options[1].extend({
     }),
 });
 export type SurveyUnitsInput = z.infer<typeof surveyUnitsInputSchema>;
+export const surveyPropertyLookupSchema = z.object({ sector: z.string().trim().min(1).max(200), houseNo: z.string().trim().min(1).max(200) });
+export type SurveyPropertyLookup = z.infer<typeof surveyPropertyLookupSchema>;
+export const surveyReopenInputSchema = z.strictObject({ expectedRevision: z.number().int().positive() });
+export type SurveyReopenInput = z.infer<typeof surveyReopenInputSchema>;
+export const surveyPropertyViews = { SURVEY: 'Survey', AVAILABLE: 'Available Inventory', ALL: 'All Inventory' } as const;
+export type SurveyPropertyMatch = {
+  id: string;
+  propertyCode: string;
+  revision: number;
+  floor: string | null;
+  unitLabel: string | null;
+  view: keyof typeof surveyPropertyViews;
+  canReturnToSurvey: boolean;
+};
 export const surveyConfigurationChoices = surveyPhoneUnitSchema.shape.configuration.unwrap().options;
 export const surveyFurnishingChoices = surveyPhoneUnitSchema.shape.furnishing.unwrap().options;
 export function inventoryUnitConfigurationFields(configuration?: UnitConfiguration) {

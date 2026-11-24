@@ -4,6 +4,7 @@ import { generateCsv } from '../../common/csv';
 import { Prisma, PropertyType } from '@prisma/client';
 import {
   inventoryInputSchema,
+  inventoryFilterSchema,
   inventoryUnitBatchRows,
   inventoryUnitConfigurationFields,
   type InventoryUnitBatch,
@@ -14,6 +15,9 @@ import {
   type SurveyPhoneInput,
   type SurveyUnitsInput,
   type SurveyCallInput,
+  type SurveyPropertyLookup,
+  type SurveyPropertyMatch,
+  type SurveyReopenInput,
   type BrokerRequirementInput,
   ledgerMatch,
   areaSqft,
@@ -52,6 +56,16 @@ import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import type { InventoryFilterQuery } from './inventory.dto';
 
 const pendingSurvey: Prisma.InventoryItemWhereInput = { sourceType: 'SURVEY', status: 'DRAFT' };
+const surveyQueue: Prisma.InventoryItemWhereInput = { OR: [pendingSurvey, { surveyReopenedAt: { not: null } }] };
+const surveyCandidate = {
+  id: true, organizationId: true, propertyCode: true, revision: true, floor: true, unitLabel: true, houseNo: true, sector: true,
+  createdById: true, assignedToId: true, sourceType: true, status: true, surveyReopenedAt: true,
+  publishedListing: { select: { status: true, deletedAt: true } },
+} as const;
+type SurveyCandidate = Prisma.InventoryItemGetPayload<{ select: typeof surveyCandidate }>;
+const inSurveyQueue = (item: SurveyCandidate) => !!item.surveyReopenedAt || (item.sourceType === 'SURVEY' && item.status === 'DRAFT');
+const hasOpenListing = (item: SurveyCandidate) => !!item.publishedListing && !item.publishedListing.deletedAt &&
+  ['ACTIVE', 'PENDING_REVIEW'].includes(item.publishedListing.status);
 const folderDefinition = { id: true, kind: true, label: true } as const;
 
 function sectorSelection(label: string): Prisma.InventoryItemWhereInput {
@@ -118,7 +132,7 @@ export class InventoryService {
     const and: Prisma.InventoryItemWhereInput[] = [];
     if (q.folderMode === 'SURVEY' && q.surveyShelf)
       where.surveyNoAnswerAt = q.surveyShelf === 'NO_ANSWER' ? { not: null } : null;
-    and.push(q.folderMode === 'SURVEY' ? pendingSurvey : { NOT: pendingSurvey });
+    and.push(q.folderMode === 'SURVEY' ? surveyQueue : { NOT: pendingSurvey });
     if (q.review === 'publication')
       and.push({ publishedListing: { is: { status: 'PENDING_REVIEW', ...(user.role === 'BROKER_ADMIN' ? { reviewRequiredRole: 'BROKER_ADMIN' } : {}) } } });
     if (user.role === 'BROKER_AGENT') {
@@ -299,8 +313,12 @@ export class InventoryService {
       });
       and.push({ NOT: rented });
     }
+    if (q.dateFrom || q.dateTo) {
+      const date = { ...(q.dateFrom ? { gte: new Date(q.dateFrom) } : {}), ...(q.dateTo ? { lte: new Date(q.dateTo) } : {}) };
+      if (q.folderMode === 'SURVEY') and.push({ OR: [{ surveyReopenedAt: date }, { surveyReopenedAt: null, date }] });
+      else where.date = date;
+    }
     if (and.length) where.AND = and;
-    if (q.dateFrom || q.dateTo) where.date = { ...(q.dateFrom ? { gte: new Date(q.dateFrom) } : {}), ...(q.dateTo ? { lte: new Date(q.dateTo) } : {}) };
     return where;
   }
   async getFolders(q: InventoryFilterQuery, user: RequestUser): Promise<InventoryFolders> {
@@ -675,7 +693,7 @@ export class InventoryService {
     return this.propertyPhotos.inventory((await this.access.present([ledgerJson(item)], user))[0]);
   }
   countPendingSurvey(user: RequestUser) {
-    return this.prisma.inventoryItem.count({ where: { ...this.scope(user), ...pendingSurvey } });
+    return this.prisma.inventoryItem.count({ where: { AND: [this.scope(user), surveyQueue] } });
   }
   async getStats(user: RequestUser, organizationId?: string) {
     const where = { organizationId: this.orgId(user, organizationId, false), deletedAt: null, ...this.access.readScope(user), NOT: pendingSurvey };
@@ -799,6 +817,7 @@ export class InventoryService {
       ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}),
       ...(input.date ? { date: new Date(input.date) } : {}),
       ...(data.availability ? { availabilityAt: new Date() } : {}),
+      ...(previous?.surveyReopenedAt && (input.directoryMonth || markRented) ? { surveyReopenedAt: null, surveyNoAnswerAt: null } : {}),
       ...(!input.directoryMonth &&
       previous?.directoryMonth &&
       (effective.availability !== 'AVAILABLE' || effective.status !== 'ACTIVE' || effective.verificationStatus !== 'VERIFIED')
@@ -889,7 +908,7 @@ export class InventoryService {
   async recordSurveyNoAnswer(id: string, input: SurveyCallInput, user: RequestUser) {
     const item = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
-      const item = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id, ...pendingSurvey }, select: { notes: true, revision: true } });
+      const item = await tx.inventoryItem.findFirst({ where: { id, AND: [this.scope(user), surveyQueue] }, select: { notes: true, revision: true } });
       if (!item) throw new NotFoundException('Pending Survey property not found');
       if (item.revision !== input.expectedRevision) throw new ConflictException('Property changed. Reload before logging a call.');
       const surveyNoAnswerAt = new Date();
@@ -900,6 +919,57 @@ export class InventoryService {
     });
     await this.audit.log(user, 'inventory.survey.no_answer', 'InventoryItem', id);
     return this.propertyPhotos.inventory(ledgerJson(item));
+  }
+
+  async surveyPropertyMatches(input: SurveyPropertyLookup, user: RequestUser): Promise<SurveyPropertyMatch[]> {
+    const organizationId = this.orgId(user);
+    const houseNo = input.houseNo.replace(/^#\s*/, '');
+    if (!houseNo) return [];
+    const rows = await this.prisma.inventoryItem.findMany({
+      where: {
+        organizationId, deletedAt: null,
+        houseNo: { in: [houseNo, '#' + houseNo, '# ' + houseNo], mode: 'insensitive' },
+        AND: [sectorSelection(input.sector), ...(user.role === 'BROKER_AGENT' ? [{ OR: [
+          { createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } },
+        ] }] : [])],
+      },
+      select: surveyCandidate, orderBy: [{ floor: 'asc' }, { unitLabel: 'asc' }, { id: 'asc' }], take: 100,
+    });
+    if (!rows.length) return [];
+    const available = new Set((await this.prisma.inventoryItem.findMany({
+      where: { AND: [{ id: { in: rows.map(({ id }) => id) } }, this.availableSurveyPropertyScope(user)] },
+      select: { id: true },
+    })).map(({ id }) => id));
+    const canEdit = !user.delegatedActor || Boolean(user.delegatedPermissions?.includes('inventory:edit'));
+    return rows.map((row) => {
+      const { id, propertyCode, revision, floor, unitLabel } = row;
+      const view = inSurveyQueue(row) ? 'SURVEY' : available.has(id) ? 'AVAILABLE' : 'ALL';
+      const scoped = user.role !== 'BROKER_AGENT' || row.createdById === user.id || row.assignedToId === user.id;
+      return { id, propertyCode, revision, floor, unitLabel, view, canReturnToSurvey: canEdit && scoped && view === 'ALL' && !hasOpenListing(row) };
+    });
+  }
+
+  private availableSurveyPropertyScope(user: RequestUser) {
+    return this.filterWhere(inventoryFilterSchema.parse({ folderMode: 'AVAILABLE', organizationId: this.orgId(user) }), user);
+  }
+
+  async reopenSurvey(id: string, input: SurveyReopenInput, user: RequestUser) {
+    const organizationId = this.orgId(user);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} AND "organizationId" = ${organizationId} FOR UPDATE`;
+      const item = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id }, select: surveyCandidate });
+      if (!item || !item.houseNo?.trim() || !item.sector?.trim()) throw new NotFoundException('Survey property not found');
+      if (inSurveyQueue(item)) return { id, revision: item.revision };
+      if (item.revision !== input.expectedRevision) throw new ConflictException('Property changed. Check the house number again.');
+      const available = await tx.inventoryItem.count({ where: { AND: [{ id }, this.availableSurveyPropertyScope(user)] } });
+      if (available) throw new ConflictException('This property is already in Available Inventory.');
+      if (hasOpenListing(item)) throw new ConflictException('A property with an open marketplace listing cannot be sent to Survey.');
+      const saved = await tx.inventoryItem.update({ where: { id }, data: {
+        surveyReopenedAt: new Date(), surveyNoAnswerAt: null, revision: { increment: 1 },
+      }, select: { id: true, revision: true } });
+      await tx.auditLog.create({ data: { actorId: user.id, organizationId, action: 'inventory.survey.reopen', entity: 'InventoryItem', entityId: id } });
+      return saved;
+    });
   }
   create(
     input: InventoryInput,

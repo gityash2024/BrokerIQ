@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
@@ -13,12 +13,16 @@ import {
   surveyPhoneInputSchema,
   surveyUnitsInputSchema,
   surveyCallInputSchema,
+  surveyPropertyLookupSchema,
+  surveyReopenInputSchema,
   type SurveyUnitsInput,
   type InventoryUnitBatch,
   type SurveyCallInput,
   type SurveyPhoneInput,
   type InventoryPublishInput,
   type SurveyPhotoInput,
+  type SurveyPropertyLookup,
+  type SurveyReopenInput,
 } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
@@ -99,6 +103,12 @@ export class InventoryController {
   @Get('sectors') getSectors(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getSectors(user, orgId);
   }
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Get('survey-property-matches')
+  @Header('Cache-Control', 'private, no-store')
+  surveyPropertyMatches(@Query(new ZodPipe(surveyPropertyLookupSchema)) input: SurveyPropertyLookup, @CurrentUser() user: RequestUser) {
+    return this.inventory.surveyPropertyMatches(input, user);
+  }
   @Get(':id/access')
   detailAccess(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.access.requests(id, user);
@@ -163,6 +173,11 @@ export class InventoryController {
   @Patch(':id/survey-call')
   surveyCall(@Param('id') id: string, @Body(new ZodPipe(surveyCallInputSchema)) dto: SurveyCallInput, @CurrentUser() user: RequestUser) {
     return this.inventory.recordSurveyNoAnswer(id, dto, user);
+  }
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Patch(':id/reopen-survey')
+  reopenSurvey(@Param('id') id: string, @Body(new ZodPipe(surveyReopenInputSchema)) input: SurveyReopenInput, @CurrentUser() user: RequestUser) {
+    return this.inventory.reopenSurvey(id, input, user);
   }
   @Patch('bulk/update') bulkUpdate(
     @Body(
