@@ -106,6 +106,29 @@ describe('Tenant & owner tools (e2e)', () => {
   let tenancyId: string;
   let ownerId: string;
 
+  it('updates owner contacts and preserves owner and tenancy dependencies across firms', async () => {
+    const linkOwner = async (name: string, phone: string) => (await http.post('/api/broker/owners').set(auth(broker.token))
+      .send({ name, phone }).expect(201)).body;
+    const removable = await linkOwner('Standalone owner', '9811200007');
+    const linked = await linkOwner('Owner with a lease', '9811200008');
+    const foreign = await prisma.organization.create({ data: { name: 'Foreign owner firm', slug: 'foreign-owner-' + uniq } });
+    const foreignOwner = await prisma.owner.create({ data: { name: 'Foreign owner', organizationId: foreign.id, phone: '+919811200009' } });
+    await http.patch('/api/broker/owners/' + removable.id).set(auth(broker.token)).send({ name: 'Edited owner' }).expect(200)
+      .expect(({ body }) => expect(body.name).toBe('Edited owner'));
+    await http.patch('/api/broker/owners/' + removable.id).set(auth(broker.token)).send({ phone: linked.phone }).expect(409);
+    await http.delete('/api/broker/owners/' + foreignOwner.id).set(auth(broker.token)).expect(404);
+    const tenancy = (await http.post('/api/broker/tenancies').set(auth(broker.token)).send({
+      ownerId: linked.id, tenantName: 'Lease to preserve', rent: 35000, startDate: new Date().toISOString(),
+    }).expect(201)).body;
+    await http.patch('/api/broker/tenancies/' + tenancy.id).set(auth(broker.token)).send({ ownerId: foreignOwner.id }).expect(400);
+    await http.patch('/api/broker/tenancies/' + tenancy.id).set(auth(broker.token)).send({ rent: 38000 }).expect(200);
+    await http.delete('/api/broker/owners/' + linked.id).set(auth(broker.token)).expect(409);
+    await http.patch('/api/broker/tenancies/' + tenancy.id).set(auth(broker.token)).send({ status: 'ENDED' }).expect(200);
+    expect(await prisma.tenancy.findUniqueOrThrow({ where: { id: tenancy.id } })).toMatchObject({ ownerId: linked.id, rent: 38000, status: 'ENDED' });
+    await http.delete('/api/broker/owners/' + removable.id).set(auth(broker.token)).expect(200);
+    expect(await prisma.auditLog.count({ where: { entityId: removable.id, action: { in: ['owner.update', 'owner.delete'] } } })).toBe(2);
+  });
+
   it('rent: due-date reminder, paid mark, receipt PDF, tenant sees “मेरा किराया”', async () => {
     const owner = await http.post('/api/broker/owners').set(auth(broker.token)).send({ name: 'Omkar Owner', phone: '9811200001' }).expect(201);
     ownerId = owner.body.id;

@@ -48,13 +48,13 @@ export class OwnersController {
 
   @Patch('owners/:id')
   update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(ownerSchema.partial())) body: any) {
-    return this.svc.update(requireOrg(user), id, body);
+    return this.svc.update(requireOrg(user), id, body, user);
   }
 
   @Roles('BROKER_ADMIN')
   @Delete('owners/:id')
   remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.svc.remove(requireOrg(user), id);
+    return this.svc.remove(requireOrg(user), id, user);
   }
 
   @Post('owners/:id/listings/:listingId')

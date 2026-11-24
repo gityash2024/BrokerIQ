@@ -30,6 +30,7 @@ const actionsByModule: Record<string, readonly DelegatedAction[]> = {
   leads: ['view', 'create', 'edit', 'delete', 'export', 'assign', 'send'],
   inbox: ['view', 'create', 'edit', 'delete', 'approve', 'send'],
   automation: ['view', 'create', 'edit', 'delete', 'connection_status', 'sync'],
+  owners: ['view', 'create', 'edit', 'delete', 'send'],
   deals: ['view', 'create', 'edit', 'delete', 'send'],
   team: ['view', 'edit', 'export'],
   kyc: ['view', 'create', 'approve'],

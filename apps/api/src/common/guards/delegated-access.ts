@@ -1,7 +1,7 @@
 import { moduleForPath, type DelegatedAction } from '@brokeriq/shared';
 
 /** Firm membership and authorization management always belong to the Broker Admin. */
-export function delegatedEndpoint(path: string, method: string, body?: { action?: string }): { module: string; actions: DelegatedAction[] } | null {
+export function delegatedEndpoint(path: string, method: string, body?: { action?: string; status?: string }): { module: string; actions: DelegatedAction[] } | null {
   if (/^\/(admin|webhooks|invites|broker-invites)(\/|$)/.test(path)) return null;
   if (/^\/broker\/(onboarding|webhook-key)(\/|$)/.test(path)) return null;
   if (/^\/broker\/team\/(invite|invites)(\/|$)/.test(path)) return null;
@@ -74,6 +74,8 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (module === 'leads' && method === 'POST' && /\/(activities|ai)$/.test(path)) return { module, actions: ['edit'] };
   if (path === '/broker-requirements/:id/convert' && method === 'POST') return { module, actions: ['edit'] };
   if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(path) && method === 'GET') return { module: 'leads', actions: ['view'] };
+  if (path === '/broker/tenancies/:id' && method === 'PATCH' && body?.status === 'ENDED')
+    return { module: 'owners', actions: Object.keys(body).some((key) => key !== 'status') ? ['view', 'edit', 'delete'] : ['view', 'delete'] };
   if (path === '/whatsapp/status' && method === 'GET') return { module: 'inbox', actions: ['view'] };
 
   let actions: DelegatedAction[];

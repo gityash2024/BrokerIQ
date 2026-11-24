@@ -6,9 +6,9 @@ import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, ClipboardCheck, IndianRupee, KeyRound, MessageCircle, Phone, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
-import { formatINR, whatsappLink } from '@brokeriq/shared';
+import { formatINR, hasDelegatedAccess, whatsappLink } from '@brokeriq/shared';
 import { api } from '@/lib/api';
-import { patch, post, useApiMutation } from '@/lib/hooks';
+import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
@@ -19,6 +19,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { OwnerReportCard } from '@/components/broker/growth-tools';
 import { InspectionDialog, OwnerPaymentCard, RentDialog } from '@/components/broker/lease-tools';
 import { useFlag } from '@/lib/config';
+import { useAuth } from '@/lib/auth';
 
 const daysLeft = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400_000);
 
@@ -45,6 +46,7 @@ function OwnersInner() {
 }
 
 function Owners() {
+  const { user } = useAuth();
   const [q, setQ] = useRouteState('owners.q', '');
   const [open, setOpen] = useState<any>(null);
   const [add, setAdd] = useState(false);
@@ -56,7 +58,7 @@ function Owners() {
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
           <Input className="pl-9" placeholder="नाम या number…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <Button onClick={() => setAdd(true)}>
+        <Button access={hasDelegatedAccess(user, 'owners', 'create')} onClick={() => setAdd(true)}>
           <Plus className="size-4" /> Owner जोड़ें
         </Button>
       </div>
@@ -89,8 +91,16 @@ function Owners() {
 }
 
 function OwnerDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const { user } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const canEdit = hasDelegatedAccess(user, 'owners', 'view', 'edit');
+  const canDelete = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN'].includes(user?.role ?? '') && hasDelegatedAccess(user, 'owners', 'view', 'delete');
+  const remove = useApiMutation(() => del('/broker/owners/' + id), {
+    success: 'Owner deleted', invalidate: [['owners'], ['owner', id]], onSuccess: onClose,
+  });
   const q = useQuery({ queryKey: ['owner', id], queryFn: () => api<any>(`/broker/owners/${id}`), enabled: !!id });
   const o = q.data;
+  if (o && editing) return <AddOwner key={o.id} open owner={o} onClose={() => setEditing(false)} />;
   return (
     <Dialog open={!!id} onOpenChange={(v) => !v && onClose()} size="lg" title={o?.name ?? 'Owner'} description={o?.phone}>
       {!o ? (
@@ -105,6 +115,11 @@ function OwnerDialog({ id, onClose }: { id: string | null; onClose: () => void }
               <MessageCircle className="size-4" /> WhatsApp
             </Button>
           </div>
+          {(canEdit || canDelete) && <div className="flex flex-wrap gap-2">
+            {canEdit && <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>Edit owner</Button>}
+            {canDelete && !o.listings.length && !o.tenancies.length && <Button size="sm" variant="danger" loading={remove.isPending}
+              onClick={() => window.confirm('Delete this owner contact?') && remove.mutate(undefined)}>Delete owner</Button>}
+          </div>}
           <div>
             <p className="mb-2 text-sm font-semibold">Properties</p>
             {o.listings.length ? (
@@ -155,18 +170,21 @@ function OwnerDialog({ id, onClose }: { id: string | null; onClose: () => void }
   );
 }
 
-function AddOwner({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [f, setF] = useState({ name: '', phone: '', email: '', notes: '' });
-  const save = useApiMutation(() => post('/broker/owners', { ...f, email: f.email || undefined }), {
-    success: 'Owner जोड़ा गया',
-    invalidate: [['owners']],
+type OwnerDraft = { id: string; name: string; phone: string; email?: string | null; notes?: string | null };
+
+function AddOwner({ open, onClose, owner }: { open: boolean; onClose: () => void; owner?: OwnerDraft }) {
+  const [f, setF] = useState({ name: owner?.name ?? '', phone: owner?.phone ?? '', email: owner?.email ?? '', notes: owner?.notes ?? '' });
+  const save = useApiMutation(() => owner ? patch('/broker/owners/' + owner.id, { ...f, email: f.email || null, notes: f.notes || null })
+    : post('/broker/owners', { ...f, email: f.email || undefined }), {
+    success: owner ? 'Owner updated' : 'Owner जोड़ा गया',
+    invalidate: owner ? [['owners'], ['owner', owner.id]] : [['owners']],
     onSuccess: () => (onClose(), setF({ name: '', phone: '', email: '', notes: '' })),
   });
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => !v && onClose()}
-      title="Owner जोड़ें"
+      title={owner ? 'Edit owner' : 'Owner जोड़ें'}
       footer={
         <Button onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!f.name || !f.phone}>
           Save
@@ -192,6 +210,11 @@ function AddOwner({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 function Leases() {
+  const { user } = useAuth();
+  const canCreate = hasDelegatedAccess(user, 'owners', 'view', 'create');
+  const canEdit = hasDelegatedAccess(user, 'owners', 'view', 'edit');
+  const canEnd = hasDelegatedAccess(user, 'owners', 'view', 'delete');
+  const [editing, setEditing] = useState<LeaseDraft | null>(null);
   const list = useQuery({ queryKey: ['tenancies'], queryFn: () => api<any[]>('/broker/tenancies') });
   const [add, setAdd] = useState(false);
   const renew = useApiMutation((id: string) => patch(`/broker/tenancies/${id}`, { renewMonths: 11 }), {
@@ -206,7 +229,7 @@ function Leases() {
   return (
     <>
       <div className="mb-4 flex justify-end">
-        <Button onClick={() => setAdd(true)}>
+        <Button access={canCreate} onClick={() => setAdd(true)}>
           <Plus className="size-4" /> Lease जोड़ें
         </Button>
       </div>
@@ -254,12 +277,13 @@ function Leases() {
                         <ClipboardCheck className="size-4" /> Checklist
                       </Button>
                     )}
-                    <Button size="sm" variant="secondary" onClick={() => renew.mutate(t.id)}>
+                    <Button access={canEdit} size="sm" variant="secondary" onClick={() => renew.mutate(t.id)}>
                       <RefreshCw className="size-4" /> Renew
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => end.mutate(t.id)}>
+                    {canEdit && <Button size="sm" variant="secondary" onClick={() => setEditing(t)}>Edit lease</Button>}
+                    {canEnd && <Button size="sm" variant="ghost" onClick={() => window.confirm('End this lease and keep its history?') && end.mutate(t.id)}>
                       बंद करें
-                    </Button>
+                    </Button>}
                   </div>
                 )}
               </div>
@@ -268,31 +292,29 @@ function Leases() {
         </div>
       )}
       <AddLease open={add} onClose={() => setAdd(false)} />
+      {editing && <AddLease key={editing.id} open lease={editing} onClose={() => setEditing(null)} />}
       <RentDialog tenancyId={rentFor} onClose={() => setRentFor(null)} />
       <InspectionDialog tenancy={checkFor} onClose={() => setCheckFor(null)} />
     </>
   );
 }
 
-function AddLease({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [f, setF] = useState({ tenantName: '', tenantPhone: '', rent: '', startDate: '', endDate: '' });
-  const save = useApiMutation(
-    () =>
-      post('/broker/tenancies', {
-        tenantName: f.tenantName,
-        tenantPhone: f.tenantPhone || undefined,
-        rent: Number(f.rent),
-        startDate: f.startDate,
-        endDate: f.endDate || undefined,
-      }),
-    { success: 'Lease जोड़ा गया', invalidate: [['tenancies']], onSuccess: () => onClose() },
-  );
+type LeaseDraft = { id: string; tenantName: string; tenantPhone?: string | null; rent: number; startDate: string; endDate: string };
+
+function AddLease({ open, onClose, lease }: { open: boolean; onClose: () => void; lease?: LeaseDraft }) {
+  const [f, setF] = useState({ tenantName: lease?.tenantName ?? '', tenantPhone: lease?.tenantPhone ?? '', rent: lease ? String(lease.rent) : '',
+    startDate: lease?.startDate.slice(0, 10) ?? '', endDate: lease?.endDate.slice(0, 10) ?? '' });
+  const save = useApiMutation(() => {
+    const body = { tenantName: f.tenantName, tenantPhone: f.tenantPhone || null, rent: Number(f.rent),
+      startDate: f.startDate, endDate: f.endDate || undefined };
+    return lease ? patch('/broker/tenancies/' + lease.id, body) : post('/broker/tenancies', body);
+  }, { success: lease ? 'Lease updated' : 'Lease जोड़ा गया', invalidate: [['tenancies'], ['owner']], onSuccess: onClose });
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => !v && onClose()}
-      title="Lease जोड़ें"
-      description="End date खाली छोड़ें तो 11 महीने माना जाएगा"
+      title={lease ? 'Edit lease' : 'Lease जोड़ें'}
+      description={lease ? undefined : 'End date खाली छोड़ें तो 11 महीने माना जाएगा'}
       footer={
         <Button onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!f.tenantName || !f.rent || !f.startDate}>
           Save

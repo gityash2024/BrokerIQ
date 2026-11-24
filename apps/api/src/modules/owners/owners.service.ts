@@ -1,11 +1,12 @@
 import { ModulesService } from '../../core/features/modules.service';
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import type { Prisma } from '@prisma/client';
 import { formatINR, normalizeIndianPhone } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
+import type { RequestUser } from '../../common/decorators';
 import { env } from '../../config/env';
 
 /** Days before lease end when the firm is reminded (renew with the tenant or re-rent the flat). */
@@ -113,15 +114,37 @@ export class OwnersService implements OnModuleInit {
     });
   }
 
-  async update(orgId: string, id: string, input: Partial<OwnerInput>) {
-    await this.get(orgId, id);
-    return this.prisma.owner.update({ where: { id }, data: { ...input, phone: input.phone ? (normalizeIndianPhone(input.phone) ?? input.phone) : undefined } });
+  async update(orgId: string, id: string, input: Partial<OwnerInput>, actor: RequestUser) {
+    return this.prisma.$transaction(async (tx) => {
+      const owner = await tx.owner.findFirst({ where: { id, organizationId: orgId }, select: { id: true } });
+      if (!owner) throw new NotFoundException();
+      const phone = input.phone ? normalizeIndianPhone(input.phone) ?? input.phone : undefined;
+      if (phone && await tx.owner.count({ where: { organizationId: orgId, phone, NOT: { id } } })) {
+        throw new ConflictException('इस number का owner पहले से है');
+      }
+      const updated = await tx.owner.update({ where: { id }, data: { ...input, phone, email: input.email === '' ? null : input.email } });
+      await this.auditOwner(tx, actor, orgId, 'owner.update', id);
+      return updated;
+    });
   }
 
-  async remove(orgId: string, id: string) {
-    await this.get(orgId, id);
-    await this.prisma.owner.delete({ where: { id } });
-    return { ok: true };
+  async remove(orgId: string, id: string, actor: RequestUser) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Owner" WHERE id = ${id} AND "organizationId" = ${orgId} FOR UPDATE`;
+      const owner = await tx.owner.findFirst({ where: { id, organizationId: orgId }, select: {
+        id: true, _count: { select: { listings: true, tenancies: true } },
+      } });
+      if (!owner) throw new NotFoundException();
+      if (owner._count.listings || owner._count.tenancies) throw new ConflictException('An owner with linked properties or leases cannot be deleted');
+      await tx.owner.delete({ where: { id } });
+      await this.auditOwner(tx, actor, orgId, 'owner.delete', id);
+      return { ok: true };
+    });
+  }
+
+  private auditOwner(tx: Prisma.TransactionClient, actor: RequestUser, organizationId: string, action: string, entityId: string) {
+    return tx.auditLog.create({ data: { organizationId, actorId: actor.id, actorRole: actor.delegatedActor ? 'SUB_BROKER_ADMIN' : actor.role,
+      action, entity: 'Owner', entityId } });
   }
 
   async linkListing(orgId: string, ownerId: string, listingId: string) {
@@ -144,6 +167,8 @@ export class OwnersService implements OnModuleInit {
   async createTenancy(orgId: string, input: TenancyInput) {
     if (input.listingId && !(await this.prisma.listing.findFirst({ where: { id: input.listingId, organizationId: orgId } })))
       throw new BadRequestException('Listing नहीं मिली');
+    if (input.ownerId && !(await this.prisma.owner.findFirst({ where: { id: input.ownerId, organizationId: orgId } })))
+      throw new BadRequestException('Owner नहीं मिला');
     const listingOwner = input.listingId
       ? (await this.prisma.listing.findUnique({ where: { id: input.listingId }, select: { ownerId: true } }))?.ownerId
       : null;
@@ -187,7 +212,17 @@ export class OwnersService implements OnModuleInit {
         },
       });
     }
-    return this.prisma.tenancy.update({ where: { id }, data: rest as Prisma.TenancyUncheckedUpdateInput });
+    if (rest.listingId && !(await this.prisma.listing.findFirst({ where: { id: rest.listingId, organizationId: orgId } })))
+      throw new BadRequestException('Listing नहीं मिली');
+    if (rest.ownerId && !(await this.prisma.owner.findFirst({ where: { id: rest.ownerId, organizationId: orgId } })))
+      throw new BadRequestException('Owner नहीं मिला');
+    const { endDate, tenantPhone, ...fields } = rest;
+    if ((endDate ?? t.endDate) < (rest.startDate ?? t.startDate)) throw new BadRequestException('Lease end date must follow its start date');
+    return this.prisma.tenancy.update({ where: { id }, data: {
+      ...fields,
+      ...(endDate ? { endDate } : {}),
+      ...(tenantPhone !== undefined ? { tenantPhone: tenantPhone ? normalizeIndianPhone(tenantPhone) ?? tenantPhone : null } : {}),
+    } });
   }
 
   /** A closed rent deal becomes a tenancy (11-month default term) so renewals are tracked. */
