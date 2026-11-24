@@ -4,7 +4,7 @@ import { TabBar } from '@/components/tab-bar';
 
 const { act, create } = require('react-test-renderer');
 const mockPolicies = defaultModulePolicies();
-let mockUser: { role: string; delegatedPermissions?: string[] };
+let mockUser: { role: string; delegatedPermissions?: string[]; agentChatEnabled?: boolean };
 jest.mock('@/lib/auth', () => ({ useAuth: () => ({ user: mockUser }) }));
 jest.mock('@/lib/config', () => ({ useConfig: () => ({ modules: mockPolicies }) }));
 jest.mock('@/lib/theme', () => ({ useTheme: () => ({ c: { bg: '#fff', brand: '#44f' }, isDark: false }) }));
@@ -32,5 +32,27 @@ it('renders and navigates the granted broker tabs under the delegated role', () 
   mockUser = { role: 'SUB_BROKER_ADMIN', delegatedPermissions: [] };
   act(() => { tree.update(React.cloneElement(component)); });
   expect(labels()).toEqual(['dashboard']);
+  act(() => { tree.unmount(); });
+});
+
+it('hides and restores the Inbox tab when an active agent’s permission changes', () => {
+  const routes = ['dashboard', 'leads', 'inbox'].map((name) => ({ name, key: name }));
+  const descriptors = Object.fromEntries(routes.map(({ key }) => [key, { options: { title: key } }]));
+  const component = <TabBar state={{ routes, index: 0 }} descriptors={descriptors} navigation={{}} />;
+  let tree: ReturnType<typeof create>;
+  const labels = () => tree.root.findAll((node: any) =>
+    node.props.accessibilityRole === 'tab' && typeof node.props.onPress === 'function' && typeof node.type !== 'string'
+  ).map((node: any) => node.props.accessibilityLabel);
+  mockUser = { role: 'BROKER_AGENT' };
+  act(() => { tree = create(component); });
+  expect(labels()).toEqual(['dashboard', 'leads', 'inbox']);
+
+  mockUser = { ...mockUser, agentChatEnabled: false };
+  act(() => { tree.update(React.cloneElement(component)); });
+  expect(labels()).toEqual(['dashboard', 'leads']);
+
+  mockUser = { ...mockUser, agentChatEnabled: true };
+  act(() => { tree.update(React.cloneElement(component)); });
+  expect(labels()).toEqual(['dashboard', 'leads', 'inbox']);
   act(() => { tree.unmount(); });
 });

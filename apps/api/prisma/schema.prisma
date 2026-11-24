@@ -435,6 +435,7 @@ model User {
   phone               String?
   passwordHash        String?
   sessionVersion      Int        @default(0)
+  agentChatEnabled    Boolean    @default(true)
   googleId            String?    @unique
   avatarUrl           String?
   role                Role       @default(USER)

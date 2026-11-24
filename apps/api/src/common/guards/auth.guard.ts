@@ -48,6 +48,7 @@ export class JwtAuthGuard implements CanActivate {
           role: true,
           organizationId: true,
           delegatedPermissions: true,
+          agentChatEnabled: true,
           email: true,
           status: true,
           deletedAt: true,
@@ -68,7 +69,7 @@ export class JwtAuthGuard implements CanActivate {
       } else {
         req.sessionId = sessionId;
         req.delegatedPermissions = current.delegatedPermissions;
-        req.user = { id: current.id, role: current.role, orgId: current.organizationId, email: current.email } satisfies RequestUser;
+        req.user = { id: current.id, role: current.role, orgId: current.organizationId, email: current.email, agentChatEnabled: current.agentChatEnabled } satisfies RequestUser;
       }
     }
     if (isPublic) return true;

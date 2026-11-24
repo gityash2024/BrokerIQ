@@ -1,6 +1,8 @@
 'use client';
 import { inventoryNavigation, googleDirections } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
+import { useAuth } from '@/lib/auth';
+import { canUseBrokerChat } from '@brokeriq/shared';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -39,6 +41,7 @@ function startOfWeek(d: Date) {
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 
 export default function VisitsPage() {
+  const { user } = useAuth();
   const [week, setWeek] = useState(() => startOfWeek(new Date()));
   const [day, setDay] = useState<Date | null>(null);
   const [complete, setComplete] = useState<any>(null);
@@ -206,15 +209,19 @@ export default function VisitsPage() {
                   <Button size="icon-sm" variant="ghost" href={`tel:${v.lead.phone}`} aria-label="Call">
                     <Phone className="size-4" />
                   </Button>
-                  <Button size="icon-sm" variant="ghost" href={leadInboxUrl(v.lead.id)} aria-label="WhatsApp">
-                    <MessageCircle className="size-4 text-emerald-600" />
-                  </Button>
-                  <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'SMS')} aria-label="SMS">
-                    SMS
-                  </Button>
-                  <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'EMAIL')}>
-                    Email
-                  </Button>
+                  {canUseBrokerChat(user) && (
+                    <>
+                      <Button size="icon-sm" variant="ghost" href={leadInboxUrl(v.lead.id)} aria-label="WhatsApp">
+                        <MessageCircle className="size-4 text-emerald-600" />
+                      </Button>
+                      <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'SMS')} aria-label="SMS">
+                        SMS
+                      </Button>
+                      <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'EMAIL')}>
+                        Email
+                      </Button>
+                    </>
+                  )}
                   {route && (
                     <Button size="icon-sm" variant="ghost" external href={route} aria-label="Directions">
                       <Navigation className="size-4" />

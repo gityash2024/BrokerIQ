@@ -1,3 +1,4 @@
+import { canUseBrokerChat } from '@brokeriq/shared';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { useEffect, useRef, useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
@@ -42,6 +43,8 @@ function Action({ color, icon, label, align }: { color: string; icon: React.Reac
 }
 
 function LeadItem({ l }: { l: any }) {
+  const { user } = useAuth();
+  const chatAllowed = canUseBrokerChat(user);
   const { c } = useTheme();
   const ref = useRef<SwipeableMethods>(null);
   const enquiry = leadEnquiryOverview(l);
@@ -52,13 +55,13 @@ function LeadItem({ l }: { l: any }) {
       leftThreshold={70}
       rightThreshold={70}
       renderLeftActions={() => <Action color="#4F46E5" icon={<Phone size={22} color="#fff" />} label="Call" align="left" />}
-      renderRightActions={() => <Action color="#16A34A" icon={<MessageCircle size={22} color="#fff" />} label="WhatsApp" align="right" />}
+      renderRightActions={chatAllowed ? () => <Action color="#16A34A" icon={<MessageCircle size={22} color="#fff" />} label="WhatsApp" align="right" /> : undefined}
       ref={ref}
       onSwipeableOpen={(dir) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
         // "left" = left-side actions revealed (swiped right) → Call
         if (String(dir) === 'left') Linking.openURL(`tel:${l.phone}`);
-        else openLeadInbox(l.id);
+        else if (chatAllowed) openLeadInbox(l.id);
         ref.current?.close();
       }}
     >

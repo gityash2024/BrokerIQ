@@ -1,6 +1,6 @@
 'use client';
 import { useRouteState } from '@/lib/navigation';
-import { surveySectors } from '@brokeriq/shared';
+import { canUseBrokerChat, surveySectors } from '@brokeriq/shared';
 import { InventoryFolderControls, useInventoryFolderDefinitions } from './inventory-folder-controls';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
@@ -290,7 +290,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
         title={survey ? 'Scan survey register' : scanner ? 'Scanner & import' : 'Capture workspace'}
         subtitle="Original sources, clear review and accurate Inventory / Requirements."
         actions={
-          <Link href="/broker/inbox" className="text-sm font-semibold text-brand-600">
+          canUseBrokerChat(user) && <Link href="/broker/inbox" className="text-sm font-semibold text-brand-600">
             Open Inbox →
           </Link>
         }

@@ -84,7 +84,7 @@ export class RealtimeGateway implements OnGatewayConnection {
             select: {
               organizationId: true,
               deletedAt: true,
-              assignedTo: { select: { id: true, organizationId: true, role: true, status: true, deletedAt: true } },
+              assignedTo: { select: { id: true, organizationId: true, role: true, status: true, deletedAt: true, agentChatEnabled: true } },
             },
           },
         },
@@ -98,6 +98,7 @@ export class RealtimeGateway implements OnGatewayConnection {
         !lead.deletedAt &&
         agent?.organizationId === orgId &&
         agent.role === 'BROKER_AGENT' &&
+        agent.agentChatEnabled &&
         agent.status === 'ACTIVE' &&
         !agent.deletedAt
       ) {

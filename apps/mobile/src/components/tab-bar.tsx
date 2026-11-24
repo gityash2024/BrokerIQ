@@ -4,7 +4,7 @@ import { useTheme } from '@/lib/theme';
 import { Txt } from '@/ui';
 import * as Haptics from 'expo-haptics';
 import { useConfig } from '@/lib/config';
-import { moduleAllowed, delegatedModulePolicies } from '@brokeriq/shared';
+import { canUseBrokerChat, moduleAllowed, delegatedModulePolicies } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 
 const keys: Record<string, string> = {
@@ -62,6 +62,7 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
           .filter(
             (route: any) =>
               keys[route.name] &&
+              (route.name !== 'inbox' || canUseBrokerChat(user)) &&
               (delegated
                 ? route.name === 'dashboard' || moduleAllowed(policies, keys[route.name], 'BROKER_ADMIN')
                 : moduleAllowed(modules, keys[route.name], user?.role ?? 'PUBLIC')),

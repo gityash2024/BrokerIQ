@@ -103,7 +103,7 @@ export class InsightsController {
         _count: true,
       }),
       this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null, ...(mine ? { postedById: user.id } : {}) } }),
-      this.prisma.conversation.aggregate({
+      mine && user.agentChatEnabled === false ? Promise.resolve({ _sum: { unreadCount: 0 }, _count: { _all: 0 } }) : this.prisma.conversation.aggregate({
         where: {
           organizationId: orgId,
           unreadCount: { gt: 0 },

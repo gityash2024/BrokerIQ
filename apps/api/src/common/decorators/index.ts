@@ -18,6 +18,7 @@ export interface RequestUser {
   role: Role;
   orgId: string | null;
   email: string;
+  agentChatEnabled?: boolean;
   delegatedActor?: boolean;
   delegatedPermissions?: string[];
 }

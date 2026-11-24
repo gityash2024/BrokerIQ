@@ -1,6 +1,7 @@
 'use client';
 import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
+import { canUseBrokerChat } from '@brokeriq/shared';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -217,19 +218,23 @@ export default function PipelinePage() {
                                 >
                                   <Phone className="size-3.5" />
                                 </a>
-                                <a
-                                  href={leadInboxUrl(l.id)}
-                                  className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-emerald-600"
-                                  aria-label="WhatsApp"
-                                >
-                                  <MessageCircle className="size-3.5" />
-                                </a>
-                                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')}>
-                                  SMS
-                                </Button>
-                                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
-                                  Email
-                                </Button>
+                                {canUseBrokerChat(user) && (
+                                  <>
+                                    <a
+                                      href={leadInboxUrl(l.id)}
+                                      className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-emerald-600"
+                                      aria-label="WhatsApp"
+                                    >
+                                      <MessageCircle className="size-3.5" />
+                                    </a>
+                                    <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')}>
+                                      SMS
+                                    </Button>
+                                    <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+                                      Email
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>

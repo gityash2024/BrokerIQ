@@ -22,6 +22,7 @@ import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Download, Wrench } from 'lucide-react-native';
 import { authStore, useSession } from '@/lib/api';
+import { refreshCurrentUser } from '@/lib/auth';
 import { cmpVersion, useConfig } from '@/lib/config';
 import { registerPush, reconcileLocalReminders } from '@/lib/push';
 import { useRealtime } from '@/lib/realtime';
@@ -152,6 +153,22 @@ export default function RootLayout() {
       clearInterval(timer);
     };
   }, [loggedInUserId]);
+  const agentId = useSession((state) => state.session?.user.role === 'BROKER_AGENT' ? state.session.user.id : undefined);
+  const agentChatEnabled = useSession((state) => state.session?.user.agentChatEnabled);
+  useEffect(() => {
+    if (agentId) void qc.invalidateQueries({ queryKey: ['notifications'] });
+  }, [agentId, agentChatEnabled]);
+  useRealtime('agent.chat_access_changed', () => { if (agentId) void refreshCurrentUser().catch(() => undefined); });
+  useRealtime('connect', () => { if (agentId) void refreshCurrentUser().catch(() => undefined); });
+  useEffect(() => {
+    if (!agentId) return;
+    const refresh = () => { if (AppState.currentState === 'active') void refreshCurrentUser().catch(() => undefined); };
+    refresh();
+    const subscription = AppState.addEventListener('change', refresh);
+    const timer = setInterval(refresh, 60_000);
+    return () => { subscription.remove(); clearInterval(timer); };
+  }, [agentId]);
+
   useRealtime<any>('notification', (notice) => {
     qc.invalidateQueries({ queryKey: ['notifications'] });
     if (['LEAD_ASSIGNED', 'LEAD_ASSIGNMENT_ACCEPTED', 'LEAD_ASSIGNMENT_DECLINED'].includes(notice?.kind)) {

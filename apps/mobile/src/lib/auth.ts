@@ -8,6 +8,16 @@ export function homeFor(user: AuthUser | null | undefined) {
   return nativeHomeForRole(user?.role);
 }
 
+export async function refreshCurrentUser() {
+  const current = authStore.get();
+  if (!current) return;
+  const owner = captureAccountContext();
+  const me = await api<AuthUser>('/auth/me', { ownerContext: owner });
+  assertAccountContext(owner);
+  const session = authStore.get();
+  if (session?.user.id === current.user.id) await authStore.set({ ...session, user: me });
+}
+
 export function useAuth() {
   const session = useSession((s) => s.session);
   const ready = useSession((s) => s.ready);
@@ -18,14 +28,7 @@ export function useAuth() {
     isBroker: !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role),
     isBrokerAdmin: user?.role === 'BROKER_ADMIN',
     setSession: (r: AuthResponse) => authStore.set({ accessToken: r.accessToken, refreshToken: r.refreshToken, user: r.user }),
-    refreshMe: async () => {
-      const cur = authStore.get();
-      if (!cur) return;
-      const owner = captureAccountContext();
-      const me = await api<AuthUser>('/auth/me', { ownerContext: owner });
-      assertAccountContext(owner);
-      if (authStore.get()?.user.id === cur.user.id) await authStore.set({ ...authStore.get()!, user: me });
-    },
+    refreshMe: refreshCurrentUser,
     logout: async () => {
       const cur = authStore.get();
       // Clear in-memory ownership and stop native tracking before waiting on network cleanup.

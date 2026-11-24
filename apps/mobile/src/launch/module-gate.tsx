@@ -1,7 +1,7 @@
-import { usePathname, router } from 'expo-router';
+import { Redirect, usePathname, router } from 'expo-router';
 import { Fragment } from 'react';
 import { View } from 'react-native';
-import { hasDelegatedAccess, delegatedModulePolicies, moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
+import { canUseBrokerChat, hasDelegatedAccess, delegatedModulePolicies, moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
 import { captureAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -38,6 +38,7 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const screenScope = `${context.scope}:${context.epoch}`;
   const broker = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
+  if (!canUseBrokerChat(user) && /^\/(inbox|chat|wa)(?:\/|$)/.test(path)) return <Redirect href="/(broker)/dashboard" />;
   if (user?.role === 'PROPERTY_OWNER') {
     if (['/', '/login', '/owner-properties', '/owner-property-edit', '/drafts'].includes(path)) return <Fragment key={screenScope}>{children}</Fragment>;
     return (

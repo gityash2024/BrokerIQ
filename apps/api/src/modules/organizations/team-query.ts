@@ -131,6 +131,7 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
         avatarUrl: true,
         role: true,
         delegatedPermissions: true,
+        agentChatEnabled: true,
         status: true,
         lastLoginAt: true,
         createdAt: true,
@@ -222,6 +223,7 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
       return {
         ...member,
         delegatedPermissions: user.role === 'BROKER_ADMIN' && !user.delegatedActor ? member.delegatedPermissions : undefined,
+        agentChatEnabled: user.role === 'BROKER_ADMIN' && !user.delegatedActor && member.role === 'BROKER_AGENT' ? member.agentChatEnabled : undefined,
         kycStatus,
         kycDocuments:
           (!user.delegatedActor || user.delegatedPermissions?.includes('kyc:view')) &&

@@ -70,7 +70,7 @@ export class TodayController {
             where: { batch: { organizationId, ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}) }, reviewState: 'NEEDS_REVIEW' },
           })
         : null,
-      inboxOn
+      inboxOn && (user.role !== 'BROKER_AGENT' || user.agentChatEnabled !== false)
         ? this.prisma.conversation.aggregate({
             where: {
               organizationId,

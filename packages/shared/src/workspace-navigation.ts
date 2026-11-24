@@ -149,12 +149,17 @@ export function brokerUpcomingModules(policies: ModulePolicies | undefined, role
   );
 }
 
+export function canUseBrokerChat(user: { role: string; agentChatEnabled?: boolean } | null | undefined): boolean {
+  return user?.role !== 'BROKER_AGENT' || user.agentChatEnabled !== false;
+}
+
 /** Discoverable controls retain their authorization and give a visible access explanation. */
 export function workspaceLinkAccess(
-  user: { role: string; delegatedPermissions?: readonly string[] } | null | undefined,
+  user: { role: string; delegatedPermissions?: readonly string[]; agentChatEnabled?: boolean } | null | undefined,
   policies: ModulePolicies | undefined,
   link: WorkspaceLink,
 ): string | undefined {
+  if (link.href === '/broker/inbox' && !canUseBrokerChat(user)) return 'Ask your Broker Admin for Chat access.';
   if (!user) return 'Sign in to use this workflow.';
   const role = user.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user.role;
   if (!moduleAllowed(policies, link.module, role)) return 'This workflow is not enabled for your account. Contact your Broker Admin.';

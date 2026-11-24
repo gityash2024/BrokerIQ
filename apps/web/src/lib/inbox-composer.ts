@@ -1,6 +1,6 @@
 'use client';
-import { captureAccountContext, assertAccountContext, errorMessage } from './api';
-import { leadInboxDraftTarget, type LeadInboxChannel } from '@brokeriq/shared';
+import { authStore, captureAccountContext, assertAccountContext, errorMessage } from './api';
+import { canUseBrokerChat, leadInboxDraftTarget, type LeadInboxChannel } from '@brokeriq/shared';
 import { saveInboxDraft } from './inbox-drafts';
 import { toast } from 'sonner';
 export const leadInboxUrl = (leadId: string, channel: 'WHATSAPP' | 'SMS' | 'EMAIL' = 'WHATSAPP') =>
@@ -10,6 +10,7 @@ export async function openLeadInbox(leadId: string, draft?: string, channel: Lea
   try {
     const owner = captureAccountContext();
     if (!owner.userId) throw new Error('Sign in before opening Inbox');
+    if (!canUseBrokerChat(authStore.get()?.user)) throw new Error('Ask your Broker Admin for Chat access.');
     if (draft) await saveInboxDraft(leadInboxDraftTarget(leadId, channel), draft, owner);
     assertAccountContext(owner);
     window.location.assign(leadInboxUrl(leadId, channel));

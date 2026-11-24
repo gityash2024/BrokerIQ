@@ -29,6 +29,7 @@ export const brokerTeamResponseSchema = z.object({
         avatarUrl: z.string().nullable(),
         role: teamRole,
         delegatedPermissions: z.array(z.string()).optional(),
+        agentChatEnabled: z.boolean().optional(),
         status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']),
         lastLoginAt: z.string().nullable(),
         createdAt: z.string(),

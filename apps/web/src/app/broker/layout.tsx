@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarCheck2, Building2, Target, MessageSquareText, ShieldCheck, Users, Workflow, ScanLine, Layers } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -9,15 +9,21 @@ import { useRealtime } from '@/lib/realtime';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { QuickLeadSearch } from '@/components/broker/quick-search';
-import { brokerWorkspaceGroups, workspaceLinkAccess } from '@brokeriq/shared';
+import { brokerWorkspaceGroups, canUseBrokerChat, workspaceLinkAccess } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 import { AgentLocationTracker } from '@/components/broker/agent-location-tracker';
 
 function Inner({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, refreshMe } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const config = useConfig();
+  const chatAllowed = canUseBrokerChat(user);
+  const cache = useQueryClient();
+  useEffect(() => {
+    if (user?.role === 'BROKER_AGENT') void cache.invalidateQueries({ queryKey: ['notifications'] });
+  }, [cache, chatAllowed, user?.role]);
+  const blockChat = !chatAllowed && (pathname === '/broker/inbox' || pathname.startsWith('/broker/inbox/'));
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const dash = useQuery({
     queryKey: ['broker-dashboard'],
@@ -25,6 +31,18 @@ function Inner({ children }: { children: React.ReactNode }) {
     refetchInterval: 60_000,
     enabled: !delegated && pathname !== '/broker/onboarding',
   });
+
+  useRealtime('agent.chat_access_changed', () => { if (user?.role === 'BROKER_AGENT') void refreshMe().catch(() => undefined); });
+  useRealtime('connect', () => { if (user?.role === 'BROKER_AGENT') void refreshMe().catch(() => undefined); });
+  useEffect(() => {
+    if (user?.role !== 'BROKER_AGENT') return;
+    const refresh = () => { if (!document.hidden) void refreshMe().catch(() => undefined); };
+    refresh();
+    document.addEventListener('visibilitychange', refresh);
+    const timer = setInterval(refresh, 60_000);
+    return () => { document.removeEventListener('visibilitychange', refresh); clearInterval(timer); };
+  }, [user?.id, user?.role, refreshMe]);
+  useEffect(() => { if (blockChat) router.replace('/broker'); }, [blockChat, router]);
 
   useRealtime('wa:message', () => {
     if (!delegated) void dash.refetch();
@@ -82,7 +100,7 @@ function Inner({ children }: { children: React.ReactNode }) {
   };
   const groups: NavGroup[] = [
     {
-      items: brokerWorkspaceGroups(config.modules, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''), true, config.flags.connect_whatsapp_cutover).map((group) => ({
+      items: brokerWorkspaceGroups(config.modules, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''), true, config.flags.connect_whatsapp_cutover).filter((group) => chatAllowed || group.key !== 'inbox').map((group) => ({
         href: group.links[0].href,
         accessReason: workspaceLinkAccess(user, config.modules, group.links[0]),
         label: group.label,
@@ -130,7 +148,7 @@ function Inner({ children }: { children: React.ReactNode }) {
     >
       <AgentLocationTracker />
       <div className="protected-view">
-        {delegated && pathname === '/broker' && !user.delegatedPermissions?.includes('today:view') ? (
+        {blockChat ? null : delegated && pathname === '/broker' && !user.delegatedPermissions?.includes('today:view') ? (
           <div className="card p-6">
             <h1 className="text-xl font-semibold">Sub-Broker Admin</h1>
             <p>Open an assigned module from the sidebar.</p>

@@ -3,7 +3,7 @@ import { LoadingArtwork } from '@/components/request-loader';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, AppState, Linking, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type BrokerTeamResponse, firmRoleLabel, timeAgo, SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { api, patch, del } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
@@ -72,6 +72,23 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
       },
     },
   );
+  const cache = useQueryClient();
+  const chatAccess = useApiMutation(
+    (enabled: boolean) => patch<{ enabled: boolean; previousUpdatedAt: string; updatedAt: string }>(`/broker/team/members/${member.id}/chat-access`, { enabled }),
+    {
+      invalidate: [['team']],
+      success: 'Chat access अपडेट हो गया',
+      onSuccess: (result) => {
+        setBaseline((old) => old === result.previousUpdatedAt ? result.updatedAt : old);
+        cache.setQueryData<{ member: Member }>(['team', 'member', user?.id, member.id], (old) =>
+          old && old.member.updatedAt <= result.updatedAt
+            ? { member: { ...old.member, agentChatEnabled: result.enabled, updatedAt: result.updatedAt } }
+            : old,
+        );
+      },
+    },
+  );
+  const chatEnabled = member.agentChatEnabled !== false;
   const remove = useApiMutation(() => del(`/broker/team/${member.id}`), {
     invalidate: [['team']],
     success: 'सदस्य टीम से हटाया गया',
@@ -105,6 +122,14 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
       </Card>
       {!delegated && (
         <>
+          {user?.role === 'BROKER_ADMIN' && member.role === 'BROKER_AGENT' && (
+            <Card style={{ padding: 16, gap: 10 }}>
+              <Txt v="bodyStrong">Chat access</Txt>
+              <Txt color="muted">{chatEnabled ? 'Enabled' : 'Disabled'}</Txt>
+              <Button variant="secondary" loading={chatAccess.isPending} title={chatEnabled ? 'Remove Chat access' : 'Allow Chat access'}
+                onPress={() => chatAccess.mutate(!chatEnabled)} />
+            </Card>
+          )}
           {member.updatedAt !== baseline && (
             <Card style={{ padding: 14, gap: 8 }}>
               <Txt color="danger">इस सदस्य में दूसरे बदलाव आए हैं। अपना draft देखकर नए बदलाव लें; पुराना edit save नहीं होगा।</Txt>

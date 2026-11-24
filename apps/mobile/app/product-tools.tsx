@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { ArrowUpRight, Blocks, Clock3 } from 'lucide-react-native';
-import { delegatedModulePolicies, brokerWorkspaceGroups, brokerUpcomingModules, catalogModules, workspaceLinkAccess } from '@brokeriq/shared';
+import { canUseBrokerChat, delegatedModulePolicies, brokerWorkspaceGroups, brokerUpcomingModules, catalogModules, workspaceLinkAccess } from '@brokeriq/shared';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -20,6 +20,7 @@ export default function ProductTools() {
   const items = catalogModules(modules, role).filter((m) => `${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase()));
   const broker = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(role);
   const groups = brokerWorkspaceGroups(modules, role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : role, true, flags?.connect_whatsapp_cutover)
+    .filter((group) => canUseBrokerChat(user) || group.key !== 'inbox')
     .map((group) => ({
       ...group,
       links: group.links.filter((link) => link.nativeHref && (!search || `${group.label} ${link.label}`.toLowerCase().includes(search.toLowerCase()))),

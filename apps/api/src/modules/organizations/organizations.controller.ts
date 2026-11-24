@@ -704,6 +704,32 @@ export class OrganizationsController {
     return this.updateMember(user, paramUserId, body);
   }
 
+  @Roles('BROKER_ADMIN')
+  @Patch('broker/team/members/:userId/chat-access')
+  async updateAgentChatAccess(
+    @CurrentUser() user: RequestUser,
+    @Param('userId') userId: string,
+    @Body(new ZodPipe(z.object({ enabled: z.boolean() }).strict())) { enabled }: { enabled: boolean },
+  ) {
+    if (user.role !== 'BROKER_ADMIN' || user.delegatedActor) throw new ForbiddenException('Only the firm Broker Admin can change agent Chat access');
+    const organizationId = requireOrg(user);
+    const access = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId + ':membership'}))`;
+      const admin = await tx.user.count({ where: { id: user.id, organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null } });
+      if (!admin) throw new ForbiddenException('Only the firm Broker Admin can change agent Chat access');
+      const agent = await tx.user.findFirst({ where: { id: userId, organizationId, role: 'BROKER_AGENT', deletedAt: null },
+        select: { agentChatEnabled: true, updatedAt: true } });
+      if (!agent) throw new NotFoundException('Agent not found in this firm');
+      if (agent.agentChatEnabled === enabled) return { changed: false, previousUpdatedAt: agent.updatedAt, updatedAt: agent.updatedAt };
+      const updated = await tx.user.update({ where: { id: userId }, data: { agentChatEnabled: enabled }, select: { updatedAt: true } });
+      await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role, organizationId,
+        action: 'team.agent_chat_access', entity: 'User', entityId: userId, meta: { enabled } } });
+      return { changed: true, previousUpdatedAt: agent.updatedAt, updatedAt: updated.updatedAt };
+    });
+    if (access.changed) this.auth.notifyAgentChatAccess(userId);
+    return { enabled, previousUpdatedAt: access.previousUpdatedAt, updatedAt: access.updatedAt };
+  }
+
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
   @Delete('broker/team/:userId')
   async removeMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
@@ -723,7 +749,7 @@ export class OrganizationsController {
         throw new BadRequestException('Firm must retain at least one active Broker Admin');
       await releaseFirmAssignments(tx, member.organizationId, userId);
       await tx.orgSetting.deleteMany({ where: { organizationId: member.organizationId, key: assignmentDashboardSettingKey(userId) } });
-      await tx.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER', delegatedPermissions: [], sessionVersion: { increment: 1 } } });
+      await tx.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER', agentChatEnabled: true, delegatedPermissions: [], sessionVersion: { increment: 1 } } });
     });
     await this.auth.revokeAll(userId);
     await this.audit.log(user, 'team.remove', 'User', userId);
@@ -772,7 +798,7 @@ export class OrganizationsController {
       if (firm.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
       await tx.user.update({
         where: { id: user.id },
-        data: { organizationId: invitation.organizationId, role: invitation.role, delegatedPermissions: invitation.delegatedPermissions, emailVerified: true },
+        data: { organizationId: invitation.organizationId, role: invitation.role, agentChatEnabled: true, delegatedPermissions: invitation.delegatedPermissions, emailVerified: true },
       });
       await tx.invite.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } });
       return invitation;

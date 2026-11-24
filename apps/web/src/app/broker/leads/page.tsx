@@ -1,5 +1,6 @@
 'use client';
 import { LoadingArtwork } from '@/components/ui/request-loader';
+import { canUseBrokerChat } from '@brokeriq/shared';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { Suspense, useMemo, useState } from 'react';
@@ -354,15 +355,19 @@ function LeadsInner() {
                       <Button size="icon-sm" variant="secondary" href={`tel:${l.phone}`} aria-label="Call">
                         <Phone className="size-4" />
                       </Button>
-                      <Button size="icon-sm" variant="whatsapp" href={leadInboxUrl(l.id)} aria-label="WhatsApp">
-                        <MessageCircle className="size-4" />
-                      </Button>
-                      <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
-                        SMS
-                      </Button>
-                      <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
-                        Email
-                      </Button>
+                      {canUseBrokerChat(user) && (
+                        <>
+                          <Button size="icon-sm" variant="whatsapp" href={leadInboxUrl(l.id)} aria-label="WhatsApp">
+                            <MessageCircle className="size-4" />
+                          </Button>
+                          <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
+                            SMS
+                          </Button>
+                          <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+                            Email
+                          </Button>
+                        </>
+                      )}
                     </div>
                     <div className="hidden min-w-0 lg:block">
                       <SourceBadge source={l.source} />

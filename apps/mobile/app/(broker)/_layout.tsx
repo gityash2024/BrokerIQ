@@ -1,5 +1,5 @@
 import { useConfig } from '@/lib/config';
-import { delegatedModulePolicies, moduleAllowed } from '@brokeriq/shared';
+import { canUseBrokerChat, delegatedModulePolicies, moduleAllowed } from '@brokeriq/shared';
 import { NativeScreenLayout } from '@/launch/module-gate';
 import { Redirect } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
@@ -22,7 +22,7 @@ export default function BrokerTabs() {
       <Tabs.Screen name="dashboard" options={{ title: 'Today', tabBarIcon: ({ color }) => <LayoutDashboard size={21} color={color} /> }} />
       <Tabs.Screen name="inventory" options={{ title: 'Inventory', href: show('inventory') ? undefined : null, tabBarIcon: ({ color }) => <Building2 size={21} color={color} /> }} />
       <Tabs.Screen name="leads" options={{ title: 'Leads', href: show('leads') ? undefined : null, tabBarIcon: ({ color }) => <Inbox size={21} color={color} /> }} />
-      <Tabs.Screen name="inbox" options={{ title: 'Inbox', href: show('inbox') ? undefined : null, tabBarIcon: ({ color }) => <MessagesSquare size={21} color={color} /> }} />
+      <Tabs.Screen name="inbox" options={{ title: 'Inbox', href: show('inbox') && canUseBrokerChat(user) ? undefined : null, tabBarIcon: ({ color }) => <MessagesSquare size={21} color={color} /> }} />
       <Tabs.Screen
         name="kyc"
         options={{

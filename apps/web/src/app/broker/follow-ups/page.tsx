@@ -2,6 +2,7 @@
 import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { submitTask } from '@/lib/task-submissions';
+import { canUseBrokerChat } from '@brokeriq/shared';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -314,15 +315,19 @@ export default function FollowUpsPage() {
                             <Button size="icon-sm" variant="ghost" href={`tel:${f.lead.phone}`} aria-label="Call">
                               <Phone className="size-4" />
                             </Button>
-                            <Button size="icon-sm" variant="ghost" href={leadInboxUrl(f.lead.id)} aria-label="WhatsApp">
-                              <MessageCircle className="size-4 text-emerald-600" />
-                            </Button>
-                            <Button size="xs" variant="secondary" href={leadInboxUrl(f.lead.id, 'SMS')} aria-label="SMS">
-                              SMS
-                            </Button>
-                            <Button size="xs" variant="secondary" href={leadInboxUrl(f.lead.id, 'EMAIL')}>
-                              Email
-                            </Button>
+                            {canUseBrokerChat(user) && (
+                              <>
+                                <Button size="icon-sm" variant="ghost" href={leadInboxUrl(f.lead.id)} aria-label="WhatsApp">
+                                  <MessageCircle className="size-4 text-emerald-600" />
+                                </Button>
+                                <Button size="xs" variant="secondary" href={leadInboxUrl(f.lead.id, 'SMS')} aria-label="SMS">
+                                  SMS
+                                </Button>
+                                <Button size="xs" variant="secondary" href={leadInboxUrl(f.lead.id, 'EMAIL')}>
+                                  Email
+                                </Button>
+                              </>
+                            )}
                             <Select
                               className="h-8 w-28 rounded-lg text-xs"
                               value=""

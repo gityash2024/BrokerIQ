@@ -31,10 +31,11 @@ export class NotificationsService {
       LEFT JOIN "Lead" l ON l.id = COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)'))
       JOIN "User" u ON u.id = n."userId"
       WHERE n."userId"=${userId}
-        AND COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)')) IS NOT NULL
+        AND ((u.role='BROKER_AGENT' AND NOT u."agentChatEnabled" AND n.link ~ '^/broker/inbox([/?#]|$)')
+          OR (COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)')) IS NOT NULL
         AND NOT COALESCE((l.id IS NOT NULL AND l."deletedAt" IS NULL AND (
           u.role='SUPER_ADMIN' OR (u."organizationId"=l."organizationId" AND
-          (u.role='BROKER_ADMIN' OR (u.role='SUB_BROKER_ADMIN' AND 'leads:view'=ANY(u."delegatedPermissions")) OR (u.role='BROKER_AGENT' AND l."assignedToId"=u.id))))), FALSE)`);
+          (u.role='BROKER_ADMIN' OR (u.role='SUB_BROKER_ADMIN' AND 'leads:view'=ANY(u."delegatedPermissions")) OR (u.role='BROKER_AGENT' AND l."assignedToId"=u.id))))), FALSE)))`);
     return rows.map((row) => row.id);
   }
 
@@ -42,6 +43,7 @@ export class NotificationsService {
     let ids = [...new Set(Array.isArray(userIds) ? userIds : [userIds])].filter(Boolean);
     if (opts.excludeUserId) ids = ids.filter((id) => id !== opts.excludeUserId);
     if (!ids.length) return;
+    const inbox = /^\/broker\/inbox(?:[/?#]|$)/.test(input.link ?? '');
     const leadId = typeof input.data?.leadId === 'string' ? input.data.leadId : /^\/broker\/leads\/([^/?#]+)/.exec(input.link ?? '')?.[1];
     const lead = leadId
       ? await this.prisma.lead.findFirst({ where: { id: leadId, deletedAt: null }, select: { organizationId: true, assignedToId: true } })
@@ -53,6 +55,7 @@ export class NotificationsService {
           id: { in: ids },
           status: 'ACTIVE',
           deletedAt: null,
+          ...(inbox ? { AND: [{ OR: [{ role: { not: 'BROKER_AGENT' } }, { agentChatEnabled: true }] }] } : {}),
           ...(lead
             ? {
                 OR: [

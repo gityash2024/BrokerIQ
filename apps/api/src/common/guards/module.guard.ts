@@ -17,6 +17,8 @@ export class ModuleGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const user = req.user;
     const requestPath = (req.path || req.url).replace(/^\/api(?=\/|$)/i, '');
+    if (user?.role === 'BROKER_AGENT' && user.agentChatEnabled === false && /^\/(chat|whatsapp|messaging)(?:\/|$)/i.test(requestPath))
+      throw new ForbiddenException('Inbox access has been removed by your Broker Admin');
     if (user?.role === 'SUB_BROKER_ADMIN') {
       const registeredPath = req.route?.path;
       if (typeof registeredPath !== 'string') throw new ForbiddenException('This action is not assigned to your account');

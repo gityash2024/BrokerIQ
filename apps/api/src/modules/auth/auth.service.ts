@@ -77,6 +77,7 @@ export class AuthService implements OnApplicationBootstrap {
       avatarUrl: u.avatarUrl,
       role: u.role,
       ...(u.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: u.delegatedPermissions } : {}),
+      ...(u.role === 'BROKER_AGENT' ? { agentChatEnabled: u.agentChatEnabled } : {}),
       organizationId: u.organizationId,
       emailVerified: u.emailVerified,
       locale: u.locale,
@@ -573,6 +574,10 @@ export class AuthService implements OnApplicationBootstrap {
       ]);
     });
     this.realtime.disconnectUser(id);
+  }
+
+  notifyAgentChatAccess(userId: string) {
+    this.realtime.toUser(userId, 'agent.chat_access_changed', {});
   }
 
   disconnectUserSessions(userId: string) {
