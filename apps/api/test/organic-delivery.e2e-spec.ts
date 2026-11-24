@@ -62,6 +62,8 @@ describe('Organic daily delivery', () => {
       sourceRefs: { create: { sourceId: source.id, kind: 'DEMAND', externalId: key, url: source.url } },
     } });
 
+    const dailyPreview = await api().post('/api/admin/organic/delivery/preview').set(auth(admin.token)).send(valid).expect(201);
+    expect(dailyPreview.body).toMatchObject({ qualifying: 1, alreadyTransferred: 0 });
     const recipients = [{ organizationId: first.id, brokerAdminId: broker.user.id }];
     const preview = (await api().post('/api/admin/organic/transfer/preview').set(auth(admin.token)).send({ ids: [record.id], targets: recipients }).expect(201)).body;
     expect(preview.firms[0]).toMatchObject({ selected: 1, duplicates: 0, newRecords: 1 });

@@ -12,6 +12,10 @@ type Counters = { delivered: number; duplicate: number; skipped: number; failed:
 const newCounters = (): Counters => ({ delivered: 0, duplicate: 0, skipped: 0, failed: 0 });
 const recipient = { id: true, name: true } as const;
 
+function initialDeliveryWindow(now: Date) {
+  return new Date(now.valueOf() - 24 * 60 * 60_000);
+}
+
 @Injectable()
 export class OrganicDeliveryService {
   constructor(private readonly db: PrismaService, private readonly jobs: JobsService, private readonly realtime: RealtimeGateway) {
@@ -49,12 +53,14 @@ export class OrganicDeliveryService {
     await this.verifyTarget(this.db, input);
     const current = await this.db.organicDeliverySchedule.findUnique({ where: { organizationId: input.organizationId } });
     const sectors = input.sectors.map(canonicalInventorySector);
-    const since = current?.cursorFrom ?? new Date();
-    const all = await this.db.organicRecord.count({ where: this.eligible(since, new Date(), { ...input, sectors }) });
-    const newCount = await this.db.organicRecord.count({ where: {
-      ...this.eligible(since, new Date(), { ...input, sectors }),
-      transfers: { none: { organizationId: input.organizationId } },
-    } });
+    const now = new Date();
+    const earliest = initialDeliveryWindow(now);
+    const since = !current || (!current.enabled && current.cursorFrom < earliest) ? earliest : current.cursorFrom;
+    const eligible = this.eligible(since, now, { ...input, sectors });
+    const [all, newCount] = await this.db.$transaction([
+      this.db.organicRecord.count({ where: eligible }),
+      this.db.organicRecord.count({ where: { ...eligible, transfers: { none: { organizationId: input.organizationId } } } }),
+    ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     return { windowFrom: since, qualifying: newCount, alreadyTransferred: all - newCount, nextRunAt: nextOrganicTime(input.time) };
   }
 
@@ -68,8 +74,9 @@ export class OrganicDeliveryService {
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'organic-schedule:' + organizationId}))`);
       const existing = await tx.organicDeliverySchedule.findUnique({ where: { organizationId } });
       const rule = await tx.organicDeliverySchedule.upsert({
-        where: { organizationId }, create: { organizationId, ...data, cursorFrom: now },
-        update: { ...data, ...(existing?.enabled === false && input.enabled ? { cursorFrom: now } : {}) },
+        where: { organizationId }, create: { organizationId, ...data, cursorFrom: initialDeliveryWindow(now) },
+        update: { ...data, ...(existing?.enabled === false && input.enabled && existing.cursorFrom < initialDeliveryWindow(now)
+          ? { cursorFrom: initialDeliveryWindow(now) } : {}) },
       });
       await tx.auditLog.create({ data: { actorId, organizationId, action: 'organic.delivery.schedule', entity: 'OrganicDeliverySchedule',
         entityId: rule.id, meta: { enabled: rule.enabled, time: rule.time, sectors: rule.sectors, leadType: rule.leadType } } });
