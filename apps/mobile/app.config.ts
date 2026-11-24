@@ -54,6 +54,7 @@ const config: ExpoConfig = {
   },
   web: { favicon: './assets/favicon.png' },
   plugins: [
+    ['expo-build-properties', { ios: { enableSceneSupport: true } }],
     ['expo-sqlite', { useSQLCipher: true }],
     [
       'expo-sharing',
