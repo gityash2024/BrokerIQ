@@ -78,6 +78,13 @@ class ConnectController {
     response.end(file.body);
   }
 
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Patch('events/:id/review')
+  review(@CurrentUser() user: RequestUser, @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ decision: z.enum(['REVIEWED', 'DISMISSED']) }).strict())) input: { decision: 'REVIEWED' | 'DISMISSED' }) {
+    return this.connect.review(user, id, input.decision);
+  }
+
   @Roles('BROKER_ADMIN')
   @Delete('events/:id')
   remove(@CurrentUser() user: RequestUser, @Param('id') id: string) { return this.connect.remove(user, id); }

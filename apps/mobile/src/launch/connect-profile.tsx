@@ -83,11 +83,14 @@ export function NativeConnectLeadActivity({ leadId, enabled }: { leadId?: string
   const detail = useQuery({ queryKey: ['connect-event', user?.id, user?.organization?.id, id],
     queryFn: () => api<EventDetail>('/connect/events/' + id), enabled: enabled && !!id });
   if (!enabled || (leadId && !events.data?.items.length)) return null;
-  async function update(eventId: string, remove: boolean, ownerContext = captureAccountContext()) {
+  async function update(eventId: string, action: 'retry' | 'delete' | 'REVIEWED' | 'DISMISSED', ownerContext = captureAccountContext()) {
     setBusy(true);
     try {
-      await api('/connect/events/' + eventId + (remove ? '' : '/retry'), { method: remove ? 'DELETE' : 'POST', ownerContext });
-      if (remove) setId(null);
+      const path = '/connect/events/' + eventId;
+      if (action === 'delete') await api(path, { method: 'DELETE', ownerContext });
+      else if (action === 'retry') await api(path + '/retry', { method: 'POST', ownerContext });
+      else await api(path + '/review', { method: 'PATCH', ownerContext, body: { decision: action } });
+      if (action === 'delete') setId(null);
       else await detail.refetch();
       await events.refetch();
     } catch (error) { toast.error(errorMessage(error)); }
@@ -101,12 +104,16 @@ export function NativeConnectLeadActivity({ leadId, enabled }: { leadId?: string
     {events.data?.items.map((event) => <Button key={event.id} title={event.kind + ' · ' + event.status} variant="secondary" size="sm"
       onPress={() => setId(event.id)} />)}
     <Sheet open={!!id} title="Connect activity" onClose={() => { if (!busy) setId(null); }} full footer={id && detail.data && <Row wrap gap={8}>
-      {canReview && detail.data.status === 'FAILED' && <Button title="Retry analysis" variant="secondary" disabled={busy} onPress={() => void update(id, false)} />}
+      {canReview && detail.data.status === 'REVIEW' && <>
+        <Button title="Mark reviewed" size="sm" disabled={busy} onPress={() => void update(id, 'REVIEWED')} />
+        <Button title="Dismiss suggestion" size="sm" variant="secondary" disabled={busy} onPress={() => void update(id, 'DISMISSED')} />
+      </>}
+      {canReview && detail.data.status === 'FAILED' && <Button title="Retry analysis" variant="secondary" disabled={busy} onPress={() => void update(id, 'retry')} />}
       {canDelete && <Button title="Delete capture" variant="secondary" disabled={busy} onPress={() => {
         const ownerContext = captureAccountContext();
         Alert.alert('Delete this Connect capture?', 'This deletes its recording and transcript.', [
           { text: 'Keep', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => void update(id, true, ownerContext) },
+          { text: 'Delete', style: 'destructive', onPress: () => void update(id, 'delete', ownerContext) },
         ]);
       }} />}
     </Row>}>

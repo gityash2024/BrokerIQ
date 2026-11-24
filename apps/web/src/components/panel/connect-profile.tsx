@@ -94,12 +94,15 @@ export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enab
     try { setAudio(URL.createObjectURL(await apiBlob('/connect/events/' + id + '/recording'))); }
     catch (error) { toast.error(errorMessage(error)); }
   }
-  async function update(id: string, remove: boolean) {
-    if (remove && !window.confirm('Delete this Connect capture and its private recording and transcript?')) return;
+  async function update(id: string, action: 'retry' | 'delete' | 'REVIEWED' | 'DISMISSED') {
+    if (action === 'delete' && !window.confirm('Delete this Connect capture and its private recording and transcript?')) return;
     setBusy(true);
     try {
-      await api('/connect/events/' + id + (remove ? '' : '/retry'), { method: remove ? 'DELETE' : 'POST' });
-      if (remove) { setAudio(null); setEvent(null); }
+      const path = '/connect/events/' + id;
+      if (action === 'delete') await api(path, { method: 'DELETE' });
+      else if (action === 'retry') await api(path + '/retry', { method: 'POST' });
+      else await api(path + '/review', { method: 'PATCH', body: { decision: action } });
+      if (action === 'delete') { setAudio(null); setEvent(null); }
       else await detail.refetch();
       await data.refetch();
     } catch (error) { toast.error(errorMessage(error)); }
@@ -114,8 +117,12 @@ export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enab
       {entry.kind} · {entry.status} · {new Date(entry.capturedAt).toLocaleString('en-IN')}
     </button>)}
     <Dialog open={!!eventId} onOpenChange={(open) => { if (!open) { setEvent(null); setAudio(null); } }} title="Connect activity" size="lg" footer={detail.data && <>
-      {canReview && detail.data.status === 'FAILED' && <Button variant="secondary" disabled={busy} onClick={() => void update(detail.data!.id, false)}>Retry analysis</Button>}
-      {canDelete && <Button variant="secondary" disabled={busy} onClick={() => void update(detail.data!.id, true)}>Delete capture</Button>}
+      {canReview && detail.data.status === 'REVIEW' && <>
+        <Button size="sm" disabled={busy} onClick={() => void update(detail.data!.id, 'REVIEWED')}>Mark reviewed</Button>
+        <Button size="sm" variant="secondary" disabled={busy} onClick={() => void update(detail.data!.id, 'DISMISSED')}>Dismiss suggestion</Button>
+      </>}
+      {canReview && detail.data.status === 'FAILED' && <Button variant="secondary" disabled={busy} onClick={() => void update(detail.data!.id, 'retry')}>Retry analysis</Button>}
+      {canDelete && <Button variant="secondary" disabled={busy} onClick={() => void update(detail.data!.id, 'delete')}>Delete capture</Button>}
     </>}>
       {detail.error && <ApiErrorState error={detail.error} onRetry={() => detail.refetch()} />}
       {detail.data && <div className="space-y-3 text-sm">

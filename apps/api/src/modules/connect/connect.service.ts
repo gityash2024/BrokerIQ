@@ -263,6 +263,18 @@ export class ConnectService {
     return this.storage.read(row.recordingKey);
   }
 
+  async review(user: RequestUser, id: string, decision: 'REVIEWED' | 'DISMISSED') {
+    const event = await this.event(user, id);
+    if (event.status === decision) return { id, status: decision };
+    return this.db.$transaction(async (tx) => {
+      const changed = await tx.connectEvent.updateMany({ where: { id, organizationId: event.organizationId, status: 'REVIEW' }, data: { status: decision } });
+      if (!changed.count) throw new BadRequestException('This suggestion is no longer awaiting review');
+      await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role,
+        organizationId: event.organizationId, action: 'connect.event.review', entity: 'ConnectEvent', entityId: id, meta: { decision } } });
+      return { id, status: decision };
+    });
+  }
+
   async remove(user: RequestUser, id: string) {
     const event = await this.db.connectEvent.findFirst({ where: { id, organizationId: requireOrg(user) } });
     if (!event) throw new NotFoundException('Connect activity not found');

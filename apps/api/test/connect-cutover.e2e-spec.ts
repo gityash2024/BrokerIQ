@@ -57,6 +57,11 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     const stored = (await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201)).body;
     await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201).expect(({ body }) => expect(body.id).toBe(stored.id));
     await http().get('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
+    await db.connectEvent.update({ where: { id: stored.id }, data: { status: 'REVIEW' } });
+    const reviewPath = '/api/connect/events/' + stored.id + '/review';
+    await http().patch(reviewPath).set(outsider.headers).send({ decision: 'REVIEWED' }).expect(404);
+    await http().patch(reviewPath).set(broker.headers).send({ decision: 'REVIEWED' }).expect(200);
+    await http().patch(reviewPath).set(broker.headers).send({ decision: 'DISMISSED' }).expect(400);
     await http().delete('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
     await http().delete('/api/connect/events/' + stored.id).set(broker.headers).expect(200);
     await http().get('/api/connect/events/' + stored.id).set(broker.headers).expect(404);
