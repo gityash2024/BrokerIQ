@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { Linking, Share, View } from 'react-native';
+import { Alert, Linking, Share, View } from 'react-native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { FileText, Plus, Send } from 'lucide-react-native';
-import { formatINR } from '@brokeriq/shared';
+import { formatINR, hasDelegatedAccess } from '@brokeriq/shared';
 import { api, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
@@ -16,9 +16,13 @@ const TONE: Record<string, string> = { SENT: '#F59E0B', PAID: '#10B981', CANCELL
 /** Brokerage invoices paid straight to the firm's UPI; the broker marks them paid. */
 export default function Invoices() {
   const { c } = useTheme();
-  const { isBrokerAdmin } = useAuth();
+  const { user, isBrokerAdmin } = useAuth();
+  const mayManage = isBrokerAdmin || user?.role === 'SUB_BROKER_ADMIN';
+  const canEdit = mayManage && hasDelegatedAccess(user, 'deals', 'view', 'edit');
+  const canCancel = mayManage && hasDelegatedAccess(user, 'deals', 'view', 'delete');
   const [status, setStatus] = useState('');
   const [upi, setUpi] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const list = useInfiniteQuery({
     queryKey: ['invoices', status],
     initialPageParam: 1,
@@ -29,10 +33,14 @@ export default function Invoices() {
     getNextPageParam: (last, _pages, current) => (current < last.totalPages ? current + 1 : undefined),
   });
   const invoices = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const editing = canEdit && invoices.find(({ id, status }) => id === editingId && (status === 'DRAFT' || status === 'SENT'));
   const settings = useQuery({ queryKey: ['payment-settings'], queryFn: () => api<any>('/broker/payment-settings') });
   const paid = useApiMutation((id: string) => patch(`/broker/invoices/${id}`, { status: 'PAID', paidMode: 'UPI' }), {
     success: 'Paid mark हुआ',
     invalidate: [['invoices']],
+  });
+  const cancel = useApiMutation((id: string) => patch(`/broker/invoices/${id}`, { status: 'CANCELLED' }), {
+    success: 'Invoice cancelled', invalidate: [['invoices']],
   });
   const send = async (id: string) => {
     try {
@@ -93,7 +101,7 @@ export default function Invoices() {
             {i.status === 'SENT' && (
               <Row>
                 <Button title="भेजें" size="sm" variant="secondary" icon={<Send size={14} color={c.fg} />} onPress={() => send(i.id)} />
-                <Button title="Paid" size="sm" onPress={() => paid.mutate(i.id)} />
+                {(user?.role !== 'SUB_BROKER_ADMIN' || canEdit) && <Button title="Paid" size="sm" onPress={() => paid.mutate(i.id)} />}
                 <Button
                   title="Link"
                   size="sm"
@@ -105,13 +113,38 @@ export default function Invoices() {
                 />
               </Row>
             )}
+            {(i.status === 'SENT' || i.status === 'DRAFT') && (canEdit || canCancel) && <Row style={{ flexWrap: 'wrap' }}>
+              {canEdit && <Button title="Edit" size="sm" variant="secondary" onPress={() => setEditingId(i.id)} />}
+              {canCancel && <Button title="Cancel invoice" size="sm" variant="secondary" disabled={cancel.isPending} onPress={() => {
+                Alert.alert(`Cancel invoice ${i.number}?`, 'The invoice will remain in your history.', [
+                  { text: 'Keep invoice', style: 'cancel' }, { text: 'Cancel invoice', style: 'destructive', onPress: () => cancel.mutate(i.id) },
+                ]);
+              }} />}
+            </Row>}
           </Card>
         ))
       )}
       {list.hasNextPage && <Button title="Load more" loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} />}
       <UpiSheet open={upi} data={settings.data} onClose={() => setUpi(false)} />
+      {editing && <EditInvoiceSheet key={editing.id} invoice={editing} close={() => setEditingId((id) => id === editing.id ? null : id)} />}
     </Screen>
   );
+}
+
+function EditInvoiceSheet({ invoice, close }: { invoice: { id: string; number: string; dueDate?: string; notes?: string }; close: () => void }) {
+  const [dueDate, setDueDate] = useState(invoice.dueDate?.slice(0, 10) ?? '');
+  const [notes, setNotes] = useState(invoice.notes ?? '');
+  const validDueDate = !dueDate || (Number.isFinite(Date.parse(dueDate)) && new Date(dueDate).toISOString().slice(0, 10) === dueDate);
+  const save = useApiMutation(() => patch(`/broker/invoices/${invoice.id}`, { dueDate: dueDate || null, notes: notes || null }), {
+    success: 'Invoice updated', invalidate: [['invoices']], onSuccess: close,
+  });
+  return <Sheet open onClose={close} title={`Edit invoice ${invoice.number}`}>
+    <View style={{ gap: 10 }}>
+      <Input label="Due date" placeholder="YYYY-MM-DD" value={dueDate} onChangeText={setDueDate} maxLength={10} />
+      <Input label="Notes" value={notes} onChangeText={setNotes} maxLength={1000} multiline />
+      <Button title="Save" loading={save.isPending} disabled={!validDueDate} onPress={() => save.mutate(undefined)} />
+    </View>
+  </Sheet>;
 }
 
 function UpiSheet({ open, data, onClose }: { open: boolean; data: any; onClose: () => void }) {

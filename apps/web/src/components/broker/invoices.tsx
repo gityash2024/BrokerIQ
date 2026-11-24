@@ -1,13 +1,13 @@
 'use client';
 import { BackButton } from '@/components/ui/back-button';
-import { useGoBack, useRouteState } from '@/lib/navigation';
+import { hasPreviousPage, pushRouteView, useGoBack, useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, Copy, FileText, Plus, Send, Settings2, Trash2 } from 'lucide-react';
-import { formatINR, whatsappLink } from '@brokeriq/shared';
+import { formatINR, hasDelegatedAccess, whatsappLink } from '@brokeriq/shared';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -26,6 +26,9 @@ function InvoicesInner() {
   const sp = useSearchParams();
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
+  const mayManage = admin || user?.role === 'SUB_BROKER_ADMIN';
+  const canEdit = mayManage && hasDelegatedAccess(user, 'deals', 'view', 'edit');
+  const canCancel = mayManage && hasDelegatedAccess(user, 'deals', 'view', 'delete');
   const [status, setStatus] = useRouteState('invoices.status', '');
   const [page, setPage] = useRouteState('invoices.page', 1);
   const router = useRouter();
@@ -35,12 +38,17 @@ function InvoicesInner() {
   }, [deal, router]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paying, setPaying] = useState<any>(null);
+  const [editingId, setEditingId] = useRouteState<string | null>('invoices.editing', null);
   const list = useQuery({
     queryKey: ['invoices', status, page],
     queryFn: () =>
       api<{ items: any[]; total: number; pendingTotal: number; totalPages: number }>(
         `/broker/invoices?paginated=true&page=${page}&pageSize=50${status ? `&status=${status}` : ''}`,
       ),
+  });
+  const editing = canEdit && list.data?.items.find(({ id, status }) => id === editingId && (status === 'DRAFT' || status === 'SENT'));
+  const cancel = useApiMutation((id: string) => patch(`/broker/invoices/${id}`, { status: 'CANCELLED' }), {
+    success: 'Invoice cancelled', invalidate: [['invoices']],
   });
   const settings = useQuery({ queryKey: ['payment-settings'], queryFn: () => api<any>('/broker/payment-settings') });
   const send = async (id: string) => {
@@ -148,11 +156,19 @@ function InvoicesInner() {
                     <Button size="sm" variant="secondary" onClick={() => send(i.id)}>
                       <Send className="size-4" /> भेजें
                     </Button>
-                    <Button size="sm" onClick={() => setPaying(i)}>
+                    {(user?.role !== 'SUB_BROKER_ADMIN' || canEdit) && <Button size="sm" onClick={() => setPaying(i)}>
                       <CheckCircle2 className="size-4" /> Paid
-                    </Button>
+                    </Button>}
                   </>
                 )}
+                {(i.status === 'SENT' || i.status === 'DRAFT') && <>
+                  {canEdit && <Button size="sm" variant="secondary" onClick={() => {
+                    if (!pushRouteView({ 'invoices.editing': i.id })) setEditingId(i.id);
+                  }}>Edit</Button>}
+                  {canCancel && <Button size="sm" variant="secondary" disabled={cancel.isPending} onClick={() => {
+                    if (window.confirm(`Cancel invoice ${i.number}? The invoice will remain in your history.`)) cancel.mutate(i.id);
+                  }}>Cancel invoice</Button>}
+                </>}
               </div>
             </div>
           ))}
@@ -173,8 +189,32 @@ function InvoicesInner() {
       )}
       <PaymentSettings open={settingsOpen} data={settings.data} onClose={() => setSettingsOpen(false)} />
       <MarkPaid inv={paying} onClose={() => setPaying(null)} />
+      {editing && <EditInvoice key={editing.id} invoice={editing} close={() => {
+        if (hasPreviousPage({ samePath: true })) window.history.back();
+        else setEditingId(null);
+      }} />}
     </>
   );
+}
+
+function EditInvoice({ invoice, close }: { invoice: { id: string; number: string; dueDate?: string; notes?: string }; close: () => void }) {
+  const [dueDate, setDueDate] = useState(invoice.dueDate?.slice(0, 10) ?? '');
+  const [notes, setNotes] = useState(invoice.notes ?? '');
+  const active = useRef(false);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+  const save = useApiMutation(() => patch(`/broker/invoices/${invoice.id}`, { dueDate: dueDate || null, notes: notes || null }), {
+    success: 'Invoice updated', invalidate: [['invoices']], onSuccess: () => { if (active.current) close(); },
+  });
+  return <Dialog open title={`Edit invoice ${invoice.number}`} onOpenChange={(open) => { if (!open && !save.isPending) close(); }}
+    footer={<Button loading={save.isPending} onClick={() => save.mutate(undefined)}>Save</Button>}>
+    <div className="space-y-3">
+      <Field label="Due date"><Input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
+      <Field label="Notes"><Textarea value={notes} maxLength={1000} onChange={(event) => setNotes(event.target.value)} /></Field>
+    </div>
+  </Dialog>;
 }
 
 export function InvoiceCreatePage() {

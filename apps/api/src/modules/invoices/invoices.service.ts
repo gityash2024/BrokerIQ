@@ -228,10 +228,14 @@ export class InvoicesService {
       notes?: string | null;
     },
   ) {
-    const updated = await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const inv = await this.findInvoice(user, id, tx, true);
       const data: Prisma.ClientInvoiceUpdateInput = { ...patch };
       if (inv.status === 'PAID' && patch.status && patch.status !== 'PAID') throw new ConflictException('Paid invoice status cannot be changed');
+      if (inv.status === 'CANCELLED') {
+        if (patch.status === 'CANCELLED' && Object.keys(patch).length === 1) return inv;
+        throw new ConflictException('Cancelled invoices cannot be changed');
+      }
       if (patch.status === 'PAID' && inv.status !== 'PAID') {
         data.paidAt = patch.paidAt ?? new Date();
         if (inv.dealId) {
@@ -246,15 +250,19 @@ export class InvoicesService {
           }
         }
       }
-      return tx.clientInvoice.update({ where: { id }, data });
+      const updated = await tx.clientInvoice.update({ where: { id }, data });
+      await tx.auditLog.create({ data: {
+        actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role, organizationId: inv.organizationId,
+        action: `invoice.${patch.status?.toLowerCase() ?? 'update'}`, entity: 'ClientInvoice', entityId: id,
+      } });
+      return updated;
     });
-    await this.audit.log(user, `invoice.${patch.status?.toLowerCase() ?? 'update'}`, 'ClientInvoice', id);
-    return updated;
   }
 
   /** Sends the invoice link to the client by WhatsApp (firm's number) and email where available. */
   async send(user: RequestUser, id: string) {
     const inv = await this.get(user, id);
+    if (inv.status === 'CANCELLED') throw new ConflictException('Cancelled invoices cannot be sent');
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: inv.organizationId } });
     const result = { whatsapp: false, email: false };
     const text = `नमस्ते ${inv.clientName}, ${org.name} की ओर से invoice ${inv.number}: ${formatINR(inv.total)}${inv.dueDate ? ` (due ${inv.dueDate.toLocaleDateString('en-IN')})` : ''}.\nदेखें और UPI से pay करें: ${inv.link}`;
@@ -274,7 +282,8 @@ export class InvoicesService {
         link: inv.link,
       });
     }
-    await this.prisma.clientInvoice.update({ where: { id }, data: { status: inv.status === 'DRAFT' ? 'SENT' : undefined, lastReminderAt: new Date() } });
+    await this.prisma.clientInvoice.updateMany({ where: { id, status: inv.status },
+      data: { status: inv.status === 'DRAFT' ? 'SENT' : undefined, lastReminderAt: new Date() } });
     return { ...result, link: inv.link, text };
   }
 

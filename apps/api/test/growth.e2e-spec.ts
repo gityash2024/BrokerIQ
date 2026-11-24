@@ -492,6 +492,34 @@ describe('Growth features (e2e)', () => {
     expect(adminList.body.items.every((row: { organizationId: string }) => row.organizationId === broker.orgId)).toBe(true);
   });
 
+  it('separates delegated invoice edit and cancel grants while retaining the invoice history', async () => {
+    await http.patch('/api/admin/modules/deals').set(auth(admin)).send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] }).expect(200);
+    const user = await prisma.user.create({ data: {
+      name: 'Invoice delegate', role: 'SUB_BROKER_ADMIN', organizationId: broker.orgId, email: email('invoice-delegate'),
+      delegatedPermissions: ['deals:view', 'deals:edit'],
+    }, include: { organization: true } });
+    const delegate = auth((await app.get(AuthService).issue(user)).accessToken);
+    const invoice = await http.post('/api/broker/invoices').set(auth(broker.token)).send({
+      clientName: 'Invoice cancellation fixture', items: [{ description: 'Brokerage', amount: 1000 }],
+    }).expect(201);
+    const path = '/api/broker/invoices/' + invoice.body.id;
+    const cancel = (headers: { Authorization: string }) => http.patch(path).set(headers).send({ status: 'CANCELLED' });
+    await http.patch(path).set(delegate).send({ notes: 'Review due date', dueDate: '2026-12-02' }).expect(200);
+    await cancel(delegate).expect(403);
+    await cancel(auth(referred.token)).expect(404);
+    await prisma.user.update({ where: { id: user.id }, data: { delegatedPermissions: ['deals:view', 'deals:delete'] } });
+    await http.patch(path).set(delegate).send({ notes: 'Unauthorized edit' }).expect(403);
+    await http.patch(path).set(delegate).send({ status: 'CANCELLED', notes: 'Unauthorized edit' }).expect(403);
+    await Promise.all([cancel(delegate).expect(200), cancel(delegate).expect(200)]);
+    const saved = (await http.get(path).set(delegate).expect(200)).body;
+    expect(saved).toMatchObject({ status: 'CANCELLED', notes: 'Review due date', dueDate: '2026-12-02T00:00:00.000Z' });
+    expect(await prisma.auditLog.count({ where: { entityId: saved.id, actorRole: 'SUB_BROKER_ADMIN', action: 'invoice.cancelled' } })).toBe(1);
+    await http.patch(path).set(auth(broker.token)).send({ status: 'PAID' }).expect(409);
+    await http.post(path + '/send').set(auth(broker.token)).expect(409);
+    const token = invoice.body.link.split('/pay/')[1];
+    expect((await http.get(`/api/public/invoices/${token}`).expect(200)).body).toMatchObject({ status: 'CANCELLED', upi: null });
+  });
+
   it('Exotel click-to-call, status callback and incoming-call leads', async () => {
     const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: broker.orgId, phone: { contains: '9876543299' } } });
     const r0 = await http

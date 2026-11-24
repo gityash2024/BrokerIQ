@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { browserAdminSession, createBrokerFixture } from './fixtures';
+import { API, browserAdminSession, createBrokerFixture } from './fixtures';
 
 const { PrismaClient } = createRequire(resolve(__dirname, '../../api/package.json'))('@prisma/client');
 
@@ -83,4 +83,35 @@ test('PDF Inventory has its own upload and filters on desktop and narrow screens
   await detail.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(detail).toHaveCount(0);
   await expect(sector).toHaveValue('Sector 30');
+});
+
+test('invoice edits keep the filtered list and cancellation preserves invoice history', async ({ page, request }) => {
+  const { session } = await createBrokerFixture(request);
+  const created = await request.post(API + '/broker/invoices', {
+    headers: { Authorization: 'Bearer ' + session.accessToken },
+    data: { clientName: 'Invoice cancellation fixture', items: [{ description: 'Brokerage', amount: 1000 }] },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { number } = await created.json();
+  await page.goto('/login');
+  await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
+  await page.goto('/broker/invoices');
+  await page.getByRole('button', { name: 'Pending', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  const detail = page.getByRole('dialog', { name: 'Edit invoice ' + number });
+  await detail.getByLabel('Due date').fill('2026-12-02');
+  await detail.getByLabel('Notes').fill('Client requested December due date');
+  await detail.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(detail).toHaveCount(0);
+  await expect(page.getByText(number, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(detail.getByLabel('Due date')).toHaveValue('2026-12-02');
+  await page.goBack();
+  await expect(detail).toHaveCount(0);
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Cancel invoice', exact: true }).click();
+  await expect(page.getByText(number, { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancelled', exact: true }).click();
+  await expect(page.getByText(number, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
 });

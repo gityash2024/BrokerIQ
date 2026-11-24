@@ -76,6 +76,8 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(path) && method === 'GET') return { module: 'leads', actions: ['view'] };
   if (path === '/broker/tenancies/:id' && method === 'PATCH' && body?.status === 'ENDED')
     return { module: 'owners', actions: Object.keys(body).some((key) => key !== 'status') ? ['view', 'edit', 'delete'] : ['view', 'delete'] };
+  if (path === '/broker/invoices/:id' && method === 'PATCH' && body?.status === 'CANCELLED')
+    return { module: 'deals', actions: Object.keys(body).some((key) => key !== 'status') ? ['view', 'edit', 'delete'] : ['view', 'delete'] };
   if (path === '/whatsapp/status' && method === 'GET') return { module: 'inbox', actions: ['view'] };
 
   let actions: DelegatedAction[];
