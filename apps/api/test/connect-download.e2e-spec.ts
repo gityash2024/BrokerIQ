@@ -37,6 +37,17 @@ it('offers a private APK while capture is paused and rejects tampered, expired a
     const path = new URL(profile.body.downloadUrl).pathname;
     const prefix = '/api/media/connect-apk/';
     expect(path.startsWith(prefix)).toBe(true);
+    const firm = await db.organization.create({ data: { name: 'Connect download verification firm', slug: 'download-' + user.id } });
+    const roles = ['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN', 'PROPERTY_OWNER', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT'] as const;
+    for (const role of roles) {
+      if (config.BROKER_FIRST && (role === 'MODERATOR' || role === 'SUPPORT')) continue;
+      const account = await db.user.create({
+        data: { role, organizationId: firm.id, name: 'Connect download check', email: `${user.id}-${role}@e2e.test` }, include: { organization: true },
+      });
+      const session = await app.get(AuthService).issue(account);
+      const response = await http().get('/api/connect/profile').set('Authorization', 'Bearer ' + session.accessToken).expect(200);
+      expect(new URL(response.body.downloadUrl).pathname.startsWith(prefix)).toBe(true);
+    }
     const result = await http().get(path).expect(200).expect('Cache-Control', 'private, no-store');
     expect(result.headers['content-disposition']).toContain('BrokerIQ-Connect.apk');
     expect(result.headers['content-length']).toBe(String(fixture.length));

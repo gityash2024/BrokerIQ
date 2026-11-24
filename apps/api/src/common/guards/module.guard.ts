@@ -17,6 +17,8 @@ export class ModuleGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const user = req.user;
     const requestPath = (req.path || req.url).replace(/^\/api(?=\/|$)/i, '');
+    // APK delivery belongs to the signed-in profile, independently of Connect capture grants.
+    if (user && req.method === 'GET' && /^\/connect\/profile\/?$/.test(requestPath)) return true;
     if (user?.role === 'BROKER_AGENT' && user.agentChatEnabled === false && /^\/(chat|whatsapp|messaging)(?:\/|$)/i.test(requestPath))
       throw new ForbiddenException('Inbox access has been removed by your Broker Admin');
     if (user?.role === 'SUB_BROKER_ADMIN') {
@@ -27,7 +29,6 @@ export class ModuleGuard implements CanActivate {
         .replace(/\/+$/, '')
         .toLowerCase();
       if (!user.orgId) throw new ForbiddenException('Firm membership required');
-      if (path === '/connect/profile' && req.method === 'GET') return true;
       const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
       if (isPublic || /^\/auth(?:\/|$)/.test(path) || /^\/me(?:$|\/(?:privacy|consent|push-tokens|notifications)(?:\/|$))/.test(path)) return true;
       // Personal KYC is bound to the signed-in identity. Team review still requires the firm's grants.
@@ -114,7 +115,6 @@ export class ModuleGuard implements CanActivate {
         this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]) ||
         /^\/auth(?:\/|$)/.test(path) ||
         /^\/owner\/properties(?:\/|$)/.test(path) ||
-        path === '/connect/profile' ||
         /^\/media\/property-video(?:\/|$)/.test(path) ||
         (path === '/me/uploads/sign' && req.method === 'POST' && req.body?.kind === 'listing')
       )
