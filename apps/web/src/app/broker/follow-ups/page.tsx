@@ -2,7 +2,7 @@
 import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { submitTask } from '@/lib/task-submissions';
-import { canUseBrokerChat } from '@brokeriq/shared';
+import { canUseBrokerChat, hasDelegatedAccess } from '@brokeriq/shared';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -39,19 +39,22 @@ function dayKey(d: Date) {
 export default function FollowUpsPage() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
+  const canEdit = hasDelegatedAccess(user, 'leads', 'view', 'edit');
+  const canDelete = hasDelegatedAccess(user, 'leads', 'view', 'delete');
   const team = useAssignees();
   const [view, setView] = useRouteState<View>('follow-ups.view', 'today');
-  const [month, setMonth] = useState(() => followUpCurrentMonth());
+  const [month, setMonth] = useRouteState('follow-ups.month', followUpCurrentMonth);
   const monthRange = followUpMonthRange(month);
-  const [agent, setAgent] = useState('');
+  const [agent, setAgent] = useRouteState('follow-ups.agent', '');
   const [done, setDone] = useState<any>(null);
   const [outcome, setOutcome] = useState('');
+  const [edit, setEdit] = useState<{ id: string; date: string; note: string; updatedAt: string } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   const [page, setPage] = useRouteState('follow-ups.page', 1);
   const [search, setSearch] = useRouteState('follow-ups.search', '');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useRouteState('follow-ups.from', '');
+  const [to, setTo] = useRouteState('follow-ups.to', '');
   const [status, setStatus] = useRouteState('follow-ups.status', '');
   const fromDate = view === 'future' ? monthRange?.from : from ? followUpDateBoundary(from) : undefined;
   const toDate = view === 'future' ? monthRange?.to : to ? followUpDateBoundary(to, true) : undefined;
@@ -353,8 +356,14 @@ export default function FollowUpsPage() {
                             </Button>
                           </div>
                         )}
-                        {f.status !== 'PENDING' && (
-                          <Button size="icon-sm" variant="ghost" onClick={() => remove.mutate(f.id)} aria-label="Delete">
+                        {canEdit && (
+                          <Button size="xs" variant="secondary" onClick={() => setEdit({ id: f.id, date: toLocalInput(new Date(f.dueAt)), note: f.note ?? '', updatedAt: f.updatedAt })}>
+                            Edit follow-up
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button size="icon-sm" variant="ghost" aria-label="Delete follow-up"
+                            onClick={() => { if (window.confirm('Delete this follow-up?')) remove.mutate(f.id); }}>
                             <Trash2 className="size-4" />
                           </Button>
                         )}
@@ -406,6 +415,17 @@ export default function FollowUpsPage() {
         }
       >
         <Textarea autoFocus value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="जैसे: Sunday को visit के लिए तैयार, budget 1.5 Cr तक" />
+      </Dialog>
+      <Dialog open={!!edit} onOpenChange={(open) => { if (!open) setEdit(null); }} title="Edit follow-up" size="sm">
+        {edit && <form className="space-y-3" onSubmit={(event) => {
+          event.preventDefault();
+          update.mutate({ id: edit.id, dueAt: new Date(edit.date).toISOString(), note: edit.note || null, expectedUpdatedAt: edit.updatedAt },
+            { onSuccess: () => setEdit(null) });
+        }}>
+          <Field label="Due date"><Input type="datetime-local" required value={edit.date} onChange={(event) => setEdit({ ...edit, date: event.target.value })} /></Field>
+          <Field label="Note"><Textarea maxLength={1000} value={edit.note} onChange={(event) => setEdit({ ...edit, note: event.target.value })} /></Field>
+          <Button type="submit" loading={update.isPending}>Save</Button>
+        </form>}
       </Dialog>
       <AddFollowUp open={addOpen} onOpenChange={setAddOpen} />
     </>

@@ -1,10 +1,12 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
+import { useQueryClient } from '@tanstack/react-query';
+import { goBack } from '@/lib/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { offeredRequirement, brokerRequirementSchema, inventoryInputSchema } from '@brokeriq/shared';
+import { hasDelegatedAccess, offeredRequirement, brokerRequirementSchema, inventoryInputSchema } from '@brokeriq/shared';
 import { BrokerScreen } from '@/launch/screen';
 import { EntityFields, prepareEntity } from '@/launch/entity-fields';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
@@ -16,6 +18,8 @@ export default function RequirementEditor() {
   const kind = recordId ? 'REQUIREMENT_EDIT' : 'REQUIREMENT_CREATE';
   const key = recordId || leadId || 'new-requirement';
   const { user } = useAuth();
+  const cache = useQueryClient();
+  const allowed = hasDelegatedAccess(user, 'leads', 'view', recordId ? 'edit' : 'create');
   const id = useRef(Crypto.randomUUID());
   const owner = useRef(captureAccountContext());
   const writes = useRef<Promise<unknown>>(Promise.resolve());
@@ -26,6 +30,7 @@ export default function RequirementEditor() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
+    if (!allowed) return;
     let active = true;
     (async () => {
       try {
@@ -47,7 +52,7 @@ export default function RequirementEditor() {
     return () => {
       active = false;
     };
-  }, [draft, kind, key, recordId, startSeparate]);
+  }, [allowed, draft, kind, key, recordId, startSeparate]);
   function change(next: any) {
     setValue(next);
     setStatus('Saving draft…');
@@ -76,7 +81,14 @@ export default function RequirementEditor() {
       await saveDraft(kind, key, parsed, id.current, owner.current);
       await queueDraft(id.current, owner.current);
       await syncDrafts();
-      router.replace('/drafts');
+      const saved = await getLocalDraft(id.current, owner.current);
+      if (saved?.state === 'FAILED') throw new Error(saved.error ?? 'Save failed. The draft is saved on this device.');
+      if (saved?.state === 'SYNCED') {
+        await cache.invalidateQueries({ queryKey: ['broker-requirements'] });
+        goBack('/requirements');
+      } else {
+        router.replace('/drafts');
+      }
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -90,7 +102,8 @@ export default function RequirementEditor() {
           <Txt v="caption" color="muted">
             {status}
           </Txt>
-          {ready && <EntityFields value={value} requirement onChange={change} />}
+          {!allowed && <Txt color="danger">Ask your Broker Admin for permission to change requirements.</Txt>}
+          {ready && allowed && <EntityFields value={value} requirement onChange={change} />}
           <LegacyDraftRecovery
             error={error}
             onStart={() => {
@@ -101,7 +114,7 @@ export default function RequirementEditor() {
           {error && <Txt color="danger">{error}</Txt>}
         </ScrollView>
         <View style={{ padding: 16 }}>
-          <Button title="Save requirement" disabled={!ready} loading={busy} onPress={save} />
+          <Button title="Save requirement" disabled={!ready || !allowed} loading={busy} onPress={save} />
         </View>
       </View>
     </BrokerScreen>

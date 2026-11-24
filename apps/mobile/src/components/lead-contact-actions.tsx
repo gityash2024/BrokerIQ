@@ -1,8 +1,12 @@
+import { canUseBrokerChat } from '@brokeriq/shared';
+import { useAuth } from '@/lib/auth';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { Chip } from '@/ui';
 
 /** Every channel opens the authorized internal composer and its durable lead trail. */
 export function LeadContactActions({ lead }: { lead: { id: string; phone?: string | null; email?: string | null } }) {
+  const { user } = useAuth();
+  if (!canUseBrokerChat(user)) return null;
   return (
     <>
       {!!lead.phone && <Chip label="WhatsApp" onPress={() => openLeadInbox(lead.id)} />}

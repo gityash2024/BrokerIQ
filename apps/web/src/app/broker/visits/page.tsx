@@ -2,7 +2,8 @@
 import { inventoryNavigation, googleDirections } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useAuth } from '@/lib/auth';
-import { canUseBrokerChat } from '@brokeriq/shared';
+import { useRouteState } from '@/lib/navigation';
+import { canUseBrokerChat, hasDelegatedAccess } from '@brokeriq/shared';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -12,7 +13,7 @@ import { toast } from 'sonner';
 import { CalendarCheck, CalendarPlus, Check, ChevronLeft, ChevronRight, Clock, MapPin, MessageCircle, Navigation, Phone, Star, X } from 'lucide-react';
 import { VISIT_STATUS_LABELS, parseVisitLocalDateTime, type VisitStatus } from '@brokeriq/shared';
 import { api } from '@/lib/api';
-import { patch, useApiMutation } from '@/lib/hooks';
+import { del, patch, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, img, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { VisitSlotsButton } from '@/components/broker/visit-slots';
@@ -42,8 +43,10 @@ const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 
 export default function VisitsPage() {
   const { user } = useAuth();
-  const [week, setWeek] = useState(() => startOfWeek(new Date()));
-  const [day, setDay] = useState<Date | null>(null);
+  const canEdit = hasDelegatedAccess(user, 'leads', 'view', 'edit');
+  const canCancel = hasDelegatedAccess(user, 'leads', 'view', 'delete');
+  const [week, setWeek] = useRouteState('visits.week', () => startOfWeek(new Date()));
+  const [day, setDay] = useRouteState<Date | null>('visits.day', null);
   const [complete, setComplete] = useState<any>(null);
   const [reschedule, setReschedule] = useState<any>(null);
   const [rescheduleAt, setRescheduleAt] = useState('');
@@ -59,6 +62,7 @@ export default function VisitsPage() {
   });
   const visits = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
   const update = useApiMutation(({ id, ...b }: any) => patch(`/visits/${id}`, b), { invalidate: [['visits'], ['broker-dashboard']] });
+  const cancel = useApiMutation((id: string) => del('/visits/' + id), { invalidate: [['visits'], ['broker-dashboard']] });
   const days = Array.from({ length: 7 }, (_, i) => new Date(week.getTime() + i * 86400_000));
   const list = useMemo(() => visits.filter((v) => !day || sameDay(new Date(v.scheduledAt), day)), [visits, day]);
 
@@ -228,7 +232,7 @@ export default function VisitsPage() {
                     </Button>
                   )}
                   <div className="ml-auto flex flex-wrap gap-1.5">
-                    {open && (
+                    {open && canEdit && (
                       <Button
                         size="xs"
                         variant="secondary"
@@ -260,8 +264,9 @@ export default function VisitsPage() {
                         No-show
                       </Button>
                     )}
-                    {open && !past && (
-                      <Button size="icon-sm" variant="ghost" onClick={() => update.mutate({ id: v.id, status: 'CANCELLED' })} aria-label="Cancel">
+                    {open && canCancel && (
+                      <Button size="icon-sm" variant="ghost" disabled={cancel.isPending} aria-label="Cancel visit"
+                        onClick={() => { if (window.confirm('Cancel this site visit?')) cancel.mutate(v.id); }}>
                         <X className="size-4" />
                       </Button>
                     )}

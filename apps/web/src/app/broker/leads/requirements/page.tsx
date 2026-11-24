@@ -11,8 +11,9 @@ import { useConfig, useConfigStatus } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/field';
 import { moduleAllowed } from '@brokeriq/shared';
-import { formatINR, readableValue } from '@brokeriq/shared';
+import { formatINR, hasDelegatedAccess, readableValue } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
+import { del, useApiMutation } from '@/lib/hooks';
 export default function RequirementsPage() {
   return (
     <Suspense>
@@ -28,7 +29,10 @@ function RequirementsInner() {
   const configStatus = useConfigStatus();
   const inventoryAllowed = configStatus.loaded && !!user && moduleAllowed(config.modules, 'inventory', user.role);
   const [search, setSearch] = useRouteState('requirements.search', '');
-  const [intent, setIntent] = useState('');
+  const canEdit = hasDelegatedAccess(user, 'leads', 'view', 'edit');
+  const canDelete = hasDelegatedAccess(user, 'leads', 'view', 'delete');
+  const removal = useApiMutation((id: string) => del('/broker-requirements/' + id), { invalidate: [['broker-requirements']] });
+  const [intent, setIntent] = useRouteState('requirements.intent', '');
   const [match, setMatch] = useState<string | null>(null);
   const [page, setPage] = useRouteState('requirements.page', 1);
   const requestedId = params.get('record');
@@ -48,7 +52,7 @@ function RequirementsInner() {
         actions={
           <>
             <Link href="/broker/imports?target=REQUIREMENT" className="rounded-xl border border-line px-4 py-2 font-semibold">
-              Scan / paste / chat export
+              {config.flags.connect_whatsapp_cutover ? 'Scan / paste' : 'Scan / paste / chat export'}
             </Link>
             <Link href="/broker/leads/requirements/new" className="rounded-xl bg-brand-600 px-4 py-2 font-semibold text-white">
               + Requirement
@@ -127,9 +131,11 @@ function RequirementsInner() {
                   ))}
               </dl>
               <div className="mt-4 flex flex-wrap gap-3">
-                <Link href={`/broker/leads/requirements/${item.id}/edit`} className="text-sm font-semibold text-brand-600">
+                {canEdit && <Link href={`/broker/leads/requirements/${item.id}/edit`} className="text-sm font-semibold text-brand-600">
                   Review / edit
-                </Link>
+                </Link>}
+                {canDelete && <Button size="xs" variant="ghost" disabled={removal.isPending}
+                  onClick={() => { if (window.confirm('Archive this requirement?')) removal.mutate(item.id); }}>Archive requirement</Button>}
                 {inventoryAllowed && item.intent === 'OFFER' && !item.convertedAt && item.status === 'OPEN' && (
                   <Link href={`/broker/leads/requirements/${item.id}/convert`} className="text-sm font-semibold text-brand-600">
                     Review and add to inventory →

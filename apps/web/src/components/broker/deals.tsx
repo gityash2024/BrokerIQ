@@ -8,10 +8,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { BadgeIndianRupee, Handshake, IndianRupee, Pencil, Plus, TrendingUp, Wallet } from 'lucide-react';
-import { formatINR, formatPriceShort } from '@brokeriq/shared';
+import { formatINR, formatPriceShort, hasDelegatedAccess } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { patch, post, useApiMutation } from '@/lib/hooks';
+import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { LeadPicker, ListingPicker } from '@/components/broker/lead-picker';
@@ -28,6 +28,9 @@ const commissionOf = (d: any) => d.commissionAmount ?? (d.commissionPct ? (d.dea
 export function DealsPage() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
+  const canEdit = hasDelegatedAccess(user, 'deals', 'view', 'edit');
+  const canDelete = hasDelegatedAccess(user, 'deals', 'view', 'delete');
+  const cancel = useApiMutation((id: string) => del('/deals/' + id), { invalidate: [['deals'], ['broker-dashboard']] });
   const [status, setStatus] = useRouteState<'' | 'OPEN' | 'CLOSED' | 'CANCELLED'>('deals.status', '');
   const { sortColumn, sortDirection, handleSort } = useSortableTable<'title' | 'value' | 'commission' | 'collected' | 'agent' | 'status'>();
   const q = useQuery({ queryKey: ['deals', status], queryFn: () => api<any[]>(`/deals${qs({ status })}`) });
@@ -216,9 +219,13 @@ export function DealsPage() {
                           Invoice
                         </Button>
                       )}
-                      <Button size="icon-sm" variant="ghost" href={`/broker/deals/${x.id}/edit`} aria-label="Edit">
+                      {canEdit && <Button size="icon-sm" variant="ghost" href={`/broker/deals/${x.id}/edit`} aria-label="Edit deal">
                         <Pencil className="size-4" />
-                      </Button>
+                      </Button>}
+                      {x.status === 'OPEN' && canDelete && <Button size="xs" variant="ghost" disabled={cancel.isPending}
+                        onClick={() => { if (window.confirm('Cancel this open deal?')) cancel.mutate(x.id); }}>
+                        Cancel deal
+                      </Button>}
                     </td>
                   </motion.tr>
                 );

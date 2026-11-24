@@ -407,8 +407,10 @@ export async function syncDrafts() {
   const create = delegated && hasDelegatedAccess(user, 'inventory', 'create');
   const edit = delegated && hasDelegatedAccess(user, 'inventory', 'edit');
   const publish = delegated && hasDelegatedAccess(user, 'inventory', 'publish');
+  const requirementCreate = delegated && hasDelegatedAccess(user, 'leads', 'view', 'create');
+  const requirementEdit = delegated && hasDelegatedAccess(user, 'leads', 'view', 'edit');
   const propertyOwner = user.role === 'PROPERTY_OWNER';
-  if (!(allKinds || create || edit || publish || propertyOwner)) return;
+  if (!(allKinds || create || edit || publish || propertyOwner || requirementCreate || requirementEdit)) return;
   syncing.add(owner.scope);
   const completedTaskLeads = new Set<string>();
   let inventoryChanged = false;
@@ -419,7 +421,8 @@ export async function syncDrafts() {
       assertAccountContext(owner);
       const rows = await database.getAllAsync<LocalDraft>(
         `SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND state='QUEUED' AND next_at<=?
-         AND (? OR (kind IN ('PROPERTY_CREATE','PROPERTY_SURVEY_PHOTO','PROPERTY_SURVEY_PHONE') AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?) OR (kind IN ('OWNER_PROPERTY_CREATE','OWNER_PROPERTY_EDIT') AND ?))
+         AND (? OR (kind IN ('PROPERTY_CREATE','PROPERTY_SURVEY_PHOTO','PROPERTY_SURVEY_PHONE') AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?) OR (kind IN ('OWNER_PROPERTY_CREATE','OWNER_PROPERTY_EDIT') AND ?)
+             OR (kind='REQUIREMENT_CREATE' AND ?) OR (kind='REQUIREMENT_EDIT' AND ?))
          ORDER BY updated_at ASC LIMIT 10`,
         session.user.id,
         owner.scope,
@@ -429,6 +432,8 @@ export async function syncDrafts() {
         Number(edit),
         Number(publish),
         Number(propertyOwner),
+        Number(requirementCreate),
+        Number(requirementEdit),
       );
       if (!rows.length) break;
       for (const row of rows) {

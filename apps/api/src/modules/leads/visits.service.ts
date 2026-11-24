@@ -395,6 +395,11 @@ export class VisitsService {
       const closed = ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(visit.status);
       if (closed && (body.scheduledAt || (body.status && body.status !== visit.status) || body.checkInLat != null))
         throw new ConflictException('This visit is closed; schedule a new visit.');
+      if (body.status === 'CANCELLED' && visit.status !== 'CANCELLED') {
+        await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role,
+          organizationId: visit.organizationId, action: 'visit.cancel', entity: 'SiteVisit', entityId: id,
+          meta: { leadId: visit.leadId, previousStatus: visit.status } } });
+      }
       const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : undefined;
       const changedDate = scheduledAt && scheduledAt.getTime() !== visit.scheduledAt.getTime();
       const updated = await tx.siteVisit.update({

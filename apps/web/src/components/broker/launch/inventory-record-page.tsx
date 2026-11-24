@@ -1,6 +1,6 @@
 'use client';
 import { BackButton } from '@/components/ui/back-button';
-import { shouldReturnTo } from '@/lib/navigation';
+import { hasPreviousPage, shouldReturnTo } from '@/lib/navigation';
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
@@ -126,7 +126,8 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
     try {
       await api(restore ? `/inventory/${item.id}/restore` : `/inventory/${item.id}`, { method: restore ? 'POST' : 'DELETE' });
       await refresh();
-      router.replace(base);
+      if (hasPreviousPage()) router.back();
+      else router.replace(base);
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {

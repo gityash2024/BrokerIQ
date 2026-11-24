@@ -54,6 +54,10 @@ describe('Sub-Broker Admin authorization on real PostgreSQL', () => {
     await api().post('/api/broker/team/invite').set(delegatedHeader).send({ name: 'Denied', email: 'denied@e2e.test' }).expect(403);
     await api().patch(path).set(ownerHeader).send({ delegatedPermissions: ['leads:edit', 'time_logging:view'] }).expect(200);
     await api().get('/api/leads').set(delegatedHeader).expect(401);
+    const beforeView = await db.user.findUniqueOrThrow({ where: { id: agent.id }, include: { organization: true } });
+    const editOnly = header((await auth.issue(beforeView)).accessToken);
+    await api().patch('/api/leads/' + own.id).set(editOnly).send({ name: 'Updated lead' }).expect(403);
+    await api().patch(path).set(ownerHeader).send({ delegatedPermissions: ['leads:view', 'leads:edit', 'time_logging:view'] }).expect(200);
     const fresh = await db.user.findUniqueOrThrow({ where: { id: agent.id }, include: { organization: true } });
     const newHeader = header((await auth.issue(fresh)).accessToken);
     await api().patch('/api/leads/' + own.id).set(newHeader).send({ name: 'Updated lead' }).expect(200);

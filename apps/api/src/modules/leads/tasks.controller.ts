@@ -38,6 +38,7 @@ import { VisitsService } from './visits.service';
 import { FeaturesService } from '../../core/features/features.service';
 
 const followUpUpdate = z.object({
+  expectedUpdatedAt: z.string().datetime({ offset: true }).optional(),
   status: z.enum(['PENDING', 'DONE', 'MISSED', 'CANCELLED']).optional(),
   dueAt: z.string().datetime({ offset: true }).optional(),
   note: z.string().max(1000).nullable().optional(),
@@ -217,6 +218,8 @@ export class TasksController {
   async updateFollowUp(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(followUpUpdate)) body: z.infer<typeof followUpUpdate>) {
     return this.prisma.$transaction(async (tx) => {
       const fu = await this.lockFollowUp(tx, user, id);
+      if (body.expectedUpdatedAt && new Date(body.expectedUpdatedAt).getTime() !== fu.updatedAt.getTime())
+        throw new ConflictException('Follow-up changed. Refresh before saving.');
       const updated = await tx.followUp.update({
         where: { id },
         data: {
@@ -272,6 +275,9 @@ export class TasksController {
     return this.prisma.$transaction(async (tx) => {
       const fu = await this.lockFollowUp(tx, user, id);
       await tx.followUp.delete({ where: { id } });
+      await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role,
+        organizationId: fu.organizationId, action: 'follow-up.delete', entity: 'FollowUp', entityId: id,
+        meta: { leadId: fu.leadId, status: fu.status, dueAt: fu.dueAt.toISOString() } } });
       await this.refreshFollowUp(tx, fu.leadId);
       return { ok: true };
     });
@@ -298,6 +304,11 @@ export class TasksController {
   @Patch('visits/:id')
   updateVisit(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(visitUpdateSchema)) body: z.infer<typeof visitUpdateSchema>) {
     return this.visitService.update(user, id, body);
+  }
+
+  @Delete('visits/:id')
+  cancelVisit(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.visitService.update(user, id, { status: 'CANCELLED' });
   }
 
   // ------------------------------------------------------------------ deals
@@ -356,7 +367,11 @@ export class TasksController {
     @Param('id') id: string,
     @Body(new ZodPipe(dealInputSchema.partial().extend({ status: z.enum(['OPEN', 'CLOSED', 'CANCELLED']).optional() }))) body: any,
   ) {
-    const d = await this.prisma.deal.findFirst({ where: { id, organizationId: requireOrg(user) } });
+    const organizationId = requireOrg(user);
+    const d = await this.prisma.deal.findFirst({ where: { id, organizationId, ...(user.role === 'BROKER_AGENT' ? { agentId: user.id } : {}) } });
+    if (body.listingId && !(await this.prisma.listing.count({ where: { organizationId, id: body.listingId, deletedAt: null } }))) {
+      throw new NotFoundException('Listing not found');
+    }
     if (!d) throw new NotFoundException();
     const { leadId, closedAt, ...rest } = body;
     void leadId;
@@ -369,5 +384,22 @@ export class TasksController {
       this.events.emit('deal.closed', { dealId: d.id, orgId: d.organizationId, userId: user.id });
     }
     return updated;
+  }
+
+  @Delete('deals/:id')
+  async cancelDeal(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const organizationId = requireOrg(user);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Deal" WHERE id=${id} AND "organizationId"=${organizationId} FOR UPDATE`;
+      const deal = await tx.deal.findFirst({ where: { id, organizationId, ...(user.role === 'BROKER_AGENT' ? { agentId: user.id } : {}) },
+        select: { id: true, status: true, _count: { select: { invoices: true, tenancies: true } } } });
+      if (!deal) throw new NotFoundException('Deal not found');
+      if (deal.status === 'CANCELLED') return { ok: true };
+      if (deal.status !== 'OPEN' || deal._count.invoices || deal._count.tenancies) throw new ConflictException('This deal has closed or has linked documents');
+      await tx.deal.update({ where: { id }, data: { status: 'CANCELLED' } });
+      await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role,
+        organizationId, action: 'deal.cancel', entity: 'Deal', entityId: id } });
+      return { ok: true };
+    });
   }
 }

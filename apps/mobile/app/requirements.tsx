@@ -3,19 +3,22 @@ import { useState } from 'react';
 import { FlatList, View, Linking, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { formatINR, readableValue, moduleAllowed } from '@brokeriq/shared';
-import { api, qs, errorMessage } from '@/lib/api';
+import { formatINR, hasDelegatedAccess, readableValue, moduleAllowed } from '@brokeriq/shared';
+import { api, del, qs, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
-import { useDebounced } from '@/lib/hooks';
+import { useApiMutation, useDebounced } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { PropertyCard } from '@/launch/property-card';
 import { Button, Txt, ErrorView, Sheet, Input } from '@/ui';
 export default function Requirements() {
   const { user } = useAuth();
   const config = useConfig();
+  const canEdit = hasDelegatedAccess(user, 'leads', 'view', 'edit');
+  const canDelete = hasDelegatedAccess(user, 'leads', 'view', 'delete');
+  const removal = useApiMutation((id: string) => del('/broker-requirements/' + id), { invalidate: [['broker-requirements']] });
   const inventoryAllowed = config.loaded && !!user && moduleAllowed(config.modules, 'inventory', user.role);
   const { leadId } = useLocalSearchParams<{ leadId?: string }>();
   const [search, setSearch] = useState('');
@@ -122,12 +125,17 @@ export default function Requirements() {
                 onPress={() => Linking.openURL(`tel:${item.contactPhone}`).catch((error) => toast.error(errorMessage(error)))}
               />
             )}
-            <Button
+            {canEdit && <Button
               title="Review / edit"
               variant="secondary"
               size="sm"
               onPress={() => router.push({ pathname: '/requirement-edit', params: { id: item.id } } as any)}
-            />
+            />}
+            {canDelete && <Button size="sm" variant="ghost" title="Archive requirement" disabled={removal.isPending}
+              onPress={() => Alert.alert('Archive this requirement?', undefined, [
+                { text: 'Keep', style: 'cancel' },
+                { text: 'Archive', style: 'destructive', onPress: () => removal.mutate(item.id) },
+              ])} />}
             {(item.intent === 'DEMAND' || !item.intent) && <Button title="Find matches" variant="secondary" size="sm" onPress={() => setSelected(item.id)} />}
             {inventoryAllowed && item.intent === 'OFFER' && !item.convertedAt && item.status === 'OPEN' && (
               <Button

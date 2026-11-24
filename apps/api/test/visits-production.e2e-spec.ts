@@ -272,4 +272,16 @@ describe('Production visit association, permissions and retry safety (PostgreSQL
     expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('SITE_VISIT');
     expect((await db.siteVisit.findUniqueOrThrow({ where: { id: visit.id } })).status).toBe('COMPLETED');
   });
+
+  it('cancels a scoped visit through its lifecycle and records the administrator action', async () => {
+    const row = await db.siteVisit.create({
+      data: { organizationId: org, leadId: lead, assignedToId: agent.id, scheduledAt: new Date(at) },
+    });
+    await req().delete('/api/visits/' + row.id).set(h(outsider)).expect(404);
+    await req().delete('/api/visits/' + row.id).set(h(admin)).expect(200);
+    await req().delete('/api/visits/' + row.id).set(h(admin)).expect(200);
+    expect(await db.siteVisit.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({ status: 'CANCELLED', leadId: lead });
+    expect(await db.auditLog.count({ where: { action: 'visit.cancel', actorId: admin.id, entityId: row.id } })).toBe(1);
+  });
+
 });

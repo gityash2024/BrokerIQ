@@ -4,17 +4,18 @@ import { VisitItinerary } from '@/components/visit-properties';
 import { DateTimeField } from '@/components/date-time-field';
 import { LeadContactActions } from '@/components/lead-contact-actions';
 import { useState } from 'react';
-import { FlatList, Linking } from 'react-native';
+import { Alert, FlatList, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CalendarCheck, Check, MapPin, Navigation, Phone, Star, X } from 'lucide-react-native';
-import { VISIT_STATUS_LABELS, type VisitStatus } from '@brokeriq/shared';
-import { api, assertAccountContext, captureAccountContext, errorMessage, patch, qs } from '@/lib/api';
+import { hasDelegatedAccess, VISIT_STATUS_LABELS, type VisitStatus } from '@brokeriq/shared';
+import { api, del, assertAccountContext, captureAccountContext, errorMessage, patch, qs } from '@/lib/api';
 import { checkInVisit } from '@/lib/visit-check-in';
 import { useApiMutation } from '@/lib/hooks';
 import { reconcileLocalReminders } from '@/lib/push';
 import { toast } from '@/lib/toast';
+import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Badge, Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, PressableScale, Row, Screen, Sheet, Txt } from '@/ui';
 
@@ -22,6 +23,9 @@ const TONE: Record<string, string> = { SCHEDULED: '#4F46E5', CONFIRMED: '#0EA5E9
 
 export default function Visits() {
   const { c } = useTheme();
+  const { user } = useAuth();
+  const canEdit = hasDelegatedAccess(user, 'leads', 'view', 'edit');
+  const canCancel = hasDelegatedAccess(user, 'leads', 'view', 'delete');
   const queryClient = useQueryClient();
   const [days, setDays] = useState(0);
   const start = new Date();
@@ -42,6 +46,10 @@ export default function Visits() {
     onSuccess: () => {
       void reconcileLocalReminders().catch(() => undefined);
     },
+  });
+  const cancel = useApiMutation((id: string) => del('/visits/' + id), {
+    invalidate: [['visits'], ['broker-dashboard']],
+    onSuccess: () => { void reconcileLocalReminders().catch(() => undefined); },
   });
   const [done, setDone] = useState<any>(null);
   const [reschedule, setReschedule] = useState<any>(null);
@@ -137,7 +145,7 @@ export default function Visits() {
                         <Navigation size={17} color={c.brand} />
                       </IconBtn>
                     )}
-                    {open && (
+                    {open && canEdit && (
                       <Chip
                         label="Reschedule"
                         onPress={() => {
@@ -150,8 +158,11 @@ export default function Visits() {
                     {open && !v.checkInAt && <Chip label="📍 Check-in" onPress={() => checkIn(v)} />}
                     {open && <Chip label="✓ Done" color={c.success} active onPress={() => (setDone(v), setFb({ feedback: '', rating: 0 }))} />}
                     {open && new Date(v.scheduledAt) < new Date() && <Chip label="No-show" onPress={() => upd.mutate({ id: v.id, status: 'NO_SHOW' })} />}
-                    {open && new Date(v.scheduledAt) > new Date() && (
-                      <IconBtn onPress={() => upd.mutate({ id: v.id, status: 'CANCELLED' })}>
+                    {open && canCancel && (
+                      <IconBtn accessibilityLabel="Cancel visit" onPress={() => Alert.alert('Cancel this site visit?', undefined, [
+                        { text: 'Keep', style: 'cancel' },
+                        { text: 'Cancel visit', style: 'destructive', onPress: () => cancel.mutate(v.id) },
+                      ])}>
                         <X size={17} color={c.muted} />
                       </IconBtn>
                     )}

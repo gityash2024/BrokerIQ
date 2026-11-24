@@ -66,6 +66,9 @@ export class ModuleGuard implements CanActivate {
       ) {
         permission.actions.push('assign');
       }
+      if (permission?.actions.some((action) => action === 'edit' || action === 'delete') && !permission.actions.includes('view')) {
+        permission.actions.push('view');
+      }
       const grants: string[] = req.delegatedPermissions ?? [];
       const catalog = delegableModules(await this.modules.all());
       const available = permission && catalog.find(({ key }) => key === permission.module);

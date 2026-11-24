@@ -1,16 +1,16 @@
 import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
-import { FlatList, Linking, View } from 'react-native';
+import { Alert, FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { followUpCurrentMonth, followUpMonthRange, followUpDateBoundary, followUpTomorrowAtTen } from '@brokeriq/shared';
+import { hasDelegatedAccess, followUpCurrentMonth, followUpMonthRange, followUpDateBoundary, followUpTomorrowAtTen } from '@brokeriq/shared';
 import { DateTimeField } from '@/components/date-time-field';
 import { ChoiceField } from '@/launch/form';
 import { useAuth } from '@/lib/auth';
 import Animated, { FadeInDown, FadeOutRight } from 'react-native-reanimated';
 import { AlarmClock, Check, Clock, Phone } from 'lucide-react-native';
 import { LeadContactActions } from '@/components/lead-contact-actions';
-import { api, patch, qs } from '@/lib/api';
+import { api, del, patch, qs } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { reconcileLocalReminders } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
@@ -20,7 +20,10 @@ import { Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, Row, Scre
 export default function FollowUps() {
   const { c } = useTheme();
   const [view, setView] = useState<'today' | 'overdue' | 'upcoming' | 'future' | 'done' | 'all'>('today');
-  const { isBrokerAdmin } = useAuth();
+  const { isBrokerAdmin, user } = useAuth();
+  const canEdit = hasDelegatedAccess(user, 'leads', 'view', 'edit');
+  const canDelete = hasDelegatedAccess(user, 'leads', 'view', 'delete');
+  const [edit, setEdit] = useState<{ id: string; date: Date | null; note: string; updatedAt: string } | null>(null);
   const [month, setMonth] = useState(() => followUpCurrentMonth());
   const monthRange = followUpMonthRange(month);
   const team = useAssignees();
@@ -63,6 +66,10 @@ export default function FollowUps() {
     onSuccess: () => {
       void reconcileLocalReminders().catch(() => undefined);
     },
+  });
+  const remove = useApiMutation((id: string) => del(`/follow-ups/${id}`), {
+    invalidate: [['follow-ups'], ['broker-dashboard']],
+    onSuccess: () => { void reconcileLocalReminders().catch(() => undefined); },
   });
   const snooze = (id: string, ms: number) => upd.mutate({ id, dueAt: new Date(Date.now() + ms).toISOString() });
   return (
@@ -168,12 +175,29 @@ export default function FollowUps() {
                       <Chip label="✓ Done" color={c.success} active onPress={() => upd.mutate({ id: f.id, status: 'DONE' })} />
                     </Row>
                   )}
+                  <Row wrap gap={6}>
+                    {canEdit && <Chip label="Edit follow-up" onPress={() => setEdit({ id: f.id, date: new Date(f.dueAt), note: f.note ?? '', updatedAt: f.updatedAt })} />}
+                    {canDelete && <Chip label="Delete follow-up" onPress={() => Alert.alert('Delete this follow-up?', undefined, [
+                      { text: 'Keep', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(f.id) },
+                    ])} />}
+                  </Row>
                 </Card>
               </Animated.View>
             );
           }}
         />
       )}
+      <Sheet open={!!edit} onClose={() => setEdit(null)} title="Edit follow-up">
+        {edit && <>
+          <DateTimeField value={edit.date} onChange={(date) => setEdit({ ...edit, date })} />
+          <Input label="Note" value={edit.note} maxLength={1000} onChangeText={(note) => setEdit({ ...edit, note })} />
+          <Button title="Save" disabled={!edit.date} loading={upd.isPending} onPress={() => {
+            if (edit.date) upd.mutate({ id: edit.id, dueAt: edit.date.toISOString(), note: edit.note || null, expectedUpdatedAt: edit.updatedAt },
+              { onSuccess: () => setEdit(null) });
+          }} />
+        </>}
+      </Sheet>
       <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Follow-up filters">
         <View style={{ gap: 12 }}>
           <Txt v="caption">Search lead / note</Txt>

@@ -1,19 +1,26 @@
 import { LoadingArtwork } from '@/components/request-loader';
-import { FlatList, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BadgeIndianRupee, Handshake, TrendingUp, Wallet } from 'lucide-react-native';
-import { formatINR, formatPriceShort } from '@brokeriq/shared';
-import { api, patch } from '@/lib/api';
+import { formatINR, formatPriceShort, hasDelegatedAccess } from '@brokeriq/shared';
+import { api, del, patch } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
-import { Badge, Card, Chip, Empty, ErrorView, Header, Row, Screen, Stat, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, ErrorView, Header, Input, Row, Screen, Sheet, Stat, Txt } from '@/ui';
 
 const commission = (d: any) => d.commissionAmount ?? (d.commissionPct ? (d.dealValue * d.commissionPct) / 100 : 0);
 
 export default function Deals() {
   const { c } = useTheme();
+  const { user } = useAuth();
+  const canEdit = hasDelegatedAccess(user, 'deals', 'view', 'edit');
+  const canDelete = hasDelegatedAccess(user, 'deals', 'view', 'delete');
+  const [editing, setEditing] = useState<{ id: string; title: string; notes: string } | null>(null);
+  const cancel = useApiMutation((id: string) => del('/deals/' + id), { invalidate: [['deals'], ['broker-dashboard']] });
   const q = useQuery({ queryKey: ['deals', 'all'], queryFn: () => api<any[]>('/deals') });
   const upd = useApiMutation(({ id, ...b }: any) => patch(`/deals/${id}`, b), { success: 'Updated', invalidate: [['deals']] });
   const d = q.data ?? [];
@@ -87,19 +94,35 @@ export default function Deals() {
                       <View style={{ height: 6, borderRadius: 3, backgroundColor: c.surface2 }}>
                         <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: pct >= 100 ? c.success : c.accent }} />
                       </View>
-                      {pct < 100 && x.status === 'CLOSED' && (
+                      {canEdit && pct < 100 && x.status === 'CLOSED' && (
                         <Row>
                           <Chip label="पूरा commission मिल गया ✓" onPress={() => upd.mutate({ id: x.id, commissionReceived: cm })} />
                         </Row>
                       )}
                     </>
                   )}
+                  <Row wrap gap={6}>
+                    {canEdit && <Chip label="Edit deal" onPress={() => setEditing({ id: x.id, title: x.title, notes: x.notes ?? '' })} />}
+                    {x.status === 'OPEN' && canDelete && <Chip label="Cancel deal" onPress={() => Alert.alert('Cancel this open deal?', undefined, [
+                      { text: 'Keep', style: 'cancel' },
+                      { text: 'Cancel deal', style: 'destructive', onPress: () => cancel.mutate(x.id) },
+                    ])} />}
+                  </Row>
                 </Card>
               </Animated.View>
             );
           }}
         />
       )}
+      <Sheet open={!!editing} title="Edit deal" onClose={() => setEditing(null)}>
+        {editing && <>
+          <Input label="Deal title" value={editing.title} onChangeText={(title) => setEditing({ ...editing, title })} maxLength={140} />
+          <Input label="Notes" value={editing.notes} onChangeText={(notes) => setEditing({ ...editing, notes })} multiline maxLength={2000} />
+          <Button title="Save" loading={upd.isPending} disabled={editing.title.trim().length < 2} onPress={() =>
+            upd.mutate({ ...editing, notes: editing.notes || null }, { onSuccess: () => setEditing(null) })
+          } />
+        </>}
+      </Sheet>
     </Screen>
   );
 }
