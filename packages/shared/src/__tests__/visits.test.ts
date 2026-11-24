@@ -44,6 +44,7 @@ test('only the sharing picker labels accessible gallery photos', () => {
   assert.equal(visitInventoryDetails(record, 'photos'), visit + ' · Photos');
   assert.equal(visitInventoryDetails({ ...record, detailAccess: 'APPROVED' }, 'photos'), visit + ' · Photos');
   assert.equal(visitInventoryDetails({ ...record, detailAccess: 'LOCKED' }, 'photos'), visit);
+  assert.equal(visitInventoryDetails({ ...record, detailAccess: 'EXPIRED' }, 'photos'), visit);
   assert.equal(visitInventoryDetails({ ...record, photoUrls: [] }, 'photos'), visit);
   assert.equal(visitInventoryDetails({ ...record, photoUrls: ['https://example.test/media/private/scan.jpg'] }, 'photos'), visit);
   assert.equal(visitInventoryDetails({ ...record, agentCoverPhotoUrl: record.photoUrls?.[0], photoUrls: [] }, 'photos'), visit);
