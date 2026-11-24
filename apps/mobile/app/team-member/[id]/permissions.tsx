@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ScrollView } from '@/components/keyboard-scroll-view';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { reapplySelectionChanges, type AssignmentAgentSelection, type BrokerTeamResponse } from '@brokeriq/shared';
 import { DelegatedPermissions } from '@/components/delegated-permissions';
@@ -10,6 +10,7 @@ import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ApiError, api, patch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
+import { goBack } from '@/lib/navigation';
 import { Button, Chip, ErrorView, Input, Loader, Txt } from '@/ui';
 
 type Member = BrokerTeamResponse['members'][number] & { updatedAt: string };
@@ -75,7 +76,7 @@ function PermissionEditor({ member, onReload }: { member: Member; onReload: () =
     {
       success: 'Sub-Broker Admin permissions saved',
       invalidate: [['team']],
-      onSuccess: () => router.back(),
+      onSuccess: () => goBack({ pathname: '/team-member/[id]', params: { id: member.id } }),
     },
   );
   const conflict = baseline.updatedAt !== member.updatedAt || (save.error instanceof ApiError && save.error.status === 409);

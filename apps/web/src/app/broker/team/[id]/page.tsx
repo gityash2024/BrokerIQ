@@ -10,6 +10,7 @@ import { ArrowLeft, MapPin, ShieldCheck, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { patch, del, useApiMutation } from '@/lib/hooks';
+import { useGoBack } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { Avatar, Badge } from '@/components/ui/misc';
@@ -39,6 +40,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
 function Editor({ member }: { member: Member }) {
   const { user } = useAuth();
   const teamBase = user?.role === 'SUPER_ADMIN' ? '/admin/team' : '/broker/team';
+  const returnToTeam = useGoBack(teamBase);
   const [baseline, setBaseline] = useState(member.updatedAt);
   const [name, setName] = useState(member.name);
   const [phone, setPhone] = useState(member.phone || '');
@@ -76,10 +78,7 @@ function Editor({ member }: { member: Member }) {
   const remove = useApiMutation(() => del(`/broker/team/${member.id}`), {
     success: 'सदस्य टीम से हटाया गया',
     invalidate: [['team']],
-    onSuccess: () => {
-      setAction(null);
-      setRemoved(true);
-    },
+    onSuccess: () => { setAction(null); setRemoved(true); },
   });
   const owner = member.role === 'PROPERTY_OWNER';
   const canEdit = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
@@ -273,7 +272,7 @@ function Editor({ member }: { member: Member }) {
             loading={busy}
             onClick={() =>
               action === 'remove'
-                ? remove.mutate(undefined)
+                ? remove.mutate(undefined, { onSuccess: returnToTeam })
                 : update.mutate(
                     action === 'role'
                       ? { role: member.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN' }

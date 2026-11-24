@@ -100,7 +100,7 @@ export default function TeamPage() {
   const { user } = useAuth();
   const isSuper = user?.role === 'SUPER_ADMIN';
   const teamBase = isSuper ? '/admin/team' : '/broker/team';
-  const [firmFilter, setFirmFilter] = useState('');
+  const [firmFilter, setFirmFilter] = useRouteState('team.firmFilter', '');
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const canViewTeam = admin || user?.role === 'SUB_BROKER_ADMIN';
   const q = useTeam(true, true);
@@ -122,12 +122,12 @@ export default function TeamPage() {
 
   // Teams & Agents Filters State
   const [searchQuery, setSearchQuery] = useRouteState('team.searchQuery', '');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'PROPERTY_OWNER'>('ALL');
+  const [roleFilter, setRoleFilter] = useRouteState<'ALL' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'PROPERTY_OWNER'>('team.roleFilter', 'ALL');
   const [statusFilter, setStatusFilter] = useRouteState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('team.statusFilter', 'ALL');
-  const [locationFilter, setLocationFilter] = useState<'ALL' | 'LIVE' | 'OFFLINE'>('ALL');
-  const [kycFilter, setKycFilter] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('ALL');
-  const [agentFilter, setAgentFilter] = useState<string>('ALL');
-  const [dateRange, setDateRange] = useState<DateRangeValue>({ preset: 'ALL' });
+  const [locationFilter, setLocationFilter] = useRouteState<'ALL' | 'LIVE' | 'OFFLINE'>('team.locationFilter', 'ALL');
+  const [kycFilter, setKycFilter] = useRouteState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('team.kycFilter', 'ALL');
+  const [agentFilter, setAgentFilter] = useRouteState('team.agentFilter', 'ALL');
+  const [dateRange, setDateRange] = useRouteState<DateRangeValue>('team.dateRange', { preset: 'ALL' });
   const [sortBy, setSortBy] = useRouteState<'PERFORMANCE' | 'LEADS' | 'NAME'>('team.sortBy', 'PERFORMANCE');
 
   // Table Row Selection State

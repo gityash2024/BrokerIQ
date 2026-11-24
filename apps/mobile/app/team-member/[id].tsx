@@ -92,7 +92,7 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
   const remove = useApiMutation(() => del(`/broker/team/${member.id}`), {
     invalidate: [['team']],
     success: 'सदस्य टीम से हटाया गया',
-    onSuccess: () => router.replace('/team'),
+    onSuccess: () => goBack('/team'),
   });
   const self = member.id === user?.id;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';

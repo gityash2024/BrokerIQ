@@ -42,6 +42,27 @@ test('a firm admin can remove and restore Chat on an active broker agent session
 
     await page.getByRole('button', { name: 'Allow Chat access' }).click();
     await expect(nav.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
+
+    await page.goto('/broker/team');
+    const roles = page.locator('select').filter({ has: page.locator('option[value="BROKER_AGENT"]') });
+    const search = page.getByPlaceholder('मेंबर खोजें — नाम, ईमेल, फ़ोन...');
+    await roles.selectOption('BROKER_AGENT');
+    await search.fill(identity.email);
+    const row = page.getByRole('row').filter({ hasText: identity.email });
+    await row.getByRole('button', { name: 'Details & Target' }).click();
+    await expect(page.getByRole('heading', { name: identity.name })).toBeVisible();
+    await page.goBack();
+    await expect(roles).toHaveValue('BROKER_AGENT');
+    await expect(search).toHaveValue(identity.email);
+
+    await row.getByRole('button', { name: 'Details & Target' }).click();
+    await page.getByRole('button', { name: 'Team से हटाएँ' }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Team action की पुष्टि' });
+    await confirmation.getByRole('button', { name: 'पुष्टि करें' }).click();
+    await expect(page).toHaveURL(/\/broker\/team$/);
+    await expect(roles).toHaveValue('BROKER_AGENT');
+    await expect(search).toHaveValue(identity.email);
+    await expect(row).toHaveCount(0);
   } finally {
     await agentContext.close();
   }
