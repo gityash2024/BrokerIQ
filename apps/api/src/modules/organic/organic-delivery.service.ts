@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import { Prisma, PropertyType } from '@prisma/client';
+import { Prisma, PropertyType, type OrganicDeliverySchedule } from '@prisma/client';
 import { canonicalInventorySector, normalizeIndianPhone, organicRecordInput, type OrganicDeliveryInput, type OrganicRecordInput, type OrganicTarget } from '@brokeriq/shared';
 import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobsService } from '../../core/jobs/jobs.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
-import { nextOrganicTime } from './organic-record';
+import { nextOrganicTime, pastOrganicTime } from './organic-record';
 
 type Counters = { delivered: number; duplicate: number; skipped: number; failed: number };
 const newCounters = (): Counters => ({ delivered: 0, duplicate: 0, skipped: 0, failed: 0 });
@@ -89,12 +89,24 @@ export class OrganicDeliveryService {
     if (!env().JOBS_ENABLED) return;
     const now = new Date();
     const due = await this.db.organicDeliverySchedule.findMany({ where: { enabled: true, nextRunAt: { lte: now } }, take: 100, orderBy: { nextRunAt: 'asc' } });
-    for (const rule of due) {
-      if (!rule.nextRunAt) continue;
-      const cutoff = rule.nextRunAt.toISOString();
-      await this.jobs.enqueue('organic.delivery', { orgId: rule.organizationId, scheduleId: rule.id, cutoff },
-        { key: 'organic-delivery:' + rule.id + ':' + cutoff, maxAttempts: 8 });
-    }
+    for (const rule of due) await this.queueDue(rule, now);
+  }
+
+  private async queueDue(rule: OrganicDeliverySchedule, now: Date) {
+    if (!rule.nextRunAt) return;
+    const cutoff = rule.nextRunAt.toISOString();
+    const job = await this.jobs.enqueue('organic.delivery', { orgId: rule.organizationId, scheduleId: rule.id, cutoff },
+      { key: 'organic-delivery:' + rule.id + ':' + cutoff, maxAttempts: 8 });
+    const latestCutoff = pastOrganicTime(rule.time, now);
+    if (job.status !== 'FAILED' || latestCutoff <= rule.nextRunAt) return;
+
+    // Preserve the cursor so tomorrow's work retries the undelivered records alongside new arrivals.
+    await this.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'organic-schedule:' + rule.organizationId}))`;
+      const current = await tx.job.findUnique({ where: { id: job.id }, select: { status: true } });
+      if (current?.status !== 'FAILED') return;
+      await tx.organicDeliverySchedule.updateMany({ where: { id: rule.id, enabled: true, nextRunAt: rule.nextRunAt }, data: { nextRunAt: latestCutoff } });
+    });
   }
 
   private eligible(from: Date, to: Date, rule: { sectors: string[]; leadType: string }): Prisma.OrganicRecordWhereInput {
@@ -279,8 +291,15 @@ export class OrganicDeliveryService {
   async retry(id: string) {
     const run = await this.db.organicRun.findFirst({ where: { id, kind: 'DELIVERY', status: 'PARTIAL' } });
     if (!run?.scheduleId || !run.windowTo) throw new NotFoundException('Delivery run is not available for retry');
+    const rule = await this.db.organicDeliverySchedule.findUnique({ where: { id: run.scheduleId } });
+    if (!rule) throw new NotFoundException('Delivery schedule not found');
     const cutoff = run.windowTo.toISOString();
-    return this.jobs.enqueue('organic.delivery', { scheduleId: run.scheduleId, cutoff },
-      { key: 'organic-delivery:' + run.scheduleId + ':' + cutoff, repeat: true, maxAttempts: 8 });
+    return this.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'organic-schedule:' + rule.organizationId}))`;
+      const active = await tx.organicDeliverySchedule.count({ where: { id: rule.id, enabled: true, nextRunAt: run.windowTo } });
+      if (!active) throw new NotFoundException('This delivery window has ended. Unsent records are carried forward by the active schedule.');
+      return this.jobs.enqueue('organic.delivery', { orgId: rule.organizationId, scheduleId: rule.id, cutoff },
+        { key: 'organic-delivery:' + rule.id + ':' + cutoff, repeat: true, maxAttempts: 8 });
+    });
   }
 }

@@ -18,7 +18,7 @@ const endpoint = '/admin/organic';
 const input = 'w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm';
 type Kind = 'SUPPLY' | 'DEMAND';
 type Firm = { id: string; name: string; status: string; localities: { name: string }[]; members: { id: string; name: string }[] };
-type Run = { id: string; kind: string; status: string; createdAt: string; windowTo: string | null; report?: Record<string, number> };
+type Run = { id: string; kind: string; status: string; createdAt: string; windowTo: string | null; scheduleId?: string | null; report?: Record<string, number> };
 type DiscoverySettings = { enabled: boolean; time: string; enrichTime: string; resultsTime: string; notifyTime: string };
 type Rule = OrganicDeliveryInput & { id: string; nextRunAt: string | null; cursorFrom: string };
 type Source = OrganicSourceInput & { id: string; lastSuccessAt: string | null; lastFailureAt: string | null; lastError: string | null; lastReport?: Record<string, number> };
@@ -346,18 +346,20 @@ function DeliveryPage() {
         {data.data.firms.find(({ id }) => id === entry.organizationId)?.name ?? entry.organizationId} · {entry.enabled ? 'Enabled' : 'Paused'} · {entry.time} IST · next {timeLabel(entry.nextRunAt)}
       </p>)}
     </div>
-    <RunHistory runs={data.data?.runs ?? []} retry={(id) => act('/delivery/runs/' + id + '/retry')} />
+    <RunHistory runs={data.data?.runs ?? []} retry={(id) => act('/delivery/runs/' + id + '/retry')}
+      canRetry={(run) => !!data.data?.rules.some((rule) => rule.id === run.scheduleId && rule.enabled && rule.nextRunAt === run.windowTo)} />
   </div>;
 }
 
-function RunHistory({ runs, retry }: { runs: Run[]; retry?: (id: string) => Promise<void> }) {
+function RunHistory({ runs, retry, canRetry }: { runs: Run[]; retry?: (id: string) => Promise<void>; canRetry?: (run: Run) => boolean }) {
   return <div className="card space-y-2 p-4">
     <h2 className="font-semibold">Run history</h2>
     {!runs.length && <p className="text-sm text-muted">No runs yet.</p>}
     {runs.map((run) => <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2 text-sm" key={run.id}>
       {timeLabel(run.windowTo ?? run.createdAt)} · {run.kind} · {run.status}
       {run.report && <span>{Object.entries(run.report).map(([key, value]) => key + ' ' + value).join(' · ')}</span>}
-      {retry && run.kind === 'DELIVERY' && run.status === 'PARTIAL' && <Button size="sm" variant="secondary" onClick={() => void retry(run.id)}>Retry delivery</Button>}
+      {retry && run.kind === 'DELIVERY' && run.status === 'PARTIAL' && canRetry?.(run) &&
+        <Button size="sm" variant="secondary" onClick={() => void retry(run.id)}>Retry delivery</Button>}
     </div>)}
   </div>;
 }

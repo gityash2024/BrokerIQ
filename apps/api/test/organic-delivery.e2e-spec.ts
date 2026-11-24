@@ -10,7 +10,7 @@ import { AuthService } from '../src/modules/auth/auth.service';
 import { OrganicDeliveryService } from '../src/modules/organic/organic-delivery.service';
 import { OrganicService } from '../src/modules/organic/organic.service';
 import * as sourceAdapter from '../src/modules/organic/organic-source';
-import { discoveryPhases, normalizeOrganicRecord, nextOrganicTime } from '../src/modules/organic/organic-record';
+import { discoveryPhases, normalizeOrganicRecord, nextOrganicTime, pastOrganicTime } from '../src/modules/organic/organic-record';
 
 describe('Organic daily delivery', () => {
   let app: INestApplication;
@@ -162,5 +162,25 @@ describe('Organic daily delivery', () => {
     await expect(service['transfer'](record.id, { organizationId: outer.id, brokerAdminId: other.user.id }, manual.id, admin.user.id)).resolves.toBe('delivered');
     expect(await db.lead.count({ where: { organizationId: outer.id, phone: '+919811100831' } })).toBe(0);
     expect(await db.organicTransfer.findFirst({ where: { recordId: record.id, organizationId: outer.id } })).toMatchObject({ targetType: 'REQUIREMENT' });
+
+    const failedCutoff = new Date(cutoff.valueOf() + 5000);
+    const failedRule = await db.organicDeliverySchedule.update({ where: { id: rule.id }, data: { nextRunAt: failedCutoff } });
+    const failedRun = await db.organicRun.create({ data: { kind: 'DELIVERY', key: randomUUID(), scheduleId: rule.id,
+      windowFrom: cutoff, windowTo: failedCutoff, status: 'PARTIAL', report: { failed: 1 } } });
+    await db.job.create({ data: { type: 'organic.delivery', status: 'FAILED', attempts: 8, maxAttempts: 8,
+      key: `organic-delivery:${rule.id}:${failedCutoff.toISOString()}` } });
+    const pending = await Promise.all([3000, 30_000].map((offset) => db.organicRecord.create({ data: {
+      kind: 'DEMAND', key: key + offset, title: 'Sector 30 lease ' + offset, status: 'APPROVED', sectors: ['Sector 30'], intent: 'TENANT',
+      availability: 'UNKNOWN', priority: 'HIGH', confidence: 90, eligibleAt: new Date(cutoff.valueOf() + offset),
+      values: { kind: 'DEMAND', title: 'Sector 30 lease ' + offset, url: source.url + '/' + offset, purpose: 'RENT', sectors: ['Sector 30'] },
+      sourceRefs: { create: { sourceId: source.id, kind: 'DEMAND', externalId: key + offset, url: source.url + '/' + offset } },
+    } })));
+    const later = new Date(cutoff.valueOf() + 2 * 86_400_000);
+    const laterCutoff = pastOrganicTime(failedRule.time, later);
+    await service['queueDue'](failedRule, later);
+    expect(await db.organicDeliverySchedule.findUnique({ where: { id: rule.id } })).toMatchObject({ cursorFrom: cutoff, nextRunAt: laterCutoff });
+    await api().post(`/api/admin/organic/delivery/runs/${failedRun.id}/retry`).set(auth(admin.token)).expect(404);
+    await service['deliverRun'](rule.id, laterCutoff.toISOString());
+    expect(await db.organicTransfer.count({ where: { organizationId: first.id, recordId: { in: pending.map(({ id }) => id) } } })).toBe(2);
   });
 });
