@@ -1,5 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
+const androidVersionCode = 100;
+
 /**
  * Only build-time identifiers live here. Everything the user sees (site name,
  * colours, flags, announcement, force-update versions, map/google keys …) is
@@ -29,7 +31,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 100,
+    versionCode: androidVersionCode,
     googleServicesFile: process.env.GOOGLE_SERVICES_FILE ?? './google-services.json',
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
     permissions: [
@@ -105,7 +107,7 @@ const config: ExpoConfig = {
   ],
   experiments: { typedRoutes: false },
   extra: {
-    release: { commit: process.env.BROKERIQ_RELEASE_COMMIT || null, builtAt: process.env.BROKERIQ_RELEASE_BUILT_AT || null, versionCode: 99 },
+    release: { commit: process.env.BROKERIQ_RELEASE_COMMIT || null, builtAt: process.env.BROKERIQ_RELEASE_BUILT_AT || null, versionCode: androidVersionCode },
     apiUrl: process.env.EXPO_PUBLIC_API_URL,
     eas: { projectId: process.env.EAS_PROJECT_ID ?? 'a92f8cc4-87c0-476c-aaae-513bfa29ad08' },
   },

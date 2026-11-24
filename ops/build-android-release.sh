@@ -31,7 +31,21 @@ ANDROID_WORKERS="${BROKERIQ_ANDROID_WORKERS:-1}"
 export CI=1 CMAKE_BUILD_PARALLEL_LEVEL="$ANDROID_WORKERS"
 pnpm --filter @brokeriq/shared build
 cd apps/mobile
-pnpm exec expo prebuild --clean --platform android --no-install
+pnpm exec expo config --type public --json | node -e '
+const config = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+const embedded = config.extra?.release;
+if (!Number.isInteger(config.android?.versionCode) || embedded?.versionCode !== config.android.versionCode ||
+    embedded?.commit !== process.env.BROKERIQ_RELEASE_COMMIT || !embedded?.builtAt) {
+  throw Error("Expo release metadata must match the pinned Android configuration");
+}
+'
+prebuild_args=(--platform android --no-install)
+if [ "${BROKERIQ_ANDROID_REUSE_GENERATED:-0}" = 1 ]; then
+  test -f android/app/build.gradle && test -x android/gradlew
+else
+  prebuild_args+=(--clean)
+fi
+pnpm exec expo prebuild "${prebuild_args[@]}"
 node - <<'NODE'
 const fs=require('fs');
 const main=fs.readFileSync('android/app/src/main/java/com/brokeriq/app/MainActivity.kt','utf8');
@@ -66,6 +80,9 @@ const cert=cp.execFileSync(signer,['verify','--verbose','--print-certs',apk],{en
 const sha=/Signer #1 certificate SHA-256 digest: ([a-f0-9]+)/i.exec(cert)?.[1]?.toLowerCase();
 if(sha!=='d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce')throw Error('Signing identity mismatch');
 const bytes=fs.readFileSync(apk), hash=crypto.createHash('sha256').update(bytes).digest('hex');
+const config=JSON.parse(cp.execFileSync('unzip',['-p',apk,'assets/app.config'],{encoding:'utf8'}));
+if(config.version!==m[3]||config.extra?.release?.versionCode!==Number(m[2])||config.extra?.release?.commit!==process.env.BROKERIQ_RELEASE_COMMIT)
+  throw Error('Signed APK Expo metadata mismatch');
 // The signed APK is verified and retained; these generated intermediates are not a rollback artifact.
 fs.rmSync(path.join(root,'apps/mobile/android/app/build/intermediates'),{recursive:true,force:true});
 fs.mkdirSync(path.join(root,'releases'),{recursive:true,mode:0o700});
