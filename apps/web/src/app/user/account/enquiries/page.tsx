@@ -42,9 +42,9 @@ function Inner() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : q.isPending ? (
-        <p className="py-8 text-sm text-muted" role="status">
+        <div className="py-8 text-sm text-muted" role="status">
           <LoadingArtwork className="h-24" />
-        </p>
+        </div>
       ) : !q.data?.length ? (
         <Empty icon={<Send className="size-6" />} title={tab === 'sent' ? 'अभी कोई enquiry नहीं भेजी' : 'अभी कोई enquiry नहीं आई'} />
       ) : (
