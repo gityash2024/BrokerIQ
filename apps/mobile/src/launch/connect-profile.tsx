@@ -5,7 +5,7 @@ import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { toast } from '@/lib/toast';
-import { Button, Sheet, Txt } from '@/ui';
+import { Button, Row, Sheet, Txt } from '@/ui';
 import { NativeCard } from './screen';
 
 const ConnectRecordingPlayer = lazy(() => import('./connect-recording-player'));
@@ -51,18 +51,42 @@ export function NativeConnectProfile() {
 export function NativeConnectLeadActivity({ leadId, enabled }: { leadId?: string; enabled: boolean }) {
   const { user } = useAuth();
   const [id, setId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const canReview = hasDelegatedAccess(user, 'automation', 'view', 'edit');
+  const canDelete = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN'].includes(user?.role ?? '') &&
+    hasDelegatedAccess(user, 'automation', 'view', 'delete');
   const events = useQuery({ queryKey: ['connect-events', user?.id, user?.organization?.id, leadId],
     queryFn: () => api<{ items: Event[] }>('/connect/events' + (leadId ? '?leadId=' + encodeURIComponent(leadId) : '')), enabled });
   const detail = useQuery({ queryKey: ['connect-event', user?.id, user?.organization?.id, id],
     queryFn: () => api<EventDetail>('/connect/events/' + id), enabled: enabled && !!id });
   if (!enabled || (leadId && !events.data?.items.length)) return null;
+  async function update(eventId: string, remove: boolean, ownerContext = captureAccountContext()) {
+    setBusy(true);
+    try {
+      await api('/connect/events/' + eventId + (remove ? '' : '/retry'), { method: remove ? 'DELETE' : 'POST', ownerContext });
+      if (remove) setId(null);
+      else await detail.refetch();
+      await events.refetch();
+    } catch (error) { toast.error(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
   return <NativeCard>
     <Txt v="bodyStrong">{leadId ? 'BrokerIQ Connect' : 'Recent Connect activity'}</Txt>
     {events.error && <Txt color="danger">{errorMessage(events.error)}</Txt>}
     {events.data?.items.length === 0 && <Txt color="muted">No captured activity yet.</Txt>}
     {events.data?.items.map((event) => <Button key={event.id} title={event.kind + ' · ' + event.status} variant="secondary" size="sm"
       onPress={() => setId(event.id)} />)}
-    <Sheet open={!!id} title="Connect activity" onClose={() => setId(null)} full>
+    <Sheet open={!!id} title="Connect activity" onClose={() => { if (!busy) setId(null); }} full footer={id && detail.data && <Row wrap gap={8}>
+      {canReview && detail.data.status === 'FAILED' && <Button title="Retry analysis" variant="secondary" disabled={busy} onPress={() => void update(id, false)} />}
+      {canDelete && <Button title="Delete capture" variant="secondary" disabled={busy} onPress={() => {
+        const ownerContext = captureAccountContext();
+        Alert.alert('Delete this Connect capture?', 'This deletes its recording and transcript.', [
+          { text: 'Keep', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => void update(id, true, ownerContext) },
+        ]);
+      }} />}
+    </Row>}>
       {detail.error && <Txt color="danger">{errorMessage(detail.error)}</Txt>}
       {detail.data && <>
         <Txt>{detail.data.kind} · {detail.data.status}</Txt>

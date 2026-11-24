@@ -52,6 +52,10 @@ export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enab
   const { user } = useAuth();
   const [eventId, setEvent] = useState<string | null>(null);
   const [audio, setAudio] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const canReview = hasDelegatedAccess(user, 'automation', 'view', 'edit');
+  const canDelete = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN'].includes(user?.role ?? '') &&
+    hasDelegatedAccess(user, 'automation', 'view', 'delete');
   const data = useQuery({
     queryKey: ['connect-events', user?.id, user?.organization?.id, leadId],
     queryFn: () => api<{ items: Event[] }>('/connect/events' + (leadId ? '?leadId=' + encodeURIComponent(leadId) : '')),
@@ -66,6 +70,18 @@ export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enab
     try { setAudio(URL.createObjectURL(await apiBlob('/connect/events/' + id + '/recording'))); }
     catch (error) { toast.error(errorMessage(error)); }
   }
+  async function update(id: string, remove: boolean) {
+    if (remove && !window.confirm('Delete this Connect capture and its private recording and transcript?')) return;
+    setBusy(true);
+    try {
+      await api('/connect/events/' + id + (remove ? '' : '/retry'), { method: remove ? 'DELETE' : 'POST' });
+      if (remove) { setAudio(null); setEvent(null); }
+      else await detail.refetch();
+      await data.refetch();
+    } catch (error) { toast.error(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
   return <section className="card space-y-2 p-4">
     <h3 className="font-semibold">{leadId ? 'BrokerIQ Connect' : 'Recent Connect activity'}</h3>
     {data.error && <ApiErrorState error={data.error} onRetry={() => data.refetch()} />}
@@ -73,7 +89,10 @@ export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enab
     {data.data?.items.map((entry) => <button key={entry.id} className="block text-left text-sm text-brand-700 underline" onClick={() => { setAudio(null); setEvent(entry.id); }}>
       {entry.kind} · {entry.status} · {new Date(entry.capturedAt).toLocaleString('en-IN')}
     </button>)}
-    <Dialog open={!!eventId} onOpenChange={(open) => { if (!open) { setEvent(null); setAudio(null); } }} title="Connect activity" size="lg">
+    <Dialog open={!!eventId} onOpenChange={(open) => { if (!open) { setEvent(null); setAudio(null); } }} title="Connect activity" size="lg" footer={detail.data && <>
+      {canReview && detail.data.status === 'FAILED' && <Button variant="secondary" disabled={busy} onClick={() => void update(detail.data!.id, false)}>Retry analysis</Button>}
+      {canDelete && <Button variant="secondary" disabled={busy} onClick={() => void update(detail.data!.id, true)}>Delete capture</Button>}
+    </>}>
       {detail.error && <ApiErrorState error={detail.error} onRetry={() => detail.refetch()} />}
       {detail.data && <div className="space-y-3 text-sm">
         <p>{detail.data.kind} · {detail.data.status}</p>

@@ -51,6 +51,10 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     const stored = (await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201)).body;
     await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201).expect(({ body }) => expect(body.id).toBe(stored.id));
     await http().get('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
+    await http().delete('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
+    await http().delete('/api/connect/events/' + stored.id).set(broker.headers).expect(200);
+    await http().get('/api/connect/events/' + stored.id).set(broker.headers).expect(404);
+    expect(await db.connectEvent.findUnique({ where: { id: stored.id } })).toMatchObject({ status: 'DELETED', encryptedInput: null, encryptedResult: null });
     const webHeaders = bearer((await app.get(AuthService).issue(broker.user)).accessToken);
     await http().delete('/api/connect/devices/' + device.id).set(webHeaders).expect(200);
     await http().get('/api/auth/me').set(broker.headers).expect(401);

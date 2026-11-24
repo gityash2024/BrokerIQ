@@ -53,6 +53,7 @@ export class ConnectService {
   constructor(private readonly db: PrismaService, private readonly jobs: JobsService, private readonly storage: LocalStorageService,
     private readonly crypto: CryptoService, private readonly ai: AiService, private readonly auth: AuthService) {
     jobs.register('connect.process', (job) => this.process(job.id));
+    jobs.register('connect.purge', (job) => this.purgeRecording(job.id, job.orgId));
   }
 
   async profile(user: RequestUser) {
@@ -237,10 +238,32 @@ export class ConnectService {
     return this.storage.read(row.recordingKey);
   }
 
+  async remove(user: RequestUser, id: string) {
+    const event = await this.db.connectEvent.findFirst({ where: { id, organizationId: requireOrg(user) } });
+    if (!event) throw new NotFoundException('Connect activity not found');
+    if (event.status !== 'DELETED') await this.event(user, id);
+    await this.db.$transaction(async (tx) => {
+      const removed = await tx.connectEvent.updateMany({ where: { id, organizationId: event.organizationId, status: { not: 'DELETED' } },
+        data: { status: 'DELETED', encryptedInput: null, encryptedResult: null, lastError: null } });
+      if (removed.count) await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role,
+        organizationId: event.organizationId, action: 'connect.event.delete', entity: 'ConnectEvent', entityId: id } });
+    });
+    if (event.recordingKey) await this.jobs.enqueue('connect.purge', { id, orgId: event.organizationId }, { key: 'connect-purge:' + id, repeat: true });
+    return { ok: true };
+  }
+
+  private async purgeRecording(id: string, organizationId: string) {
+    const row = await this.db.connectEvent.findFirst({ where: { id, organizationId, status: 'DELETED' }, select: { recordingKey: true } });
+    if (!row?.recordingKey) return;
+    await this.storage.removeConnectRecording(row.recordingKey, organizationId);
+    await this.db.connectEvent.updateMany({ where: { id, organizationId, status: 'DELETED' }, data: { recordingKey: null, recordingType: null } });
+  }
+
   async retry(user: RequestUser, id: string) {
     const row = await this.event(user, id);
     if (row.status !== 'FAILED') throw new BadRequestException('This Connect event is not awaiting retry');
-    await this.db.connectEvent.update({ where: { id }, data: { status: 'PENDING', lastError: null } });
+    const updated = await this.db.connectEvent.updateMany({ where: { id, status: 'FAILED' }, data: { status: 'PENDING', lastError: null } });
+    if (!updated.count) throw new BadRequestException('This Connect event is no longer awaiting retry');
     await this.queueEvent(row, true);
     return { id, status: 'PENDING' };
   }
@@ -251,14 +274,15 @@ export class ConnectService {
     const settings = connectSettings.parse(row.device.settings);
     const validSession = await this.db.refreshToken.count({ where: { id: row.device.sessionId, userId: row.userId, revokedAt: null, expiresAt: { gt: new Date() } } });
     if (!env().CONNECT_ENABLED || row.device.revokedAt || !validSession || !settings.consent || !settings.analysis) {
-      await this.db.connectEvent.update({ where: { id }, data: { status: 'PAUSED' } });
+      await this.db.connectEvent.updateMany({ where: { id, status: { not: 'DELETED' } }, data: { status: 'PAUSED' } });
       return;
     }
-    await this.db.connectEvent.update({ where: { id }, data: { status: 'PROCESSING', lastError: null } });
+    const claimed = await this.db.connectEvent.updateMany({ where: { id, status: { in: ['PENDING', 'PROCESSING', 'FAILED'] } }, data: { status: 'PROCESSING', lastError: null } });
+    if (!claimed.count) return;
     try {
       const input: { text?: string; group?: string; senderPhone?: string } = row.encryptedInput ? JSON.parse(this.crypto.decrypt(row.encryptedInput)) : {};
       if (row.kind === 'WHATSAPP' && (!settings.whatsapp || !input.group || !settings.groups.includes(input.group))) {
-        await this.db.connectEvent.update({ where: { id }, data: { status: 'PAUSED' } });
+        await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
         return;
       }
       const transcript = row.recordingKey && row.recordingType ? await transcribeConnectRecording((await this.storage.read(row.recordingKey)).body, row.recordingType) : null;

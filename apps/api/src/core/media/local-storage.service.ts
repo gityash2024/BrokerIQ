@@ -164,6 +164,11 @@ export class LocalStorageService {
     await fs.rm(this.pathFor(key), { force: true });
   }
 
+  async removeConnectRecording(key: string, organizationId: string) {
+    if (!KEY_RE.test(key) || !key.startsWith(`scan/${organizationId}/`)) throw new NotFoundException();
+    await fs.rm(this.pathFor(key), { force: true });
+  }
+
   /** Server-side upload of a base64 data URL (AI listing scanner). */
   async putSource(data: Buffer, contentType: string, ownerId: string): Promise<string> {
     if (!this.enabled)

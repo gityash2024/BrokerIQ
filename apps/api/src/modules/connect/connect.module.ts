@@ -72,6 +72,10 @@ class ConnectController {
     response.end(file.body);
   }
 
+  @Roles('BROKER_ADMIN')
+  @Delete('events/:id')
+  remove(@CurrentUser() user: RequestUser, @Param('id') id: string) { return this.connect.remove(user, id); }
+
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('events/:id/retry')
   retry(@CurrentUser() user: RequestUser, @Param('id') id: string) { return this.connect.retry(user, id); }
