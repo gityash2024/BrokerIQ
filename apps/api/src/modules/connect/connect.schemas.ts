@@ -18,6 +18,7 @@ export const connectFirmPolicy = z.object({
   leads: z.boolean().default(false),
   inventory: z.boolean().default(false),
   survey: z.boolean().default(false),
+  retentionDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365), z.null()]).optional(),
 }).strict();
 export type ConnectFirmPolicy = z.infer<typeof connectFirmPolicy>;
 export const connectRegistration = z.object({ installId: z.uuid(), label: z.string().trim().min(1).max(100), version: z.number().int().positive() });

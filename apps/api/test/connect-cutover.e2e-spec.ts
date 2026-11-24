@@ -102,6 +102,40 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     }
   });
 
+  it('applies explicit firm retention and atomically queues private media deletion only for expired captures', async () => {
+    const key = randomUUID();
+    const setup = async (suffix: string) => {
+      const org = await db.organization.create({ data: { name: suffix, slug: suffix + '-' + key } });
+      const user = await db.user.create({ data: { name: suffix, organizationId: org.id, role: 'BROKER_ADMIN',
+        email: suffix + '.' + key + '@e2e.test' }, include: { organization: true } });
+      const headers = bearer((await app.get(AuthService).issue(user)).accessToken);
+      const device = (await http().post('/api/connect/devices').set(headers).send({ installId: randomUUID(), label: suffix, version: 3 }).expect(201)).body;
+      return { org, device, user, headers };
+    };
+    const firm = await setup('connect-retention');
+    const outside = await setup('connect-retention-outside');
+    const now = new Date();
+    const add = (account: typeof firm, daysAgo: number, recordingKey?: string) => db.connectEvent.create({ data: {
+      organizationId: account.org.id, deviceId: account.device.id, userId: account.user.id, fingerprint: randomUUID(), kind: 'RECORDING',
+      status: 'REVIEW', encryptedInput: 'protected', encryptedResult: 'protected', recordingKey,
+      capturedAt: new Date(now.valueOf() - daysAgo * 86_400_000),
+    } });
+    const [expired, kept, foreign] = await Promise.all([add(firm, 31, 'connect-private-capture'), add(firm, 29), add(outside, 31)]);
+    const svc = app.get(ConnectService);
+    await svc['expireCaptures'](firm.org.id, now);
+    expect(await db.connectEvent.findUnique({ where: { id: expired.id } })).toMatchObject({ status: 'REVIEW' });
+    await http().patch('/api/connect/firm-policy').set(firm.headers).send({ retentionDays: 7 }).expect(400);
+    await http().patch('/api/connect/firm-policy').set(firm.headers).send({ retentionDays: 30 }).expect(200);
+    // An older app editing its three toggle values leaves the retention period intact.
+    await http().patch('/api/connect/firm-policy').set(firm.headers).send({ leads: true, inventory: false, survey: false }).expect(200)
+      .expect(({ body }) => expect(body.retentionDays).toBe(30));
+    await Promise.all([svc['expireCaptures'](firm.org.id, now), svc['expireCaptures'](firm.org.id, now)]);
+    expect(await db.connectEvent.findUnique({ where: { id: expired.id } })).toMatchObject({ status: 'DELETED', encryptedInput: null, encryptedResult: null });
+    for (const id of [kept.id, foreign.id]) expect(await db.connectEvent.findUnique({ where: { id } })).toMatchObject({ status: 'REVIEW' });
+    expect(await db.job.count({ where: { key: 'connect-purge:' + expired.id, type: 'connect.purge' } })).toBe(1);
+    expect(await db.auditLog.count({ where: { action: 'connect.event.retention', entityId: expired.id } })).toBe(1);
+  });
+
   it('fills only empty fields on an unverified scoped Survey draft and records the previous value', async () => {
     const key = randomUUID();
     const firm = await db.organization.create({ data: { name: 'Connect survey scope', slug: 'connect-survey-' + key } });

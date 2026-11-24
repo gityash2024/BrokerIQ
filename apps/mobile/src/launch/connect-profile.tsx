@@ -11,7 +11,8 @@ import { NativeCard } from './screen';
 const ConnectRecordingPlayer = lazy(() => import('./connect-recording-player'));
 
 const firmOptions = { leads: 'Create leads and requirements', inventory: 'Create private property drafts', survey: 'Fill empty Survey fields' };
-type FirmPolicy = Record<keyof typeof firmOptions, boolean>;
+type AutomationRule = keyof typeof firmOptions;
+type FirmPolicy = Record<AutomationRule, boolean> & { retentionDays?: number | null };
 type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
@@ -34,13 +35,12 @@ export function NativeConnectProfile() {
       catch (error) { toast.error(errorMessage(error)); }
     } }]);
   }
-  async function updatePolicy(field: keyof FirmPolicy) {
+  async function updatePolicy(change: Partial<FirmPolicy>, ownerContext = captureAccountContext()) {
     const policy = data.data?.policy;
     if (!policy || policyBusy) return;
-    const ownerContext = captureAccountContext();
     setPolicyBusy(true);
     try {
-      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, [field]: !policy[field] } });
+      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, ...change } });
       await data.refetch();
     } catch (error) { toast.error(errorMessage(error)); }
     finally { setPolicyBusy(false); }
@@ -62,8 +62,21 @@ export function NativeConnectProfile() {
         </NativeCard>)}
         {data.data.policy && <NativeCard>
           <Txt v="bodyStrong">Firm automation rules</Txt>
-          {(Object.keys(firmOptions) as (keyof FirmPolicy)[]).map((key) => <Button key={key} variant="secondary" size="sm" disabled={policyBusy}
-            title={firmOptions[key] + (data.data!.policy![key] ? ' · Enabled' : ' · Review only')} onPress={() => void updatePolicy(key)} />)}
+          {(Object.keys(firmOptions) as AutomationRule[]).map((key) => <Button key={key} variant="secondary" size="sm" disabled={policyBusy}
+            title={firmOptions[key] + (data.data!.policy![key] ? ' · Enabled' : ' · Review only')} onPress={() => void updatePolicy({ [key]: !data.data!.policy![key] })} />)}
+          <Txt>Keep captures {data.data.policy.retentionDays ? 'for ' + data.data.policy.retentionDays + ' days' : 'until manually deleted'}</Txt>
+          <Row wrap gap={6}>
+            {[30, 90, 180, 365, null].map((days) => <Button key={days ?? 'manual'} size="sm" variant="secondary"
+              title={days ? days + ' days' : 'Manual deletion'} disabled={policyBusy || (data.data!.policy!.retentionDays ?? null) === days}
+              onPress={() => {
+                const context = captureAccountContext();
+                if (!days) { void updatePolicy({ retentionDays: null }, context); return; }
+                Alert.alert('Save capture retention?', 'Older captures, recordings and transcripts will be deleted automatically.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Save policy', onPress: () => void updatePolicy({ retentionDays: days }, context) },
+                ]);
+              }} />)}
+          </Row>
         </NativeCard>}
         <NativeConnectLeadActivity enabled={data.data.enabled && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && hasDelegatedAccess(user, 'automation', 'view')} />
       </>}

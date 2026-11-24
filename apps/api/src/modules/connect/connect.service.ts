@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { canonicalInventorySector, normalizeIndianPhone } from '@brokeriq/shared';
@@ -63,6 +64,7 @@ export class ConnectService {
     private readonly crypto: CryptoService, private readonly ai: AiService, private readonly auth: AuthService) {
     jobs.register('connect.process', (job) => this.process(job.id));
     jobs.register('connect.purge', (job) => this.purgeRecording(job.id, job.orgId));
+    jobs.register('connect.retention', (job) => this.expireCaptures(job.orgId, new Date(job.at)));
   }
 
   async profile(user: RequestUser) {
@@ -92,11 +94,12 @@ export class ConnectService {
       if (!(await tx.user.count({ where: { id: user.id, organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null } }))) {
         throw new ForbiddenException('Firm membership changed');
       }
+      const policy = { ...(await this.firmPolicy(tx, organizationId)), ...input };
       await tx.orgSetting.upsert({ where: { organizationId_key: where },
-        create: { ...where, value: input, updatedById: user.id }, update: { value: input, updatedById: user.id } });
+        create: { ...where, value: policy, updatedById: user.id }, update: { value: policy, updatedById: user.id } });
       await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role, organizationId,
-        action: 'connect.firm_policy', entity: 'Organization', entityId: organizationId, meta: input } });
-      return input;
+        action: 'connect.firm_policy', entity: 'Organization', entityId: organizationId, meta: policy } });
+      return policy;
     });
   }
 
@@ -321,6 +324,47 @@ export class ConnectService {
     });
     if (event.recordingKey) await this.jobs.enqueue('connect.purge', { id, orgId: event.organizationId }, { key: 'connect-purge:' + id, repeat: true });
     return { ok: true };
+  }
+
+  @Cron('0 15 2 * * *', { timeZone: 'Asia/Kolkata' })
+  async scheduleRetention() {
+    const flags = env();
+    if (!flags.JOBS_ENABLED || !flags.CONNECT_ENABLED) return;
+    const now = new Date();
+    const day = new Date(now.valueOf() + 330 * 60_000).toISOString().slice(0, 10);
+    const settings = await this.db.orgSetting.findMany({ where: { key: firmPolicyKey, organization: { status: 'ACTIVE' } },
+      select: { organizationId: true, value: true } });
+    for (const { organizationId, value } of settings) {
+      if (!connectFirmPolicy.safeParse(value).data?.retentionDays) continue;
+      await this.jobs.enqueue('connect.retention', { orgId: organizationId, at: now.toISOString() },
+        { key: 'connect:retention:' + organizationId + ':' + day });
+    }
+  }
+
+  private async expireCaptures(organizationId: string, now: Date) {
+    if (!env().CONNECT_ENABLED) return;
+    let more = true;
+    while (more) {
+      more = await this.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId + ':' + firmPolicyKey}))`;
+        const { retentionDays } = await this.firmPolicy(tx, organizationId);
+        if (!retentionDays) return false;
+        const expired = await tx.$queryRaw<{ id: string; recordingKey: string | null }[]>`
+          SELECT id, "recordingKey" FROM "ConnectEvent"
+          WHERE "organizationId" = ${organizationId} AND status <> 'DELETED'
+            AND "capturedAt" < ${new Date(now.valueOf() - retentionDays * 86_400_000)}
+          ORDER BY "capturedAt", id LIMIT 100 FOR UPDATE SKIP LOCKED`;
+        if (!expired.length) return false;
+        await tx.connectEvent.updateMany({ where: { id: { in: expired.map(({ id }) => id) } },
+          data: { status: 'DELETED', encryptedInput: null, encryptedResult: null, lastError: null } });
+        await tx.auditLog.createMany({ data: expired.map(({ id }) => ({ organizationId, action: 'connect.event.retention',
+          entity: 'ConnectEvent', entityId: id, meta: { retentionDays } })) });
+        const recordings = expired.flatMap(({ id, recordingKey }) => recordingKey
+          ? [{ type: 'connect.purge', key: 'connect-purge:' + id, payload: { id, orgId: organizationId } }] : []);
+        if (recordings.length) await tx.job.createMany({ data: recordings, skipDuplicates: true });
+        return expired.length === 100;
+      });
+    }
   }
 
   private async purgeRecording(id: string, organizationId: string) {

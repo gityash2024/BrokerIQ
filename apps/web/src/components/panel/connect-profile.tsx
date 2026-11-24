@@ -11,7 +11,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const firmOptions = { leads: 'Create leads and requirements', inventory: 'Create private property drafts', survey: 'Fill empty Survey fields' };
-type FirmPolicy = Record<keyof typeof firmOptions, boolean>;
+type AutomationRule = keyof typeof firmOptions;
+type FirmPolicy = Record<AutomationRule, boolean> & { retentionDays?: number | null };
 type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
@@ -32,13 +33,13 @@ export function ConnectProfile() {
     try { await api('/connect/devices/' + id, { method: 'DELETE' }); await data.refetch(); }
     catch (error) { toast.error(errorMessage(error)); }
   }
-  async function updatePolicy(field: keyof FirmPolicy) {
+  async function updatePolicy(change: Partial<FirmPolicy>) {
     const policy = data.data?.policy;
     if (!policy || policyBusy) return;
     const ownerContext = captureAccountContext();
     setPolicyBusy(true);
     try {
-      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, [field]: !policy[field] } });
+      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, ...change } });
       await data.refetch();
     } catch (error) { toast.error(errorMessage(error)); }
     finally { setPolicyBusy(false); }
@@ -62,9 +63,22 @@ export function ConnectProfile() {
         </div>)}
         {data.data.policy && <fieldset className="space-y-2 rounded-xl border border-line p-3" disabled={policyBusy}>
           <legend className="text-sm font-semibold">Firm automation rules</legend>
-          {(Object.keys(firmOptions) as (keyof FirmPolicy)[]).map((key) => <label key={key} className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={data.data!.policy![key]} onChange={() => void updatePolicy(key)} />{firmOptions[key]}
+          {(Object.keys(firmOptions) as AutomationRule[]).map((key) => <label key={key} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={data.data!.policy![key]} onChange={() => void updatePolicy({ [key]: !data.data!.policy![key] })} />{firmOptions[key]}
           </label>)}
+          <label className="flex flex-wrap items-center gap-2 text-sm">
+            Keep captures
+            <select className="rounded-lg border border-line bg-surface p-2" value={data.data.policy.retentionDays ?? ''}
+              onChange={(event) => {
+                const days = Number(event.target.value) || null;
+                if (days === null || window.confirm('Older Connect captures, recordings and transcripts will be deleted automatically. Save this retention policy?')) {
+                  void updatePolicy({ retentionDays: days });
+                }
+              }}>
+              <option value="">Until manually deleted</option>
+              {[30, 90, 180, 365].map((days) => <option key={days} value={days}>{days} days</option>)}
+            </select>
+          </label>
         </fieldset>}
         <ConnectLeadActivity enabled={data.data.enabled && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && hasDelegatedAccess(user, 'automation', 'view')} />
       </div>}
