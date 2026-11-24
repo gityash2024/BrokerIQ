@@ -7,13 +7,14 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { api, assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
 
-export function SurveyPhotoAction({ sector, allowed }: { sector?: string; allowed: boolean }) {
+export function SurveyPhotoAction({ sector, allowed, customFolderId }: { sector?: string; allowed: boolean; customFolderId?: string }) {
   const client = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
   const pending = useRef<{
     file: File;
     clientMutationId: string;
     sector?: string;
+    customFolderId?: string;
     owner: ReturnType<typeof captureAccountContext>;
     photoUrl?: string;
   } | null>(null);
@@ -28,7 +29,7 @@ export function SurveyPhotoAction({ sector, allowed }: { sector?: string; allowe
         setError('Choose an image smaller than 20 MB.');
         return;
       }
-      pending.current = { file, clientMutationId: crypto.randomUUID(), sector, owner: captureAccountContext() };
+      pending.current = { file, clientMutationId: crypto.randomUUID(), sector, customFolderId, owner: captureAccountContext() };
     }
     const photo = pending.current;
     if (!photo) return;
@@ -45,7 +46,7 @@ export function SurveyPhotoAction({ sector, allowed }: { sector?: string; allowe
       await api('/inventory/survey-photo', {
         method: 'POST',
         ownerContext: photo.owner,
-        body: { clientMutationId: photo.clientMutationId, sector: photo.sector, photoUrl: photo.photoUrl },
+        body: { clientMutationId: photo.clientMutationId, sector: photo.sector, customFolderId: photo.customFolderId, photoUrl: photo.photoUrl },
       });
       pending.current = null;
       await Promise.all(['inventory-folders', 'inventory-folder-items', 'broker-today'].map((key) => client.invalidateQueries({ queryKey: [key] })));

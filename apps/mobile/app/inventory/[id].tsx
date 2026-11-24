@@ -1,4 +1,6 @@
 import { PropertyOwnerPanel } from '@/launch/property-owner-panel';
+import { NativeInventoryRecordActions } from '@/launch/inventory-record-actions';
+import { goBack } from '@/lib/navigation';
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { usePropertyGallery } from '@/lib/property-gallery';
 import { InlineLoader } from '@/components/request-loader';
@@ -748,6 +750,7 @@ export default function PropertyDetail() {
           ) : null}
 
           <Button title="Share" variant="secondary" style={{ flex: 1, height: 48, borderRadius: 16 }} onPress={() => setShareWithLead(true)} />
+          <NativeInventoryRecordActions item={item} edit={false} onArchived={() => goBack('/(broker)/inventory')} />
 
           <Button
             title="Edit"

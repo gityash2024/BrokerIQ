@@ -31,7 +31,7 @@ export interface ImportUploadInput {
   fileName: string;
   contentType: string;
   totalBytes: number;
-  sourceType: 'IMAGE' | 'CHAT_EXPORT';
+  sourceType: 'IMAGE' | 'CHAT_EXPORT' | 'PDF';
   groupName?: string;
   target?: string;
   directoryMonth?: string;
@@ -47,16 +47,17 @@ export async function uploadImport(
   input: ImportUploadInput,
   readBase64: (offset: number, length: number) => Promise<string>,
   progress?: (received: number, total: number) => void,
+  base = '/imports/uploads',
 ) {
   if (!input.totalBytes || input.totalBytes > IMPORT_MAX_BYTES) throw new Error('Source must be between 1 byte and 300 MB. Original was preserved.');
-  let state = await request<ImportUploadState>('/imports/uploads', input);
+  let state = await request<ImportUploadState>(base, input);
   progress?.(state.receivedBytes, input.totalBytes);
   while (!state.batchId && state.receivedBytes < input.totalBytes) {
     const data = await readBase64(state.receivedBytes, Math.min(state.chunkBytes, input.totalBytes - state.receivedBytes));
-    state = await request<ImportUploadState>(`/imports/uploads/${state.id}/chunks/${state.nextIndex}`, { data });
+    state = await request<ImportUploadState>(`${base}/${state.id}/chunks/${state.nextIndex}`, { data });
     progress?.(state.receivedBytes, input.totalBytes);
   }
-  return request<{ id: string; status: string }>(`/imports/uploads/${state.id}/complete`, {});
+  return request<{ id: string; status: string }>(`${base}/${state.id}/complete`, {});
 }
 
 /** Works in Hermes without Buffer or spread arguments that overflow the call stack. */

@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Prisma, type ImportUpload } from '@prisma/client';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { IMPORT_CHUNK_BYTES, IMPORT_MAX_BYTES, inventoryMonthSchema } from '@brokeriq/shared';
+import { IMPORT_CHUNK_BYTES, IMPORT_MAX_BYTES, inventoryMonthSchema, PDF_INVENTORY_MAX_BYTES } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { JobsService } from '../../core/jobs/jobs.service';
@@ -13,8 +13,8 @@ export const uploadStartSchema = z
   .object({
     clientKey: z.string().min(8).max(150),
     fileName: z.string().min(1).max(200),
-    contentType: z.enum(['text/plain', 'application/zip', 'image/jpeg', 'image/png', 'image/webp']),
-    sourceType: z.enum(['CHAT_EXPORT', 'IMAGE']),
+    contentType: z.enum(['text/plain', 'application/zip', 'image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+    sourceType: z.enum(['CHAT_EXPORT', 'IMAGE', 'PDF']),
     totalBytes: z.number().int().min(1).max(IMPORT_MAX_BYTES),
     groupName: z.string().max(150).optional(),
     target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT', 'SURVEY']).default('AUTO'),
@@ -30,7 +30,10 @@ export const uploadStartSchema = z
     (value) => value.target !== 'SURVEY' || (value.sourceType === 'IMAGE' && Boolean(value.registerSector)),
     'Choose the sector before scanning a survey register',
   )
-  .refine((value) => (value.sourceType === 'IMAGE') === value.contentType.startsWith('image/'), 'Source type does not match file');
+  .refine((value) => (value.sourceType === 'IMAGE') === value.contentType.startsWith('image/'), 'Source type does not match file')
+  .refine((value) => (value.sourceType === 'PDF') === (value.contentType === 'application/pdf'), 'Source type does not match PDF')
+  .refine((value) => value.sourceType !== 'PDF' || (value.target === 'AUTO' && !value.groupName && value.totalBytes <= PDF_INVENTORY_MAX_BYTES),
+    'PDF inventory accepts a PDF up to 32 MB');
 
 export const uploadChunkSchema = z.object({
   data: z
@@ -78,7 +81,8 @@ export class ImportUploadsService {
     };
   }
 
-  async start(input: z.infer<typeof uploadStartSchema>, user: RequestUser) {
+  async start(input: z.infer<typeof uploadStartSchema>, user: RequestUser, pdf = false) {
+    if (pdf !== (input.sourceType === 'PDF')) throw new BadRequestException('Choose the matching import workflow');
     const scope = this.scope(user);
     const row = await this.prisma.importUpload
       .upsert({
@@ -105,7 +109,7 @@ export class ImportUploadsService {
     return this.state(row);
   }
 
-  async chunk(id: string, index: number, encoded: string, user: RequestUser) {
+  async chunk(id: string, index: number, encoded: string, user: RequestUser, pdf = false) {
     const scope = this.scope(user);
     const bytes = Buffer.from(encoded, 'base64');
     if (!bytes.length || bytes.length > IMPORT_CHUNK_BYTES) throw new BadRequestException('Invalid chunk size');
@@ -114,7 +118,7 @@ export class ImportUploadsService {
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`;
         const row = await tx.importUpload.findFirst({ where: { id, ...scope } });
-        if (!row) throw new NotFoundException('Upload not found');
+        if (!row || pdf !== (row.sourceType === 'PDF')) throw new NotFoundException('Upload not found');
         const chunks = row.chunks as unknown as SourceChunk[];
         if (index < chunks.length) {
           if (chunks[index].hash !== digest || chunks[index].size !== bytes.length) throw new ConflictException('Retry bytes differ from the saved original');
@@ -136,10 +140,10 @@ export class ImportUploadsService {
     );
   }
 
-  async complete(id: string, user: RequestUser) {
+  async complete(id: string, user: RequestUser, pdf = false) {
     const scope = this.scope(user);
     const row = await this.prisma.importUpload.findFirst({ where: { id, ...scope } });
-    if (!row) throw new NotFoundException('Upload not found');
+    if (!row || pdf !== (row.sourceType === 'PDF')) throw new NotFoundException('Upload not found');
     if (row.receivedBytes !== row.totalBytes) throw new BadRequestException('Upload incomplete. Resume remaining chunks.');
     let batchId = row.batchId;
     if (!batchId) {
@@ -147,9 +151,12 @@ export class ImportUploadsService {
       const digest = createHash('sha256');
       const sourceDigest = createHash('sha256').update(`${row.groupName ?? ''}\0\0`);
       if (row.registerSessionId) sourceDigest.update(`register:${row.createdById}:${row.registerSessionId}:${row.registerPageNo}\0`);
-      for (const chunk of chunks) {
+      for (const [index, chunk] of chunks.entries()) {
         const file = await this.storage.read(chunk.key);
         if (file.body.length !== chunk.size || hash(file.body) !== chunk.hash) throw new ConflictException('Saved chunk failed integrity verification');
+        if (pdf && index === 0 && !file.body.subarray(0, 8).toString('ascii').startsWith('%PDF-')) {
+          throw new BadRequestException('Select a valid PDF document');
+        }
         digest.update(file.body);
         sourceDigest.update(file.body);
       }
@@ -186,7 +193,8 @@ export class ImportUploadsService {
       });
     }
     const batch = await this.prisma.importBatch.findUniqueOrThrow({ where: { id: batchId } });
-    await queueCaptureExtraction(this.prisma, this.jobs, batch);
+    if (pdf && batch.status === 'PENDING') await this.jobs.enqueue('import.pdf', { batchId, orgId: batch.organizationId }, { key: 'pdf-inventory:' + batchId });
+    if (!pdf) await queueCaptureExtraction(this.prisma, this.jobs, batch);
     return { id: batchId, status: batch.status };
   }
 }

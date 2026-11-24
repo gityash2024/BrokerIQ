@@ -39,6 +39,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { InventoryEntryActions } from './inventory-entry-actions';
 import { InventoryTabs } from './inventory-tabs';
 import { AvailabilitySwitch } from './inventory-status-actions';
+import { InventoryRecordActions } from './inventory-record-actions';
+import { InventoryFolderControls } from './inventory-folder-controls';
 
 const initial = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 const inputClass = 'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm';
@@ -63,7 +65,8 @@ export function InventoryFoldersPage({
   const [selectedPath, setPath] = useRouteState<InventoryFolder[]>('inventory-folders.selectedPath',
     initialMode === 'SURVEY' && initialSector ? [{ key: initialSector, label: initialSector, count: 0 }] : [],
   );
-  const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
+  const kind = selectedPath[0]?.kind;
+  const path = mode === 'AVAILABLE' && !kind && selectedPath[0]?.key !== current ? [] : selectedPath;
   const [search, setSearch] = useRouteState('inventory-folders.search', '');
   const [filters, setFilters] = useRouteState('inventory-folders.filters', initial);
   const [datesOpen, setDatesOpen] = useState(false);
@@ -75,7 +78,7 @@ export function InventoryFoldersPage({
     folderMode: mode,
     surveyShelf: survey ? surveyShelf : undefined,
     currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
-    ...(survey
+    ...(kind === 'CUSTOM' ? { customFolderId: path[0].key } : kind === 'SECTOR' ? { folderSector: path[0].key } : survey
       ? { folderSector: path[0]?.key }
       : term
         ? {}
@@ -89,7 +92,7 @@ export function InventoryFoldersPage({
     dateTo: filters.dateTo ? new Date(filters.dateTo + 'T23:59:59.999+05:30').toISOString() : '',
     search: survey && !path.length && !normalizePropertyCode(term) ? '' : term,
   };
-  const leaf = Boolean(normalizePropertyCode(term)) || (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = !!kind || Boolean(normalizePropertyCode(term)) || (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const notes = useQuery({
     queryKey: ['survey-whatsapp-notes', user?.id],
     queryFn: () => api<SurveyWhatsAppNote[]>('/inventory/survey-notes'),
@@ -107,11 +110,13 @@ export function InventoryFoldersPage({
     refetchInterval: (state) => inventoryAccessRefreshInterval(state.state.data?.items ?? []),
   });
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
-  const folderMonth = mode === 'AVAILABLE' && path[0] ? path[0].key : current;
-  const createUrl = `/broker/inventory/new${qs({ makeAvailable: '1', directoryMonth: folderMonth, folderRoom: mode === 'AVAILABLE' ? path[1]?.key : undefined, furnishing: mode === 'AVAILABLE' ? path[2]?.key : undefined })}`;
-  const surveySector = survey && path[0]?.key !== '__unset__' ? path[0]?.key : undefined;
+  const customFolderId = kind === 'CUSTOM' ? path[0].key : undefined;
+  const folderMonth = mode === 'AVAILABLE' && path[0] && !kind ? path[0].key : current;
+  const sector = kind === 'SECTOR' || (survey && !kind && path[0]?.key !== '__unset__') ? path[0]?.key : undefined;
+  const createUrl = `/broker/inventory/new${qs({ makeAvailable: '1', sector, customFolderId, directoryMonth: folderMonth, folderRoom: mode === 'AVAILABLE' ? path[1]?.key : undefined, furnishing: mode === 'AVAILABLE' ? path[2]?.key : undefined })}`;
   const activeQuery = leaf ? records : folders;
   const photoCounts = leaf ? records.data?.photoCounts : folders.data?.photoCounts;
+  const folderRows = [...(folders.data?.folders ?? []), ...(folders.data?.extraFolders ?? [])];
   const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', ...filter, ...shelf })}`;
 
   function changePath(next: InventoryFolder[]) {
@@ -178,11 +183,11 @@ export function InventoryFoldersPage({
       <PageHeader
         title={survey ? 'Survey' : 'Available Inventory'}
         actions={
-          <InventoryEntryActions
-            createHref={survey ? '/broker/inventory/new' + qs({ survey: '1', sector: surveySector }) : createUrl}
-            survey={survey}
-            sector={surveySector}
-          />
+          <>
+            <InventoryEntryActions createHref={survey ? '/broker/inventory/new' + qs({ survey: '1', sector, customFolderId }) : createUrl}
+              survey={survey} sector={sector} customFolderId={customFolderId} />
+            <InventoryFolderControls onCreated={(folder) => changePath([{ key: folder.kind === 'CUSTOM' ? folder.id : folder.label, label: folder.label, kind: folder.kind, count: 0 }])} />
+          </>
         }
       />
       <InventoryTabs active="/broker/inventory" />
@@ -371,6 +376,7 @@ export function InventoryFoldersPage({
                   >
                     View details <ArrowUpRight className="size-4" />
                   </Link>
+                  <InventoryRecordActions item={item} />
                   {survey ? (
                     <>
                       {lastSurveyNoAnswer(item.notes) && <span className="basis-full text-xs text-muted">{lastSurveyNoAnswer(item.notes)}</span>}
@@ -427,7 +433,7 @@ export function InventoryFoldersPage({
         </>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
-          {folders.data?.folders
+          {folderRows
             .filter((folder) => !survey || !term || folder.label.toLowerCase().includes(term.toLowerCase()))
             .map((folder) => (
               <button
@@ -449,7 +455,7 @@ export function InventoryFoldersPage({
                 <ChevronRight className="hidden size-4 shrink-0 text-muted sm:block" />
               </button>
             ))}
-          {!folders.data?.folders.length && <p className="col-span-full py-6 text-muted">No folders match this view.</p>}
+          {!folderRows.length && <p className="col-span-full py-6 text-muted">No folders match this view.</p>}
         </div>
       )}
       <Dialog open={datesOpen} onOpenChange={setDatesOpen} title="Record dates" size="sm">

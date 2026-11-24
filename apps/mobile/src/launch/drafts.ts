@@ -324,7 +324,7 @@ export async function captureFile(
   return saved;
 }
 /** Copy the camera output into the existing durable, account-scoped draft outbox. */
-export async function queueSurveyPhoto(uri: string, sector: string | undefined, owner = contextNow()) {
+export async function queueSurveyPhoto(uri: string, sector: string | undefined, owner = contextNow(), customFolderId?: string) {
   assertAccountContext(owner);
   const id = Crypto.randomUUID();
   const directory = new Directory(Paths.document, 'captures');
@@ -332,7 +332,7 @@ export async function queueSurveyPhoto(uri: string, sector: string | undefined, 
   const destination = new File(directory, `${id}-survey.jpg`);
   await new File(uri).copy(destination);
   if (!destination.exists || !destination.size) throw new Error('The survey photo could not be copied.');
-  const saved = await saveDraft('PROPERTY_SURVEY_PHOTO', id, { sector }, id, owner, { uri: destination.uri, mime: 'image/jpeg' });
+  const saved = await saveDraft('PROPERTY_SURVEY_PHOTO', id, { sector, customFolderId }, id, owner, { uri: destination.uri, mime: 'image/jpeg' });
   await queueDraft(saved, owner);
   return saved;
 }

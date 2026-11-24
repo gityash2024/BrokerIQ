@@ -34,6 +34,8 @@ import { Button, Chip, ErrorView, Input, Row, Segmented, Sheet, Txt } from '@/ui
 import { BrokerScreen, NativeCard } from './screen';
 import { NativeInventoryEntryActions } from './inventory-entry-actions';
 import { NativeInventoryTabs } from './inventory-tabs';
+import { NativeInventoryRecordActions } from './inventory-record-actions';
+import { NativeInventoryFolderControls } from './inventory-folder-controls';
 
 const initialFilters = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 function normalizeDate(value: string, end = false) {
@@ -58,7 +60,8 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   const [notesOpen, setNotesOpen] = useState(false);
   const [surveyShelf, setSurveyShelf] = useState<'PENDING' | 'NO_ANSWER'>('PENDING');
   const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
-  const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
+  const kind = selectedPath[0]?.kind;
+  const path = mode === 'AVAILABLE' && !kind && selectedPath[0]?.key !== current ? [] : selectedPath;
   useFocusEffect(useCallback(() => {
     if (!path.length && mode === initialMode) return;
     const back = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -82,7 +85,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
     folderMode: mode,
     surveyShelf: survey ? surveyShelf : undefined,
     currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
-    ...(survey
+    ...(kind === 'CUSTOM' ? { customFolderId: path[0].key } : kind === 'SECTOR' ? { folderSector: path[0].key } : survey
       ? { folderSector: path[0]?.key }
       : term
         ? {}
@@ -90,7 +93,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
           ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
           : { folderSector: path[0]?.key }),
   };
-  const leaf = Boolean(normalizePropertyCode(term)) || (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = !!kind || Boolean(normalizePropertyCode(term)) || (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const notes = useQuery({
     queryKey: ['survey-whatsapp-notes', user?.id],
     queryFn: () => api<SurveyWhatsAppNote[]>('/inventory/survey-notes'),
@@ -114,7 +117,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const rows: (InventoryFolder | LedgerItem)[] = leaf
     ? (records.data?.pages.flatMap((page) => page.items) ?? [])
-    : (folders.data?.folders ?? []).filter((folder) => !survey || !term || folder.label.toLowerCase().includes(term.toLowerCase()));
+    : [...(folders.data?.folders ?? []), ...(folders.data?.extraFolders ?? [])].filter((folder) => !survey || !term || folder.label.toLowerCase().includes(term.toLowerCase()));
 
   function setShelf(next: Exclude<InventoryFolderMode, 'REVIEW'>) {
     setMode(next);
@@ -190,13 +193,15 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
             <NativeInventoryEntryActions
               survey={survey}
               params={{
-                ...(survey && path[0]?.key && path[0].key !== '__unset__' ? { sector: path[0].key } : {}),
+                ...((kind === 'SECTOR' || (survey && !kind)) && path[0]?.key && path[0].key !== '__unset__' ? { sector: path[0].key } : {}),
+                ...(kind === 'CUSTOM' ? { customFolderId: path[0].key } : {}),
                 makeAvailable: '1',
-                directoryMonth: mode === 'AVAILABLE' ? (path[0]?.key ?? current) : current,
+                directoryMonth: mode === 'AVAILABLE' && !kind ? (path[0]?.key ?? current) : current,
                 ...(mode === 'AVAILABLE' && path[1] ? { folderRoom: path[1].key } : {}),
                 ...(mode === 'AVAILABLE' && path[2] ? { furnishing: path[2].key } : {}),
               }}
             />
+            <NativeInventoryFolderControls onCreated={(folder) => setPath([{ key: folder.kind === 'CUSTOM' ? folder.id : folder.label, label: folder.label, kind: folder.kind, count: 0 }])} />
             <NativeInventoryTabs active="/broker/inventory" />
             <Segmented
               value={mode}
@@ -356,6 +361,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
               {user?.role === 'BROKER_AGENT' && ['LOCKED', 'EXPIRED', 'REJECTED', 'REVOKED'].includes(item.detailAccess ?? '') && (
                 <Button title="Request full details" size="sm" variant="ghost" onPress={() => router.push(`/inventory/${item.id}`)} />
               )}
+              <NativeInventoryRecordActions item={item} />
             </NativeCard>
           ) : (
             <NativeCard

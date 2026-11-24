@@ -22,7 +22,7 @@ import { PropertyMedia } from './property-media';
 
 const blankContact = () => ({ name: '', phone: '', role: 'OWNER' as const });
 
-export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; sector?: string }) {
+export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed: boolean; sector?: string; customFolderId?: string }) {
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [houseNo, setHouseNo] = useState('');
@@ -53,6 +53,7 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
       units,
       contacts: filled,
       sector,
+      customFolderId,
       directionsUrl: normalizeInventoryDirections(directions) ?? undefined,
       clientMutationId: mutationId.current,
     });

@@ -19,6 +19,8 @@ import { NativeAdvancedFilters } from '@/launch/advanced-filters';
 import { PropertyCard } from '@/launch/property-card';
 import { NativeInventoryEntryActions } from '@/launch/inventory-entry-actions';
 import { NativeInventoryTabs } from '@/launch/inventory-tabs';
+import { NativeInventoryRecordActions } from '@/launch/inventory-record-actions';
+import { NativeInventoryFolderControls, useInventoryFolderDefinitions } from '@/launch/inventory-folder-controls';
 
 const initial = {
   folderMode: '',
@@ -28,6 +30,7 @@ const initial = {
   folderRoom: '',
   folderFurnishing: '',
   folderSector: '',
+  customFolderId: '',
   dateFrom: '',
   dateTo: '',
   detailFilters: '',
@@ -59,6 +62,7 @@ const initial = {
 
 export function InventoryLedger() {
   const { user } = useAuth();
+  const folders = useInventoryFolderDefinitions();
   const { c } = useTheme();
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const params = useLocalSearchParams();
@@ -129,7 +133,15 @@ export function InventoryLedger() {
         ListHeaderComponent={
           <>
             <View style={{ gap: 12 }}>
-              <NativeInventoryEntryActions />
+              <NativeInventoryEntryActions params={{ ...(filters.folderSector ? { sector: filters.folderSector } : {}), ...(filters.customFolderId ? { customFolderId: filters.customFolderId } : {}) }} />
+              <NativeInventoryFolderControls onCreated={(folder) => setFilters({ ...filters, folderSector: folder.kind === 'SECTOR' ? folder.label : '', customFolderId: folder.kind === 'CUSTOM' ? folder.id : '' })} />
+              {!!folders.data?.length && <ChoiceField label="Inventory folder" value={filters.customFolderId || filters.folderSector}
+                choices={folders.data.map(({ id, kind, label }) => kind === 'CUSTOM' ? id : label)}
+                labels={Object.fromEntries(folders.data.map(({ id, label }) => [id, label]))} emptyLabel="All folders"
+                onChange={(value) => {
+                  const folder = folders.data.find(({ id, label }) => id === value || label === value);
+                  setFilters({ ...filters, folderSector: folder?.kind === 'SECTOR' ? folder.label : '', customFolderId: folder?.kind === 'CUSTOM' ? folder.id : '' });
+                }} />}
               <NativeInventoryTabs active="/broker/inventory/data" />
               <Txt v="caption" color="muted">
                 Find every record here, including older or incomplete entries. Review the details before moving a property to Available or Rented out.
@@ -424,6 +436,7 @@ export function InventoryLedger() {
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeRented: '1' } })}
                 />
+                <NativeInventoryRecordActions item={item} />
               </Row>
             )}
           </View>

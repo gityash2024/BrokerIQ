@@ -21,7 +21,7 @@ import { SurveyContactFields } from './survey-contact-fields';
 import { SurveyLocationField } from './survey-location-field';
 import { NativePropertyMedia } from './property-media';
 
-export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; sector?: string }) {
+export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed: boolean; sector?: string; customFolderId?: string }) {
   const client = useQueryClient();
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
@@ -56,6 +56,7 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
           units,
           contacts: filled.map(({ name, phone }) => ({ name, phone: normalizeIndianPhone(phone)!, role: 'OWNER' })),
           sector,
+          customFolderId,
           directionsUrl: normalizeInventoryDirections(directions) ?? undefined,
         },
         captureAccountContext(),

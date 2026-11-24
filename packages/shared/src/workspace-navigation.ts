@@ -63,6 +63,7 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
         { label: 'Available Inventory', href: '/broker/inventory', nativeHref: '/inventory', module: 'inventory' },
         { label: 'Survey', href: '/broker/inventory?survey=1', nativeHref: '/(broker)/inventory?survey=1', module: 'inventory' },
         { label: 'All Inventory', href: '/broker/inventory/data', nativeHref: '/inventory?view=ledger', module: 'inventory' },
+        { label: 'PDF Inventory', href: '/broker/inventory/pdf', nativeHref: '/pdf-inventory', module: 'inventory', adminOnly: true },
         { label: 'Publication Review', href: '/broker/publications', nativeHref: '/publication-reviews', module: 'inventory', adminOnly: true },
         { label: 'Publish Listing', href: '/broker/listings', nativeHref: '/inventory-listings', module: 'consumer' },
         { label: 'Scan / WhatsApp Import', href: '/broker/imports?target=INVENTORY', nativeHref: '/capture?target=INVENTORY', module: 'inbox' },

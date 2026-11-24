@@ -6,11 +6,14 @@ export const inventoryMonthSchema = z.string().regex(/^(?:19|20|21)\d{2}-(?:0[1-
 export const inventoryDateSchema = z.iso.date();
 export const inventoryFolderModeSchema = z.enum(['AVAILABLE', 'RENTED', 'REVIEW', 'SURVEY']);
 export type InventoryFolderMode = z.infer<typeof inventoryFolderModeSchema>;
-export type InventoryFolder = { key: string; label: string; count: number };
+export type InventoryFolder = { key: string; label: string; count: number; kind?: 'SECTOR' | 'CUSTOM' };
+export const createInventoryFolderSchema = z.object({ kind: z.enum(['SECTOR', 'CUSTOM']), label: z.string().trim().min(1).max(100) });
+export type InventoryFolderDefinition = { id: string; kind: 'SECTOR' | 'CUSTOM'; label: string };
 export type InventoryPhotoCounts = { withPhotos: number; withoutPhotos: number };
 export type InventoryFolders = {
   surveyCounts?: { pending: number; noAnswer: number };
   folders: InventoryFolder[];
+  extraFolders?: InventoryFolder[];
   years: string[];
   photoCounts?: InventoryPhotoCounts;
 };
@@ -96,4 +99,10 @@ export function inventoryFolderDefaults(
 /** Survey sector folders can exist before the first property or a public directory entry. */
 export function surveySectors(localities: readonly string[]) {
   return [...new Set([...localities, 'Sector 27'])].sort((a, b) => a.localeCompare(b, 'en-IN', { numeric: true }));
+}
+
+export function canonicalInventorySector(input: string) {
+  const name = input.trim().replace(/\s+/g, ' ');
+  const match = /^(?:sec(?:tor)?[.\s-]*)?0*(\d{1,3}[a-z]?)(?:\s*[/ -]\s*(?:part\s*)?(\d{1,2}))?\.?$/i.exec(name);
+  return match ? 'Sector ' + match[1].toUpperCase() + (match[2] ? '/' + Number(match[2]) : '') : name;
 }

@@ -81,6 +81,26 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     await app?.close();
   });
 
+  it('opens a new sector before any property exists and scopes custom folders to their firm', async () => {
+    const create = (kind: 'SECTOR' | 'CUSTOM', label: string, token = admin) =>
+      api().post('/api/inventory/folder-definitions').set(headers(token)).send({ kind, label }).expect(201);
+    const first = (await create('SECTOR', 'Sec-30', delegate)).body;
+    expect((await create('SECTOR', 'Sector 30')).body).toEqual(first);
+    const empty = (await api().get('/api/inventory/folders?folderMode=SURVEY').set(headers()).expect(200)).body;
+    expect(empty.folders).toEqual(expect.arrayContaining([{ key: 'Sector 30', label: 'Sector 30', count: 0 }]));
+
+    const folder = (await create('CUSTOM', 'Site captures')).body;
+    const draft = { sector: 'Sec-30', photoUrl: 'https://inventory.example/survey-photo.jpg', customFolderId: folder.id };
+    await api().post('/api/inventory/survey-photo').set(headers(outsider)).send({ ...draft, clientMutationId: randomUUID() }).expect(400);
+    const saved = (await api().post('/api/inventory/survey-photo').set(headers(agent)).send({ ...draft, clientMutationId: randomUUID() }).expect(201)).body;
+    expect(saved).toMatchObject({ sector: 'Sector 30', customFolderId: folder.id });
+    const query = '/api/inventory?folderMode=SURVEY&customFolderId=' + folder.id;
+    expect((await api().get(query).set(headers()).expect(200)).body.items.map(({ id }: { id: string }) => id)).toEqual([saved.id]);
+    expect((await api().get(query).set(headers(outsider)).expect(200)).body.items).toEqual([]);
+    await api().delete('/api/inventory/' + saved.id).set(headers(delegate)).expect(403);
+    await api().delete('/api/inventory/' + saved.id).set(headers()).expect(200);
+  });
+
   it('captures a photo-only Survey draft for office review and treats a retry as the same record', async () => {
     const photoUrl = 'https://inventory.example/office-review.jpg';
     const capture = { clientMutationId: randomUUID(), photoUrl };

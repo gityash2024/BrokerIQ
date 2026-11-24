@@ -1,6 +1,7 @@
 'use client';
 import { useRouteState } from '@/lib/navigation';
 import { surveySectors } from '@brokeriq/shared';
+import { InventoryFolderControls, useInventoryFolderDefinitions } from './inventory-folder-controls';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { IMPORT_MAX_BYTES, hasDelegatedAccess, inventoryMonth, inventoryMonthSchema, uploadImport } from '@brokeriq/shared';
@@ -49,6 +50,8 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const captureMonth = target === 'INVENTORY' ? directoryMonth : undefined;
   const [registerSector, setRegisterSector] = useState(requestedSector);
+  const folderDefinitions = useInventoryFolderDefinitions(scanner);
+  const savedSectors = (folderDefinitions.data ?? []).filter(({ kind }) => kind === 'SECTOR').map(({ label }) => label);
   const localities = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
@@ -253,13 +256,19 @@ function Workspace({ scanner }: { scanner: boolean }) {
               className="ml-3 rounded-xl border border-line bg-surface p-2"
             >
               <option value="">{survey ? 'Choose sector first' : 'Read from page heading'}</option>
-              {surveySectors((localities.data ?? []).map((locality) => locality.name)).map((name) => (
+              {surveySectors([...(registerSector ? [registerSector] : []), ...savedSectors, ...(localities.data ?? []).map((locality) => locality.name)]).map((name) => (
                 <option key={name} value={name}>
                   {name}
                 </option>
               ))}
             </select>
           </label>
+          <InventoryFolderControls sectorsOnly onCreated={(folder) => {
+            setRegisterSector(folder.label);
+            setRegisterSessionId(crypto.randomUUID());
+            registerNextPage.current = 1;
+            setCompleted([]);
+          }} />
           <p className="text-sm text-muted">The selected sector applies until a new register heading is found.</p>
           <Button
             variant="secondary"

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SurveyPhoneAction } from './survey-phone-action';
 import { SurveyPhotoAction } from './survey-photo-action';
 
-export function InventoryEntryActions({ createHref, survey = false, sector }: { createHref: string; survey?: boolean; sector?: string }) {
+export function InventoryEntryActions({ createHref, survey = false, sector, customFolderId }: { createHref: string; survey?: boolean; sector?: string; customFolderId?: string }) {
   const { user } = useAuth();
   const { modules } = useConfig();
   const role = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '');
@@ -27,8 +27,8 @@ export function InventoryEntryActions({ createHref, survey = false, sector }: { 
       >
         <Camera className="size-4" /> {survey ? 'Scan survey register' : 'Scan property'}
       </Button>
-      {survey && <SurveyPhotoAction allowed={canCreate} sector={sector} />}
-      {survey && <SurveyPhoneAction allowed={canCreate} sector={sector} />}
+      {survey && <SurveyPhotoAction allowed={canCreate} sector={sector} customFolderId={customFolderId} />}
+      {survey && <SurveyPhoneAction allowed={canCreate} sector={sector} customFolderId={customFolderId} />}
       {!survey && (
         <Button
           href="/broker/imports?target=INVENTORY"

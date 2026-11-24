@@ -2603,6 +2603,7 @@ model InventoryItem {
   sourceUnitKey      String?
   directionsUrl      String?
   directoryMonth     String?
+  customFolderId     String?
   details            Json      @default("{}")
   photoUrls          String[]  @default([])
   agentCoverPhotoUrl String?
@@ -2641,7 +2642,20 @@ model InventoryItem {
   @@index([organizationId, directoryMonth])
   detailAccess InventoryDetailAccess[]
   photoGallery InventoryPhotoGallery?
+  customFolder InventoryFolderDefinition? @relation(fields: [customFolderId], references: [id], onDelete: SetNull)
+  @@index([organizationId, customFolderId])
 
+}
+
+model InventoryFolderDefinition {
+  id             String @id @default(cuid())
+  organizationId String
+  kind           String
+  key            String
+  label          String
+  createdAt      DateTime @default(now())
+  items          InventoryItem[]
+  @@unique([organizationId, kind, key])
 }
 
 
@@ -2684,8 +2698,40 @@ model ImportBatch {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   entries        SourceEntry[]
+  pdfRows        PdfInventoryRow[]
   @@unique([organizationId, sourceType, sourceHash])
   @@index([organizationId, status])
+}
+
+model PdfInventoryRow {
+  id             String @id @default(cuid())
+  organizationId String
+  batchId        String
+  pageNo         Int
+  rowNo          Int
+  rawText        String
+  locality       String?
+  sector         String?
+  address        String?
+  propertyType   String?
+  areaSqft       Float?
+  floor          String?
+  configuration  String?
+  furnishing     String?
+  monthlyRent    Float?
+  availability   String @default("UNKNOWN")
+  ownerName      String?
+  contacts       String[] @default([])
+  notes          String?
+  review         String @default("NEEDS_REVIEW")
+  fingerprint    String?
+  deletedAt      DateTime?
+  updatedAt      DateTime @updatedAt
+  batch          ImportBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  @@unique([batchId, pageNo, rowNo])
+  @@index([organizationId, sector])
+  @@index([organizationId, fingerprint])
+  @@index([organizationId, deletedAt, batchId])
 }
 
 model SourceEntry {

@@ -30,6 +30,7 @@ import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { PropertyExtras, readPropertyExtras } from './property-extras';
 import { PropertyMedia } from './property-media';
 import { SurveyLocationField } from './survey-location-field';
+import { InventoryFolderControls, useInventoryFolderDefinitions } from './inventory-folder-controls';
 import { InventoryUnitFields } from './inventory-unit-fields';
 
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
@@ -104,6 +105,9 @@ export function PropertyForm({
   const [activate, setActivate] = useState(Boolean(activateInMonth));
   const [purpose, setPurpose] = useState(initial.purpose ?? '');
   const [location, setLocation] = useState({ sector: initial.sector, houseNo: initial.houseNo, address: initial.address });
+  const folders = useInventoryFolderDefinitions(!ownerMode && !isSuper);
+  const [customFolderId, setCustomFolderId] = useState(initial.customFolderId ?? '');
+  const sectors = (folders.data ?? []).filter(({ kind }) => kind === 'SECTOR').map(({ label }) => label);
   const localities = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
@@ -210,7 +214,7 @@ export function PropertyForm({
           onChange={
             ['sector', 'houseNo', 'address'].includes(name) ? (event) => setLocation((current) => ({ ...current, [name]: event.target.value })) : undefined
           }
-          defaultValue={(initial as any)[name] ?? (name === 'monthlyRent' ? (initial.rent ?? '') : '')}
+          {...(name === 'sector' ? { value: location.sector ?? '' } : { defaultValue: (initial as any)[name] ?? (name === 'monthlyRent' ? (initial.rent ?? '') : '') })}
           className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
         />
       </label>
@@ -309,6 +313,24 @@ export function PropertyForm({
   );
   return (
     <form onSubmit={submit} onChange={onDirty} className="space-y-4">
+      {!ownerMode && !isSuper && (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs font-semibold text-muted">
+            Custom folder
+            <select name="customFolderId" value={customFolderId} onChange={(event) => setCustomFolderId(event.target.value)}
+              className="mt-1 block w-full rounded-lg border border-line bg-surface p-2.5 text-sm text-fg">
+              <option value="">None</option>
+              {customFolderId && !folders.data?.some(({ id }) => id === customFolderId) && <option value={customFolderId}>Selected folder</option>}
+              {folders.data?.filter(({ kind }) => kind === 'CUSTOM').map((folder) => <option key={folder.id} value={folder.id}>{folder.label}</option>)}
+            </select>
+          </label>
+          <InventoryFolderControls onCreated={(folder) => {
+            if (folder.kind === 'CUSTOM') setCustomFolderId(folder.id);
+            else setLocation((values) => ({ ...values, sector: folder.label }));
+            onDirty?.();
+          }} />
+        </div>
+      )}
       <label className="block text-xs font-semibold text-muted">
         Possession date
         <input
@@ -331,7 +353,7 @@ export function PropertyForm({
               className="mt-1 block w-full rounded-lg border border-line bg-surface p-2.5 text-sm text-fg"
             >
               <option value="">Choose sector</option>
-              {surveySectors([...(initial.sector ? [initial.sector] : []), ...(localities.data ?? []).map((item) => item.name)]).map((name) => (
+              {surveySectors([...(location.sector ? [location.sector] : []), ...sectors, ...(localities.data ?? []).map((item) => item.name)]).map((name) => (
                 <option key={name}>{name}</option>
               ))}
             </select>

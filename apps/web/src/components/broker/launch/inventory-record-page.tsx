@@ -54,6 +54,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
   const requestedMonth = inventoryMonthSchema.safeParse(search.get('directoryMonth'));
   const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth();
   const defaults = inventoryFolderDefaults(search.get('folderRoom'), search.get('furnishing'));
+  const folderDefaults = { sector: search.get('sector') || undefined, customFolderId: search.get('customFolderId') || undefined };
   const superAdmin = user?.role === 'SUPER_ADMIN';
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const allowed =
@@ -181,9 +182,9 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                     (superAdmin
                       ? { organizationId }
                       : createSurvey
-                        ? { sector: search.get('sector') || undefined }
+                        ? folderDefaults
                         : makeAvailable
-                          ? { purpose: 'RENT', ...defaults }
+                          ? { purpose: 'RENT', ...defaults, ...folderDefaults }
                           : {})
                   }
                   activateInMonth={makeAvailable ? (item?.availability === 'AVAILABLE' ? (item.directoryMonth ?? folderMonth) : folderMonth) : undefined}

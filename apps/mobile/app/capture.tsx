@@ -1,4 +1,5 @@
 import { surveySectors } from '@brokeriq/shared';
+import { NativeInventoryFolderControls, useInventoryFolderDefinitions } from '@/launch/inventory-folder-controls';
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
 import { View, Platform } from 'react-native';
@@ -35,6 +36,8 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const { c } = useTheme();
   const [registerSector, setRegisterSector] = useState<string | null>(surveySector);
+  const folderDefinitions = useInventoryFolderDefinitions(scanner);
+  const savedSectors = (folderDefinitions.data ?? []).filter(({ kind }) => kind === 'SECTOR').map(({ label }) => label);
   const localities = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
@@ -184,7 +187,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
                 access={ready && !busy}
                 label="Register sector"
                 value={registerSector}
-                choices={surveySectors((localities.data ?? []).map((locality) => locality.name))}
+                choices={surveySectors([...(registerSector ? [registerSector] : []), ...savedSectors, ...(localities.data ?? []).map((locality) => locality.name)])}
                 emptyLabel={survey ? 'Choose sector first' : 'Read from page heading'}
                 onChange={(value) => {
                   setRegisterSector(value);
@@ -192,6 +195,11 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
                   setSources([]);
                 }}
               />
+              <NativeInventoryFolderControls sectorsOnly onCreated={(folder) => {
+                setRegisterSector(folder.label);
+                setRegisterSessionId(Crypto.randomUUID());
+                setSources([]);
+              }} />
               {localities.error && <Button title="Retry sectors" variant="secondary" onPress={() => localities.refetch()} />}
 
               <Button

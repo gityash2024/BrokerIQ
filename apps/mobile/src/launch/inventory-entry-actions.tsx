@@ -41,7 +41,7 @@ export function NativeInventoryEntryActions({ params, survey = false }: { params
         icon={<Plus size={17} color="white" />}
         style={{ flexGrow: 1, flexBasis: 140, minHeight: 44, borderRadius: 16, paddingHorizontal: 10 }}
         onPress={() =>
-          router.push({ pathname: '/inventory-edit', params: survey ? { survey: '1', ...(params?.sector ? { sector: params.sector } : {}) } : params })
+          router.push({ pathname: '/inventory-edit', params: survey ? { ...params, survey: '1' } : params })
         }
       />
       <Button
@@ -56,8 +56,8 @@ export function NativeInventoryEntryActions({ params, survey = false }: { params
           )
         }
       />
-      {survey && <SurveyPhotoAction allowed={canCreate} sector={params?.sector} />}
-      {survey && <SurveyPhoneAction allowed={canCreate} sector={params?.sector} />}
+      {survey && <SurveyPhotoAction allowed={canCreate} sector={params?.sector} customFolderId={params?.customFolderId} />}
+      {survey && <SurveyPhoneAction allowed={canCreate} sector={params?.sector} customFolderId={params?.customFolderId} />}
       {!survey && (
         <Button
           title="WhatsApp import"

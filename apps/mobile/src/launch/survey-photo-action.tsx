@@ -9,7 +9,7 @@ import { Button } from '@/ui';
 import { getLocalDraft, queueSurveyPhoto, syncDrafts } from './drafts';
 import { preparePropertyPhoto } from './property-media';
 
-export function SurveyPhotoAction({ sector, allowed }: { sector?: string; allowed: boolean }) {
+export function SurveyPhotoAction({ sector, allowed, customFolderId }: { sector?: string; allowed: boolean; customFolderId?: string }) {
   const client = useQueryClient();
   const { c } = useTheme();
   const capturing = useRef(false);
@@ -28,7 +28,7 @@ export function SurveyPhotoAction({ sector, allowed }: { sector?: string; allowe
       if (!asset || (asset.fileSize ?? 0) > 20 * 1024 * 1024) throw new Error('Choose an image smaller than 20 MB.');
       const uri = await preparePropertyPhoto(asset);
       assertAccountContext(owner);
-      const id = await queueSurveyPhoto(uri, sector, owner);
+      const id = await queueSurveyPhoto(uri, sector, owner, customFolderId);
       toast.success('Survey photo saved on this device');
       // The draft pump retries failed connections and keeps the image if the app closes.
       try {

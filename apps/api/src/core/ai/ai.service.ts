@@ -37,6 +37,7 @@ interface CallOpts {
   /** Internal constrained-generation contract; output is still validated independently. */
   responseSchema?: ZodType;
   strictSchema?: boolean;
+  openRouterOnly?: boolean;
 }
 
 const PROVIDERS: ProviderName[] = ['qwen_local', 'openrouter', 'groq', 'gemini'];
@@ -336,6 +337,8 @@ export class AiService {
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
     const providers = (await this.providers(kind === 'vision' && (opts.feature === 'capture' || opts.feature === 'property_video'))).filter((p) =>
+      !opts.openRouterOnly || p.name === 'openrouter',
+    ).filter((p) =>
       kind === 'vision'
         ? p.visionModels.length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&

@@ -31,6 +31,7 @@ import {
   inventoryDateSchema,
   inventoryMonthLabel,
   inventoryRoomFolder,
+  canonicalInventorySector,
   surveySectors,
   NAMED_INVENTORY_TYPES,
   missingInventoryFolderFields,
@@ -51,6 +52,16 @@ import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import type { InventoryFilterQuery } from './inventory.dto';
 
 const pendingSurvey: Prisma.InventoryItemWhereInput = { sourceType: 'SURVEY', status: 'DRAFT' };
+const folderDefinition = { id: true, kind: true, label: true } as const;
+
+function sectorSelection(label: string): Prisma.InventoryItemWhereInput {
+  if (label === '__unset__') return { sector: null };
+  const normalized = canonicalInventorySector(label);
+  const number = /^Sector (.+)$/.exec(normalized)?.[1];
+  return number
+    ? { sector: { in: [label, normalized, 'Sec ' + number, 'Sec-' + number, 'Sector-' + number], mode: 'insensitive' } }
+    : { sector: label };
+}
 
 const include = {
   organization: { select: { id: true, name: true, slug: true } },
@@ -121,7 +132,8 @@ export class InventoryService {
       }
     }
     if (q.sector) where.sector = { equals: q.sector, mode: 'insensitive' };
-    if (q.folderMode === 'SURVEY' && q.folderSector) and.push({ sector: q.folderSector === '__unset__' ? null : q.folderSector });
+    if (q.folderSector) and.push(sectorSelection(q.folderSector));
+    if (q.customFolderId) and.push({ customFolderId: q.customFolderId });
     if (q.houseNo) {
       where.houseNo = { contains: q.houseNo, mode: 'insensitive' };
       if (user.role === 'BROKER_AGENT')
@@ -281,7 +293,6 @@ export class InventoryService {
           { sourceType: 'SURVEY', availability: 'RENTED', houseNo: { not: '' }, sector: { not: '' } },
         ],
       });
-      if (q.folderSector) and.push({ sector: q.folderSector === '__unset__' ? null : q.folderSector });
     } else if (q.folderMode === 'REVIEW') {
       and.push({
         OR: [{ directoryMonth: null }, { availability: { not: 'AVAILABLE' } }, { status: { not: 'ACTIVE' } }, { verificationStatus: { not: 'VERIFIED' } }],
@@ -304,18 +315,28 @@ export class InventoryService {
     const surveyCounts = q.folderMode === 'SURVEY' ? await Promise.all(
       (['PENDING', 'NO_ANSWER'] as const).map((surveyShelf) => this.prisma.inventoryItem.count({ where: this.filterWhere({ ...q, surveyShelf }, user, today) })),
     ) : null;
-    const [months, photoCounts] = await Promise.all([
+    const orgId = this.orgId(user, q.organizationId, false);
+    const rootView = !q.folderMonth && !q.folderSector && !q.customFolderId;
+    const [months, photoCounts, definitions] = await Promise.all([
       this.prisma.inventoryItem.groupBy({ by: ['directoryMonth'], where: root, _count: { _all: true } }),
       this.countAvailablePhotos(q, user, query),
+      orgId && rootView ? this.prisma.inventoryFolderDefinition.findMany({ where: { organizationId: orgId }, select: folderDefinition, orderBy: { label: 'asc' } }) : [],
     ]);
     const years = [...new Set([current.slice(0, 4), ...months.flatMap((row) => row.directoryMonth?.slice(0, 4) ?? [])])].sort().reverse();
     const folders: InventoryFolder[] = [];
     if ((q.folderMode === 'RENTED' || q.folderMode === 'SURVEY') && !q.folderSector) {
       const rows = await this.prisma.inventoryItem.groupBy({ by: ['sector'], where: query, _count: { _all: true }, orderBy: { sector: 'asc' } });
-      const sectors = new Map(rows.map(({ sector, _count }) => [sector, _count._all]));
+      const sectors = new Map<string | null, number>();
+      for (const { sector, _count } of rows) {
+        const key = sector ? canonicalInventorySector(sector) : null;
+        sectors.set(key, (sectors.get(key) ?? 0) + _count._all);
+      }
       if (q.folderMode === 'SURVEY') {
         const locations = await this.prisma.locality.findMany({ where: { isActive: true }, select: { name: true } });
         for (const name of surveySectors(locations.map((item) => item.name))) if (!sectors.has(name)) sectors.set(name, 0);
+      }
+      if (q.folderMode === 'SURVEY') for (const definition of definitions.filter(({ kind }) => kind === 'SECTOR')) {
+        if (!sectors.has(definition.label)) sectors.set(definition.label, 0);
       }
       folders.push(
         ...[...sectors]
@@ -366,11 +387,53 @@ export class InventoryService {
         })),
       );
     }
+    const extraFolders: InventoryFolder[] = [];
+    if (definitions.length) {
+      const custom = definitions.filter(({ kind }) => kind === 'CUSTOM');
+      const counts = custom.length
+        ? await this.prisma.inventoryItem.groupBy({ by: ['customFolderId'], where: { AND: [query, { customFolderId: { in: custom.map(({ id }) => id) } }] }, _count: { _all: true } })
+        : [];
+      const byFolder = new Map(counts.map(({ customFolderId, _count }) => [customFolderId, _count._all]));
+      for (const folder of custom) extraFolders.push({ key: folder.id, label: folder.label, count: byFolder.get(folder.id) ?? 0, kind: 'CUSTOM' });
+      if (q.folderMode === 'AVAILABLE' || q.folderMode === 'RENTED') {
+        const sectors = definitions.filter(({ kind, label }) => kind === 'SECTOR' && !folders.some(({ key }) => key === label));
+        for (const folder of sectors) {
+          const count = await this.prisma.inventoryItem.count({ where: { AND: [query, sectorSelection(folder.label)] } });
+          extraFolders.push({ key: folder.label, label: folder.label, count, kind: 'SECTOR' });
+        }
+      }
+    }
     return {
       folders, years,
+      ...(extraFolders.length ? { extraFolders } : {}),
       ...(photoCounts && { photoCounts }),
       ...(surveyCounts && { surveyCounts: { pending: surveyCounts[0], noAnswer: surveyCounts[1] } }),
     };
+  }
+
+  async folderDefinitions(user: RequestUser) {
+    const organizationId = this.orgId(user);
+    return this.prisma.inventoryFolderDefinition.findMany({ where: { organizationId }, orderBy: [{ kind: 'asc' }, { label: 'asc' }], select: folderDefinition });
+  }
+
+  async createFolder(input: { kind: 'SECTOR' | 'CUSTOM'; label: string }, user: RequestUser) {
+    const organizationId = this.orgId(user)!;
+    const label = input.kind === 'SECTOR' ? canonicalInventorySector(input.label) : input.label.trim().replace(/\s+/g, ' ');
+    if (input.kind === 'SECTOR' && !/^Sector \d/.test(label)) throw new BadRequestException('Enter a sector such as Sector 30');
+    const identity = { organizationId, kind: input.kind, key: label.toLocaleLowerCase('en-IN') };
+    const folder = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.inventoryFolderDefinition.createMany({ data: [{ ...identity, label }], skipDuplicates: true });
+      const saved = await tx.inventoryFolderDefinition.findUniqueOrThrow({ where: { organizationId_kind_key: identity }, select: folderDefinition });
+      if (created.count) await tx.auditLog.create({ data: { actorId: user.id, organizationId, action: 'inventory.folder.create', entity: 'InventoryFolderDefinition', entityId: saved.id } });
+      return saved;
+    });
+    return folder;
+  }
+
+  private async validateCustomFolder(db: Prisma.TransactionClient, organizationId: string, id?: string | null) {
+    if (id && !(await db.inventoryFolderDefinition.findFirst({ where: { id, organizationId, kind: 'CUSTOM' }, select: { id: true } }))) {
+      throw new BadRequestException('Select a folder from this firm');
+    }
   }
   private async countAvailablePhotos(q: InventoryFilterQuery, user: RequestUser, where: Prisma.InventoryItemWhereInput) {
     if (q.folderMode !== 'AVAILABLE' || user.role === 'BROKER_AGENT') return;
@@ -726,6 +789,7 @@ export class InventoryService {
     const effectiveAssignedToId = data.assignedToId === '' ? null : data.assignedToId;
     return {
       ...data,
+      ...(typeof data.sector === 'string' ? { sector: canonicalInventorySector(data.sector) } : {}),
       ...(data.photoUrls && previous?.agentCoverPhotoUrl && !data.photoUrls.includes(previous.agentCoverPhotoUrl) ? { agentCoverPhotoUrl: null } : {}),
       ...(data.assignedToId !== undefined ? { assignedToId: effectiveAssignedToId } : {}),
       price: price == null ? null : Number(price),
@@ -752,7 +816,7 @@ export class InventoryService {
   }
   createSurveyPhoto(input: SurveyPhotoInput, user: RequestUser) {
     return this.createRecord(
-      { sector: input.sector, photoUrls: [input.photoUrl], clientMutationId: input.clientMutationId, survey: true, purpose: 'RENT' },
+      { sector: input.sector, customFolderId: input.customFolderId, photoUrls: [input.photoUrl], clientMutationId: input.clientMutationId, survey: true, purpose: 'RENT' },
       user,
       { quickSurvey: true },
     );
@@ -761,6 +825,7 @@ export class InventoryService {
     return this.createRecord(
       {
         sector: input.sector,
+        customFolderId: input.customFolderId,
         ...('phone' in input ? { ownerPhone: input.phone } : { contacts: input.contacts }),
         directionsUrl: input.directionsUrl,
         clientMutationId: input.clientMutationId,
@@ -771,9 +836,10 @@ export class InventoryService {
       { quickSurvey: true },
     );
   }
-  async createSurveyUnits({ clientMutationId, sector, directionsUrl, houseNo, contacts, units }: SurveyUnitsInput, user: RequestUser) {
+  async createSurveyUnits({ clientMutationId, sector, customFolderId, directionsUrl, houseNo, contacts, units }: SurveyUnitsInput, user: RequestUser) {
     const rows = units.map((unit): InventoryInput => ({
       sector,
+      customFolderId,
       directionsUrl,
       houseNo,
       contacts,
@@ -913,6 +979,7 @@ export class InventoryService {
         });
         if (!assignee) throw new BadRequestException('Assigned user not found in organization');
       }
+      await this.validateCustomFolder(db, organizationId, input.customFolderId);
       const item = await db.inventoryItem.create({
         data: {
           ...this.fields(input, undefined, quickSurvey),
@@ -951,6 +1018,7 @@ export class InventoryService {
       if (!current) throw new NotFoundException('Inventory item not found');
       if (input.expectedRevision !== undefined && input.expectedRevision !== current.revision)
         throw new ConflictException('Property changed. Reload before saving.');
+      await this.validateCustomFolder(tx, current.organizationId, input.customFolderId);
       if (ownerReview) {
         const proposal = await tx.inventoryOwnerReport.findFirst({
           where: { id: ownerReview.id, inventoryId: id, ownerId: current.ownerUserId ?? '', reviewState: 'PENDING' },

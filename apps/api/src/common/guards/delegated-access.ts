@@ -41,6 +41,16 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (path === '/inventory/:id/access/:agentid/review' && method === 'POST') return { module: 'inventory', actions: ['view', 'approve_details'] };
   if (path === '/inventory/:id/photo-gallery' && method === 'POST') return { module: 'inventory', actions: ['view'] };
   if (path === '/inventory/:id/agent-cover-photo' && method === 'PATCH') return { module: 'inventory', actions: ['view', 'edit'] };
+  if (path === '/inventory/:id' && method === 'DELETE') return { module: 'inventory', actions: ['view', 'delete'] };
+  if (path === '/inventory/:id' && method === 'PATCH') return { module: 'inventory', actions: ['view', 'edit'] };
+  if (path === '/inventory/folder-definitions' && method === 'POST') return { module: 'inventory', actions: ['view', 'create'] };
+  if (/^\/inventory-pdf(?:\/|$)/.test(path)) {
+    if (method === 'GET' || method === 'HEAD') return { module: 'inventory', actions: ['view'] };
+    if (method === 'POST') return { module: 'inventory', actions: ['view', 'create'] };
+    if (method === 'PATCH') return { module: 'inventory', actions: ['view', 'edit'] };
+    if (method === 'DELETE') return { module: 'inventory', actions: ['view', 'delete'] };
+    return null;
+  }
   if (path === '/inventory/owners' && method === 'GET') return { module: 'inventory', actions: ['view', 'assign'] };
   if (['/inventory/:id/owner/review', '/inventory/:id/owner/accept'].includes(path) && method === 'POST')
     return { module: 'inventory', actions: ['view', 'edit'] };

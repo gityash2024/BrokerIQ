@@ -4,6 +4,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import {
   inventoryInputSchema,
+  createInventoryFolderSchema,
   inventoryUnitBatchSchema,
   inventoryFilterSchema,
   availabilitySchema,
@@ -83,6 +84,14 @@ export class InventoryController {
   }
   @Get('folders') getFolders(@Query(new ZodPipe(inventoryFilterSchema)) query: InventoryFilterQuery, @CurrentUser() user: RequestUser) {
     return this.inventory.getFolders(query, user);
+  }
+  @Get('folder-definitions')
+  folderDefinitions(@CurrentUser() user: RequestUser) {
+    return this.inventory.folderDefinitions(user);
+  }
+  @Post('folder-definitions')
+  createFolder(@Body(new ZodPipe(createInventoryFolderSchema)) input: z.infer<typeof createInventoryFolderSchema>, @CurrentUser() user: RequestUser) {
+    return this.inventory.createFolder(input, user);
   }
   @Get('stats') getStats(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getStats(user, orgId);

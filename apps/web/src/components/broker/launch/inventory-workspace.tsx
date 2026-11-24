@@ -2,6 +2,8 @@
 import { useRouteState } from '@/lib/navigation';
 
 import { InventoryStatusActions } from './inventory-status-actions';
+import { InventoryRecordActions } from './inventory-record-actions';
+import { InventoryFolderControls, useInventoryFolderDefinitions } from './inventory-folder-controls';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { inventoryAvailabilityDate, inventoryDateLabel, inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -32,6 +34,7 @@ const initialFilters = {
   folderRoom: '',
   folderFurnishing: '',
   folderSector: '',
+  customFolderId: '',
   archived: '',
   organizationId: '',
   status: '',
@@ -75,6 +78,7 @@ function LedgerInner() {
   const { user } = useAuth();
   const router = useRouter();
   const isSuper = user?.role === 'SUPER_ADMIN';
+  const folders = useInventoryFolderDefinitions(!isSuper);
   const canExport = hasDelegatedAccess(user, 'inventory', 'export');
   const canBulkEdit = hasDelegatedAccess(user, 'inventory', 'edit', 'publish');
   const canPublish = hasDelegatedAccess(user, 'inventory', 'publish');
@@ -194,7 +198,10 @@ function LedgerInner() {
                 Add property
               </button>
             ) : (
-              <InventoryEntryActions createHref={`${basePath}/new`} />
+              <>
+              <InventoryEntryActions createHref={`${basePath}/new${qs({ sector: filters.folderSector, customFolderId: filters.customFolderId })}`} />
+              <InventoryFolderControls onCreated={(folder) => setFilters({ ...filters, folderSector: folder.kind === 'SECTOR' ? folder.label : '', customFolderId: folder.kind === 'CUSTOM' ? folder.id : '' })} />
+              </>
             )}
           </>
         }
@@ -243,6 +250,16 @@ function LedgerInner() {
         </section>
       )}
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        {!isSuper && !!folders.data?.length && <select aria-label="Inventory folder" className="rounded-xl border border-line bg-surface p-2 text-sm"
+          value={filters.customFolderId || filters.folderSector}
+          onChange={(event) => {
+            const folder = folders.data?.find(({ id, label }) => id === event.target.value || label === event.target.value);
+            setFilters({ ...filters, customFolderId: folder?.kind === 'CUSTOM' ? folder.id : '', folderSector: folder?.kind === 'SECTOR' ? folder.label : '' });
+          }}>
+          <option value="">All folders</option>
+          {filters.folderSector && !folders.data.some(({ label }) => label === filters.folderSector) && <option>{filters.folderSector}</option>}
+          {folders.data.map((folder) => <option key={folder.id} value={folder.kind === 'CUSTOM' ? folder.id : folder.label}>{folder.label}</option>)}
+        </select>}
         <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3">
           <Search size={17} className="text-muted" />
           <input
@@ -461,6 +478,7 @@ function LedgerInner() {
                     {!isSuper && !item.deletedAt && (
                       <InventoryStatusActions disabled={item.canEdit === false || !hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />
                     )}
+                    {!isSuper && <InventoryRecordActions item={item} />}
                   </div>
                 </div>
               </article>
@@ -660,6 +678,7 @@ function LedgerInner() {
                       {!isSuper && !item.deletedAt && (
                         <InventoryStatusActions disabled={item.canEdit === false || !hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />
                       )}
+                      {!isSuper && <InventoryRecordActions item={item} />}
                     </td>
                   </tr>
                 );

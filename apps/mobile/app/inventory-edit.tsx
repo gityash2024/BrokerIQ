@@ -1,4 +1,5 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
+import { NativeInventoryFolderControls, useInventoryFolderDefinitions } from '@/launch/inventory-folder-controls';
 import { useEffect, useRef, useState } from 'react';
 import { View, Keyboard, Linking, Switch } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -58,6 +59,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
     furnishing,
     survey,
     sector: surveySector,
+    customFolderId,
   } = useLocalSearchParams<{
     id?: string;
     draft?: string;
@@ -68,6 +70,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
     furnishing?: string;
     survey?: string;
     sector?: string;
+    customFolderId?: string;
   }>();
   const defaultFolder = inventoryMonthSchema.safeParse(directoryMonth);
   const selectedMonth = defaultFolder.success ? defaultFolder.data : inventoryMonth();
@@ -106,7 +109,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
   const owner = useRef(captureAccountContext());
   const baseline = useRef<Record<string, any> | null>(null);
   const kind = ownerMode ? (id ? 'OWNER_PROPERTY_EDIT' : 'OWNER_PROPERTY_CREATE') : id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
-  const key = id ?? (createSurvey ? 'new-survey:' + (surveySector?.trim() ?? '') : 'new-property');
+  const key = id ?? ((createSurvey ? 'new-survey:' + (surveySector?.trim() ?? '') : 'new-property') + (customFolderId ? ':' + customFolderId : ''));
   const compactSurvey = !ownerMode && (createSurvey || Boolean(id && !availabilityReview && form.sourceType === 'SURVEY' && form.status === 'DRAFT'));
   const allowUnits = !ownerMode && !id && !compactSurvey;
   const units: InventoryUnitDraft[] = allowUnits ? (form._additionalUnits ?? []) : [];
@@ -120,6 +123,9 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
     enabled: compactSurvey,
     staleTime: 600_000,
   });
+  const folders = useInventoryFolderDefinitions(!ownerMode);
+  const customFolders = (folders.data ?? []).filter(({ kind }) => kind === 'CUSTOM');
+  const savedSectors = (folders.data ?? []).filter(({ kind }) => kind === 'SECTOR').map(({ label }) => label);
   const photoUrls = useRef<string[]>([]);
   photoUrls.current = form.photoUrls ?? [];
   const navigation = inventoryNavigation(form);
@@ -144,7 +150,9 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
                 status: 'DRAFT',
                 contacts: [{ name: '', phone: '', role: 'OWNER' }],
                 ...(!delegated || canAssign ? { assignedToId: user?.id } : {}),
-                ...(createSurvey ? { survey: true, purpose: 'RENT', sector: surveySector?.trim() || undefined } : {}),
+                ...(createSurvey ? { survey: true, purpose: 'RENT' } : {}),
+                ...(!ownerMode && surveySector ? { sector: surveySector.trim() } : {}),
+                ...(!ownerMode && customFolderId ? { customFolderId } : {}),
                 ...(directoryEnabled || ownerMode ? { purpose: 'RENT', ...inventoryFolderDefaults(folderRoom, furnishing) } : {}),
               };
         if (id && initial.canEdit === false) throw new Error('This property is read-only. Open its details to request access.');
@@ -349,6 +357,11 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
           <NativeCard>
             <PropertyDateField label="Possession date" value={form.details?.possessionDate} onChange={(date) => changeDetail('possessionDate', date)} />
           </NativeCard>
+          {!ownerMode && <NativeCard>
+            <ChoiceField label="Custom folder" value={form.customFolderId} choices={customFolders.map(({ id }) => id)}
+              labels={Object.fromEntries(customFolders.map(({ id, label }) => [id, label]))} emptyLabel="None" onChange={(value) => change('customFolderId', value)} />
+            <NativeInventoryFolderControls onCreated={(folder) => change(folder.kind === 'CUSTOM' ? 'customFolderId' : 'sector', folder.kind === 'CUSTOM' ? folder.id : folder.label)} />
+          </NativeCard>}
           {compactSurvey ? (
             <NativeCard style={{ gap: 10 }}>
               <Row align="flex-start">
@@ -357,7 +370,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
                   label="Sector / locality"
                   value={form.sector}
                   access={ready && !saving}
-                  choices={surveySectors([...(form.sector ? [String(form.sector)] : []), ...(localities.data ?? []).map((item) => item.name)])}
+                  choices={surveySectors([...(form.sector ? [String(form.sector)] : []), ...savedSectors, ...(localities.data ?? []).map((item) => item.name)])}
                   onChange={(value) => change('sector', value)}
                 />
                 {field('houseNo', 'House / plot no.', false, true)}

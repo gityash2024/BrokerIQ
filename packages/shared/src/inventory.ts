@@ -84,6 +84,7 @@ const inventoryFieldsSchema = z.object({
   pageNo: z.number().int().min(1).max(10000).nullable().optional(),
   organizationId: z.string().max(100).optional(),
   assignedToId: z.string().max(100).nullable().optional(),
+  customFolderId: z.string().trim().min(1).max(100).nullable().optional(),
   expectedRevision: z.number().int().positive().optional(),
 });
 export const inventoryInputSchema = inventoryFieldsSchema.superRefine((data, ctx) => {
@@ -98,6 +99,7 @@ export type InventoryInput = z.infer<typeof inventoryInputSchema>;
 export const surveyPhotoInputSchema = z.strictObject({
   clientMutationId: z.uuid(),
   sector: z.string().trim().min(1).max(200).optional(),
+  customFolderId: z.string().trim().min(1).max(100).nullable().optional(),
   photoUrl: inventoryInputSchema.shape.photoUrls.unwrap().element,
 });
 export type SurveyPhotoInput = z.infer<typeof surveyPhotoInputSchema>;
@@ -228,6 +230,7 @@ export function inventoryUnitBatchRows(property: InventoryInput, units: Addition
     survey,
     assignedToId,
     directoryMonth,
+    customFolderId,
   } = property;
   return [
     property,
@@ -247,6 +250,7 @@ export function inventoryUnitBatchRows(property: InventoryInput, units: Addition
       survey,
       assignedToId,
       directoryMonth,
+      customFolderId,
       ...inventoryUnitConfigurationFields(configuration),
       ...unit,
     })),
@@ -385,6 +389,7 @@ export const inventoryFilterSchema = z.object({
     .optional(),
   folderFurnishing: z.enum(['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED', 'OTHER']).optional(),
   folderSector: z.string().trim().max(200).optional(),
+  customFolderId: z.string().trim().min(1).max(100).optional(),
   archived: z.enum(['exclude', 'only', 'include']).optional(),
   review: z.enum(['publication']).optional(),
   detailFilters: z.string().max(12000).optional(),

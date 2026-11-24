@@ -103,12 +103,13 @@ export class ImportsService {
     return user.orgId;
   }
   private scope(user: RequestUser) {
-    return user.role === 'SUPER_ADMIN'
-      ? {}
-      : {
+    return {
+      sourceType: { not: 'PDF' },
+      ...(user.role === 'SUPER_ADMIN' ? {} : {
           organizationId: this.org(user),
           ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}),
-        };
+      }),
+    };
   }
   async list(user: RequestUser, page = 1) {
     const where = this.scope(user);
