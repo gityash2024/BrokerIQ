@@ -114,4 +114,14 @@ Local typecheck passed across the five workspaces. The fresh PostgreSQL API regr
 
 The Connect APK is distributed through the owner's restricted Drive file. At the user's direction, physical testing will occur later. Connect pilot acceptance and the WhatsApp ZIP cutover remain pending until then.
 
-The staging candidate uses immutable commit `3241dfe3f954a15ef09a7f4d5e7418c3745f1947`, Android version 2.3.58 and version code 99. Later work for Connect transcription limits, local lead review, retention, free-model deferral, source-specific contact permissions, Organic defaults and delivery recovery, invoice controls and dialog navigation remains in the integration branch or the separate Connect pilot APK as applicable. Deploying the pinned main candidate does not publish those later server and portal changes.
+## Connected staging release
+
+On 24 November 2026 at 15:02:51 IST, the Web and API release switched to immutable commit `3241dfe3f954a15ef09a7f4d5e7418c3745f1947`. Android v2.3.58 Build 99 uses the same commit. The [published staging manifest](./staging-build99-20261124/release-manifest.json) records the APK size of 189,380,117 bytes and SHA-256 `c5bdc436399bf2127cf968ba67494719b099e8ea896990058b32a70c9b4dac61`.
+
+- The Android certificate matches Build 98. The four-architecture build passed signing and 16 KiB checks. Android 16 emulator upgraded Build 98 in place and kept the first-install timestamp. The released activity remained in the foreground after boot.
+- Both public and origin API health and Web identities matched the pinned commit. The full public APK downloaded and matched the signed artifact. The update link now advertises 2.3.58, with minimum 2.3.0 and email OTP still required. All 30 old APK paths were carried over. Build 98 separately returned HTTP 200.
+- Eight rehearsed additive migrations applied. The server verified the nine active Olive Estate inventory records still resolve to Sector 30. PDF Inventory, Connect profile and Organic records returned HTTP 401 without a session.
+- Six public pages on desktop and narrow Chrome, 12 views in total, matched their prior route, title, rendered headings and overflow status, with zero captured page errors. This covers those structural checks only. Nine unrelated PM2 services retained their PIDs, state and restart counts across activation. The cleanup subsequently reclaimed about 1 GiB from generated Android compiler objects and rechecked the serving APK and API health.
+- Connect capture and WhatsApp ZIP cutover are disabled on connected staging. A separate production release, signed iOS distribution, physical-device acceptance and end-to-end delivery from an authorized live lead feed remain open.
+
+Later work for Connect transcription limits, local lead review, retention, free-model deferral, source-specific contact permissions, Organic defaults and delivery recovery, invoice controls, dialog navigation and UIKit scene support is on the integration branch or in the separate Connect pilot APK as applicable. Those changes were made after the Build 99 pin.
