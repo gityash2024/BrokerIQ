@@ -138,7 +138,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/automations',
     ['/broker/automations', '/broker/connectors'],
     ['/automations', '/broker/connectors', '/broker/portal-pack', '/broker/integrations', '/webhooks/leads', '/webhooks/meta-leads', '/connect'],
-    ['automation.action', 'automation.reminder-push', 'automation.visit-reminder', 'connector.', 'organic.discovery', 'organic.delivery', 'organic.ready', 'organic.manual-transfer', 'connect.process', 'connect.purge'],
+    ['automation.action', 'automation.reminder-push', 'automation.visit-reminder', 'connector.', 'organic.discovery', 'organic.collect', 'organic.enrich', 'organic.publish', 'organic.delivery', 'organic.ready', 'organic.manual-transfer', 'connect.process', 'connect.purge'],
   ),
   future(
     'deals',
