@@ -85,17 +85,18 @@ test('admin master-data forms preserve unsaved edits and mobile cards expose eve
   await page.getByLabel('Search modules').fill('User marketplace');
   await expect(page.getByLabel('Customer', { exact: true })).toBeVisible();
   await page.goto('/admin/amenities');
-  await page.getByRole('button', { name: 'नया जोड़ें', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('textbox', { name: 'Label', exact: true }).fill('Unsaved isolated check');
-  await expect(dialog.getByText('Unsaved changes', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'नया जोड़ें', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'New Amenities' })).toBeVisible();
+  const editor = page.getByRole('main');
+  await editor.getByRole('textbox', { name: 'Label', exact: true }).fill('Unsaved isolated check');
+  await expect(editor.getByText('Unsaved changes', { exact: true })).toBeVisible();
   page.once('dialog', (modal) => modal.dismiss());
-  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(dialog.getByRole('textbox', { name: 'Label', exact: true })).toHaveValue('Unsaved isolated check');
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(editor.getByRole('textbox', { name: 'Label', exact: true })).toHaveValue('Unsaved isolated check');
   await page.screenshot({ path: testInfo.outputPath('admin-form-phone24.png') });
   page.once('dialog', (modal) => modal.accept());
-  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(dialog).toHaveCount(0);
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Amenities', exact: true })).toBeVisible();
 });
 
 test('Super Admin sidebar opens the selected record and keeps upcoming tools disabled', async ({ page }) => {
@@ -171,7 +172,8 @@ test('Broker Agent sees assigned leads and personal settings, with admin routes 
   await expect(page.getByText(hidden.name, { exact: true })).toHaveCount(0);
   const nav = page.getByRole('navigation', { name: 'Workspace navigation' });
   await expect(nav.getByRole('button', { name: 'Team & Agents' })).toHaveCount(0);
-  await expect(nav.getByRole('button', { name: 'Automation' })).toHaveCount(0);
+  await nav.getByRole('button', { name: 'Automation', exact: true }).click();
+  await expect(nav.getByRole('link', { name: 'Rules & execution history' })).toHaveAttribute('aria-disabled', 'true');
 
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/broker/settings');

@@ -66,7 +66,7 @@ test('scanner and chat exports are discoverable, private drafts survive reload a
   expect(errors).toEqual([]);
 });
 
-test('rich inventory and source-backed project details remain usable at desktop and phone widths', async ({ page, request }, testInfo) => {
+test('rich inventory details remain usable at desktop and phone widths', async ({ page, request }, testInfo) => {
   const { session } = await createBrokerFixture(request);
   const headers = { Authorization: `Bearer ${session.accessToken}` };
   const created = await request.post(API + '/inventory', {
@@ -87,38 +87,22 @@ test('rich inventory and source-backed project details remain usable at desktop 
     },
   });
   expect(created.status()).toBe(201);
+  const item = await created.json();
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
-  await page.goto('/broker/inventory');
-  await page.getByRole('button', { name: 'Card view', exact: true }).click();
-  await page
-    .getByRole('article')
-    .filter({ has: page.getByRole('heading', { name: 'Apartment 24' }) })
-    .getByRole('button', { name: 'Details →' })
-    .click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText('Location & configuration', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Ground floor', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Gated society', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('No', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Call before visiting', { exact: true })).toBeVisible();
+  await page.goto('/broker/inventory/' + item.id);
+  const detail = page.getByRole('main');
+  await expect(detail.getByText('Location & configuration', { exact: true })).toBeVisible();
+  await expect(detail.getByText('Ground floor', { exact: true })).toBeVisible();
+  await expect(detail.getByText('Gated society', { exact: true })).toBeVisible();
+  await expect(detail.getByText('No', { exact: true })).toBeVisible();
+  await expect(detail.getByText('Call before visiting', { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('inventory-detail-desktop24.png') });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(dialog).toBeVisible();
+  await expect(detail.getByText('Location & configuration', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('inventory-detail-phone24.png') });
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.goto('/broker/inventory/directory');
-  await page.getByLabel('Search directory', { exact: true }).fill('102 EDEN ESTATE');
-  await page.getByRole('button').filter({ hasText: '102 EDEN ESTATE' }).first().click();
-  await expect(dialog.getByRole('heading', { name: 'Project facts', exact: true })).toBeVisible();
-  await expect(dialog.getByText('Project land area · As filed', { exact: true })).toBeVisible();
-  await expect(dialog.getByRole('link', { name: 'Detailed source form ↗', exact: true })).toHaveAttribute('href', /haryanarera.gov.in/);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath('directory-detail-phone24.png') });
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.screenshot({ path: testInfo.outputPath('directory-detail-desktop24.png') });
   expect(errors).toEqual([]);
 });

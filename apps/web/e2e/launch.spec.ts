@@ -84,21 +84,19 @@ test('admin module toggle blocks direct route and restores navigation', async ({
   await expect(page.getByRole('heading', { name: 'Modules & permissions', exact: true })).toBeVisible();
 });
 
-test('Area Directory lists source-backed projects and opens the map without inventing coordinates', async ({ page }) => {
+test('the former Area Directory route opens Inventory and source-backed records keep unknown coordinates', async ({ page, request }) => {
   await login(page);
   await page.goto('/broker/inventory/directory');
-  await expect(page.getByRole('heading', { name: 'Area Directory', exact: true })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Search directory' }).fill('EDEN');
-  await expect(page.getByRole('button', { name: /102 EDEN ESTATE/ }).first()).toBeVisible();
-  await page
-    .getByRole('button', { name: /102 EDEN ESTATE/ })
-    .first()
-    .click();
-  await expect(page.getByRole('link', { name: 'Official record ↗' })).toHaveAttribute('href', /haryanarera.gov.in/);
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Search directory' }).fill('');
-  await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());
-  await page.getByRole('button', { name: 'Show map' }).click();
-  await expect(page.getByTitle('Gurugram project map')).toBeVisible();
-  await expect(page.frameLocator('iframe[title="Gurugram project map"]').locator('.leaflet-container')).toBeVisible();
+  await expect(page).toHaveURL(/\/broker\/inventory$/);
+  await expect(page.getByRole('heading', { name: 'Available Inventory', exact: true })).toBeVisible();
+  const session = await page.evaluate(() => JSON.parse(localStorage.getItem('biq.auth')!));
+  const headers = { Authorization: 'Bearer ' + session.accessToken };
+  const response = await request.get(API + '/area-directory', { headers, params: { search: '102 EDEN ESTATE', provider: 'HARERA' } });
+  expect(response.ok(), await response.text()).toBe(true);
+  const project = (await response.json()).items.find(({ name }: { name: string }) => name === '102 EDEN ESTATE');
+  expect(project).toMatchObject({ provider: 'HARERA', latitude: null, longitude: null });
+  expect(project.sourceUrl).toContain('haryanarera.gov.in');
+  const mapped = await request.get(API + '/area-directory/map', { headers, params: { search: '102 EDEN ESTATE' } });
+  expect(mapped.ok(), await mapped.text()).toBe(true);
+  expect((await mapped.json()).items).not.toContainEqual(expect.objectContaining({ id: project.id }));
 });

@@ -22,29 +22,22 @@ test('property upload persists and photo links enter the lead draft, then avatar
   const leadId = (await lead.json()).id;
   await page.goto('/');
   await page.evaluate((s) => localStorage.setItem('biq.auth', JSON.stringify(s)), session);
-  await page.goto('/broker/inventory');
-  await page.getByRole('button', { name: 'Card view', exact: true }).click();
-  await page
-    .getByRole('article')
-    .filter({ has: page.getByRole('heading', { name: 'Apartment 62' }) })
-    .getByRole('button', { name: 'Details →' })
-    .click();
-  let dialog = page.getByRole('dialog');
-  const savedPhoto = page.waitForResponse((r) => r.url().endsWith('/inventory/' + item.id) && r.request().method() === 'PATCH' && r.ok());
-  await dialog.locator('input[type=file]').setInputFiles(imageFile);
+  await page.goto('/broker/inventory/' + item.id);
+  const savedPhoto = page.waitForResponse((r) => r.url().endsWith('/inventory/' + item.id + '/photos') && r.request().method() === 'PATCH' && r.ok());
+  await page.getByLabel('Select photo files').setInputFiles(imageFile);
   await savedPhoto;
-  await expect(dialog.getByAltText('Property photograph 2')).toBeVisible();
+  await expect(page.getByAltText('Property photo 2')).toBeVisible();
   const saved = await (await request.get(API + '/inventory/' + item.id, { headers })).json();
   expect(saved.photoUrls).toHaveLength(2);
   const image = await request.get(saved.photoUrls[1]);
   expect(image.ok()).toBe(true);
   expect(image.headers()['content-type']).toContain('image/');
-  await dialog.getByRole('button', { name: 'Prepare WhatsApp message' }).click();
-  dialog = page.getByRole('dialog').filter({ hasText: 'Prepare property message' });
+  await page.getByRole('button', { name: 'Share property', exact: true }).click();
+  const dialog = page.getByRole('dialog').filter({ hasText: 'Prepare property message' });
   await dialog.getByRole('button', { name: 'Client Sharing Pitch' }).click();
   await dialog.getByPlaceholder('Lead का नाम या phone लिखें…').fill('Isolated photo workflow');
   await dialog.getByRole('button', { name: /Isolated photo workflow recipient/ }).click();
-  await dialog.getByLabel('Include property photo links').check();
+  await dialog.getByLabel('Include photo gallery link').check();
   await dialog.getByRole('button', { name: 'Email', exact: true }).click();
   await dialog.getByRole('button', { name: 'Open Email Inbox', exact: true }).click();
   await expect(page).toHaveURL(new RegExp('/broker/inbox\\?lead=' + leadId + '&channel=EMAIL$'));
@@ -85,7 +78,7 @@ test('property upload persists and photo links enter the lead draft, then avatar
     },
     { leadId, user: session.user },
   );
-  expect(draft.text).toContain(photo);
+  expect(draft.text).toMatch(/\/photos\/[a-f0-9]{48}/);
   expect(draft.extractable).toBe(false);
   expect(page.url()).not.toContain('Property photos');
   await page.goto('/broker/settings');
