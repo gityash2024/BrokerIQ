@@ -106,3 +106,36 @@ test('rich inventory details remain usable at desktop and phone widths', async (
   await page.screenshot({ path: testInfo.outputPath('inventory-detail-phone24.png') });
   expect(errors).toEqual([]);
 });
+
+test('inventory edit returns through details to the selected custom folder and filters', async ({ page, request }) => {
+  const { session } = await createBrokerFixture(request);
+  const headers = { Authorization: 'Bearer ' + session.accessToken };
+  const folderResponse = await request.post(API + '/inventory/folder-definitions', {
+    headers, data: { kind: 'CUSTOM', label: 'Walkthrough folder' },
+  });
+  expect(folderResponse.status()).toBe(201);
+  const folder = await folderResponse.json();
+  const propertyResponse = await request.post(API + '/inventory', {
+    headers, data: { houseNo: '241', sector: 'Sector 30', purpose: 'RENT', monthlyRent: 39000, customFolderId: folder.id },
+  });
+  expect(propertyResponse.status()).toBe(201);
+  const property = await propertyResponse.json();
+  const record = '/broker/inventory/' + property.id;
+  await page.goto('/login');
+  await page.evaluate((auth) => localStorage.setItem('biq.auth', JSON.stringify(auth)), session);
+  await page.goto('/broker/inventory/data');
+  const selectedFolder = page.getByLabel('Inventory folder');
+  const search = page.getByRole('textbox', { name: 'Search inventory' });
+  await selectedFolder.selectOption(folder.id);
+  await search.fill(property.propertyCode);
+  await page.getByText(property.propertyCode, { exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === record);
+  await page.getByRole('button', { name: 'Edit property', exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === record + '/edit');
+  await page.getByRole('link', { name: 'Property details', exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === record);
+  await page.getByRole('link', { name: 'Inventory', exact: true }).last().click();
+  await expect(page).toHaveURL((url) => url.pathname === '/broker/inventory/data');
+  await expect(selectedFolder).toHaveValue(folder.id);
+  await expect(search).toHaveValue(property.propertyCode);
+});
