@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { z } from 'zod';
+import { MAX_PROPERTY_VIDEO_PHOTOS } from '@brokeriq/shared';
 import { AiService } from '../../core/ai/ai.service';
 import { JobsService } from '../../core/jobs/jobs.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
@@ -25,7 +26,8 @@ const videoBinary = (name: 'ffmpeg' | 'ffprobe') => {
 };
 const jobType = 'property.video.extract';
 const formats = ['video/mp4', 'video/quicktime', 'video/webm'];
-const verifiedFrames = z.object({ keep: z.array(z.number().int().min(1).max(5)).max(5) });
+const verifiedFrames = z.object({ keep: z.array(z.number().int().min(1).max(MAX_PROPERTY_VIDEO_PHOTOS)).max(MAX_PROPERTY_VIDEO_PHOTOS) });
+const candidateCount = 40;
 const ttl = 24 * 60 * 60_000;
 
 type ScoredFrame = { data: Buffer; index: number; quality: number; signature: boolean[] };
@@ -79,9 +81,9 @@ export async function extractPropertyFrames(video: Buffer): Promise<Buffer[]> {
         '-filter_threads',
         '1',
         '-vf',
-        `fps=${Math.min(4, 20 / duration)}:start_time=0,scale=1280:1280:force_original_aspect_ratio=decrease`,
+        `fps=${Math.min(4, candidateCount / duration)}:start_time=0,scale=1280:1280:force_original_aspect_ratio=decrease`,
         '-frames:v',
-        '20',
+        String(candidateCount),
         '-threads',
         '1',
         '-q:v',
@@ -97,7 +99,7 @@ export async function extractPropertyFrames(video: Buffer): Promise<Buffer[]> {
     for (const candidate of candidates.sort((a, b) => b.quality - a.quality)) {
       if (candidate.quality < 2 || unique.some((prior) => prior.signature.filter((bit, i) => bit !== candidate.signature[i]).length < 9)) continue;
       unique.push(candidate);
-      if (unique.length === 5) break;
+      if (unique.length === MAX_PROPERTY_VIDEO_PHOTOS) break;
     }
     return unique.sort((a, b) => a.index - b.index).map((frame) => frame.data);
   } finally {
@@ -236,12 +238,12 @@ export class PropertyVideoService implements OnModuleInit {
         .toBuffer();
       const answer = await this.ai.vision(
         'data:image/jpeg;base64,' + sheet.toString('base64'),
-        'Keep only clear, distinct property interior or exterior photos. Exclude duplicate angles, unreadable images, unrelated subjects, identifiable people and documents. Return the 1-based labels in {"keep":[1,2]} using only labels actually pictured. Return an empty keep array if none are suitable.',
-        { feature: 'property_video', orgId: row.organizationId, userId: row.userId, maxTokens: 100, responseSchema: verifiedFrames, strictSchema: true },
+        'Choose the clearest photo of each distinct room or property area shown. Include useful exterior views. Exclude repeat views of the same room, unreadable images, unrelated subjects, identifiable people and documents. Return only the pictured 1-based labels in {"keep":[1,2]}, or an empty array if none are suitable.',
+        { feature: 'property_video', orgId: row.organizationId, userId: row.userId, maxTokens: 100, responseSchema: verifiedFrames, strictSchema: true, openRouterOnly: true },
       );
       const indices = [...new Set(verifiedFrames.parse(JSON.parse(answer)).keep)];
       if (indices.some((index) => index > frames.length)) return null;
-      return indices.map((index) => frames[index - 1]);
+      return indices.sort((a, b) => a - b).map((index) => frames[index - 1]);
     } catch {
       return null;
     }
@@ -258,7 +260,7 @@ export class PropertyVideoService implements OnModuleInit {
       return;
     }
     const verified = frames.length ? await this.verify(frames, row) : null;
-    const selected = verified ?? frames;
+    const selected = verified?.length ? verified : frames;
     const frameKeys: string[] = [];
     for (const [index, data] of selected.entries()) {
       const key = `propertyvideo/${row.userId}/${row.sourceKey.split('/')[2]}/${createHash('sha256').update(`${id}:preview:${index}`).digest('hex').slice(0, 20)}`;
@@ -267,7 +269,7 @@ export class PropertyVideoService implements OnModuleInit {
     }
     await this.db.propertyVideoExtraction.updateMany({
       where: { id, state: 'PROCESSING' },
-      data: { state: frameKeys.length ? 'READY' : 'FAILED', frameKeys, aiVerified: verified !== null },
+      data: { state: frameKeys.length ? 'READY' : 'FAILED', frameKeys, aiVerified: Boolean(verified?.length) },
     });
   }
 

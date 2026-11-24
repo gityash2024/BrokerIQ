@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { z } from 'zod';
+import { MAX_PROPERTY_VIDEO_PHOTOS } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PropertyVideoService } from './property-video.service';
 
 const upload = z.object({ contentType: z.string().max(60) });
-const selection = z.object({ indices: z.array(z.number().int().min(0).max(4)).min(1).max(5) });
+const selection = z.object({ indices: z.array(z.number().int().min(0).max(MAX_PROPERTY_VIDEO_PHOTOS - 1)).min(1).max(MAX_PROPERTY_VIDEO_PHOTOS) });
 
 @Controller('media/property-video')
 @Roles('BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER', 'SUPER_ADMIN')

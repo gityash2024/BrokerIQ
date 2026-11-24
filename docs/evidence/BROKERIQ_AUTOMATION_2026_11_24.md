@@ -164,3 +164,8 @@ Later work for Connect transcription limits, local lead review, retention, free-
 
 - Revision `9c802371a8a2a2c2d9a2fe13f790a8da4249b636` pins Android v2.3.60 with the Repeat Survey and WhatsApp photo indicator changes for Web and Mobile. The isolated API regression passed 616 tests with 37 conditional skips. All 37 browser scenarios passed across the full run and two successful retries after an interrupted browser session. The Mobile suite passed 168 checks and the shared suite passed 93.
 - The 18:12 IST staging snapshot was authenticated off-host and restored into a new local database. All 117 tables, 2,251 storage objects and 30 private KYC documents matched. The Repeat Survey migration alone applied to the restore, with matching pre-existing content digests across 116 business tables and no prior entry marked for Repeat Survey. No application started against the restored database.
+
+## Property walkthrough photos
+
+- Editable property detail and editor flows retain regular photo upload and offer video extraction in Web and Mobile. The worker samples across the walkthrough and can present up to eight distinct frames. Free vision can select representative views of different rooms. The user confirms the selected frames before they enter the property gallery.
+- The existing photo endpoint accepts either one regular photo or one atomic set of approved frames. The API test reviewed eight distinct fixture scenes, saved three selected frames alongside a prior photo, rejected another firm and verified that concurrent retries only added one set. The browser verified real video upload and approval on an empty gallery as well as normal photo upload. The Native verification covered the file upload, frame selection and batch attachment.

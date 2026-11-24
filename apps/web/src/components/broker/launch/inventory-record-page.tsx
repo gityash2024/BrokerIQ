@@ -120,6 +120,14 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
     );
   }
 
+  async function attachPropertyPhotos(propertyId: string, body: { url: string } | { urls: string[] }) {
+    const updated = await api<LedgerItem>(`/inventory/${propertyId}/photos`, {
+      method: 'PATCH', ownerContext: captureAccountContext(), body,
+    });
+    client.setQueryData(key, updated);
+    await refresh();
+  }
+
   async function archive(restore = false) {
     if (!item || changing || (!restore && !window.confirm('Archive this private property? Any public listing will be withdrawn.'))) return;
     setChanging(true);
@@ -258,15 +266,12 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                 }
                 onUploadPhoto={
                   item.canEdit !== false && (!delegated || hasDelegatedAccess(user, 'inventory', 'edit'))
-                    ? async (url) => {
-                        const updated = await api<LedgerItem>(`/inventory/${item.id}/photos`, {
-                          method: 'PATCH',
-                          ownerContext: captureAccountContext(),
-                          body: { url },
-                        });
-                        client.setQueryData(key, updated);
-                        await refresh();
-                      }
+                    ? (url) => attachPropertyPhotos(item.id, { url })
+                    : undefined
+                }
+                onUploadExtractedPhotos={
+                  item.canEdit !== false && (!delegated || hasDelegatedAccess(user, 'inventory', 'edit'))
+                    ? (urls) => attachPropertyPhotos(item.id, { urls })
                     : undefined
                 }
               />

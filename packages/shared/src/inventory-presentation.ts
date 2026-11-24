@@ -197,6 +197,19 @@ export function ownerChangeSummary(changes: OwnerEditableProperty) {
   });
 }
 
+export const MAX_PROPERTY_VIDEO_PHOTOS = 8;
+
+export function propertyVideoContentType(type: string | null | undefined, name: string) {
+  const mime = type?.toLowerCase().split(';')[0].trim();
+  if (mime === 'video/mp4' || mime === 'video/quicktime' || mime === 'video/webm') return mime;
+  if (mime === 'video/x-m4v') return 'video/mp4';
+  if (mime && mime !== 'application/octet-stream') return undefined;
+  if (/\.mov$/i.test(name)) return 'video/quicktime';
+  if (/\.webm$/i.test(name)) return 'video/webm';
+  if (/\.(mp4|m4v)$/i.test(name)) return 'video/mp4';
+  return undefined;
+}
+
 export type PropertyVideoStatus = {
   state: 'AWAITING_UPLOAD' | 'PROCESSING' | 'READY' | 'FAILED' | 'SAVED' | 'CANCELLED';
   frames: string[];

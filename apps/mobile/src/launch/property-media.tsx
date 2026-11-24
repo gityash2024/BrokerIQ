@@ -3,7 +3,7 @@ import { Image, Linking, View } from 'react-native';
 import * as ImagePicker from '@/lib/image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { File } from 'expo-file-system';
-import type { PropertyVideoStatus, PropertyVideoUpload } from '@brokeriq/shared';
+import { propertyVideoContentType, type PropertyVideoStatus, type PropertyVideoUpload } from '@brokeriq/shared';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Button, Txt } from '@/ui';
 import { api, assertAccountContext, captureAccountContext, errorMessage, img, uploadUri } from '@/lib/api';
@@ -20,20 +20,24 @@ export function NativePropertyMedia({
   photos,
   videos = [],
   onAdd,
+  onAddExtracted,
   onRemove,
   onUploading,
   disabled = false,
   onlyPhotos = false,
+  extractionOnly = false,
   camera = false,
   photoLabel = 'Property photos',
 }: {
   photos: readonly string[];
   videos?: readonly string[];
   onAdd?: (kind: 'photoUrls' | 'videoUrls', url: string) => void | Promise<void>;
+  onAddExtracted?: (urls: string[]) => Promise<void>;
   onRemove?: (kind: 'photoUrls' | 'videoUrls', index: number) => void;
   onUploading?: (busy: boolean) => void;
   disabled?: boolean;
   onlyPhotos?: boolean;
+  extractionOnly?: boolean;
   camera?: boolean;
   photoLabel?: string;
 }) {
@@ -42,6 +46,7 @@ export function NativePropertyMedia({
   const [extraction, setExtraction] = useState<{ id: string; result: PropertyVideoStatus; selected: number[] }>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const canExtract = Boolean(onAddExtracted || onAdd);
 
   async function add(video: boolean, useCamera = false) {
     if (!onAdd || running.current || disabled) return;
@@ -85,7 +90,7 @@ export function NativePropertyMedia({
   }
 
   async function extract() {
-    if (!onAdd || running.current || disabled) return;
+    if (!canExtract || running.current || disabled) return;
     const ownerContext = captureAccountContext();
     running.current = true;
     setPending(true);
@@ -96,15 +101,15 @@ export function NativePropertyMedia({
       const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], videoExportPreset: ImagePicker.VideoExportPreset.Passthrough });
       if (picked.canceled) return;
       const asset = picked.assets[0];
-      const contentType = asset.mimeType ?? (/\.mov$/i.test(asset.fileName ?? '') ? 'video/quicktime' : 'video/mp4');
       const file = new File(asset.uri);
+      const contentType = propertyVideoContentType(asset.mimeType, asset.fileName || file.name);
+      if (!contentType || !file.size) throw new Error('Choose a nonempty MP4, MOV or WebM video.');
       const signed = await api<PropertyVideoUpload>('/media/property-video', { body: { contentType }, ownerContext });
       id = signed.id;
-      if (!file.size || file.size > signed.maxBytes) throw new Error('Choose a nonempty video up to 100 MB.');
-      const bytes = await file.bytes();
+      if (file.size > signed.maxBytes) throw new Error('Choose a video up to 100 MB.');
       assertAccountContext(ownerContext);
-      const uploaded = await fetch(signed.uploadUrl, { method: 'PUT', headers: signed.headers, body: bytes as Uint8Array<ArrayBuffer> });
-      if (!uploaded.ok) throw new Error('Video upload failed. Select it again.');
+      const uploaded = await file.createUploadTask(signed.uploadUrl, { httpMethod: 'PUT', headers: signed.headers }).uploadAsync();
+      if (uploaded.status < 200 || uploaded.status >= 300) throw new Error('Video upload failed. Select it again.');
       await api(`/media/property-video/${id}/start`, { method: 'POST', ownerContext });
       for (let attempt = 0; attempt < 75; attempt++) {
         const result = await api<PropertyVideoStatus>(`/media/property-video/${id}`, { ownerContext });
@@ -128,7 +133,7 @@ export function NativePropertyMedia({
   }
 
   async function finishExtraction(save: boolean) {
-    if (!extraction || !onAdd || running.current || disabled) return;
+    if (!extraction || !canExtract || running.current || disabled) return;
     const ownerContext = captureAccountContext();
     running.current = true;
     setPending(true);
@@ -137,11 +142,17 @@ export function NativePropertyMedia({
     try {
       if (save) {
         const { urls: generated } = await api<{ urls: string[] }>(`/media/property-video/${extraction.id}/save`, { body: { indices: extraction.selected }, ownerContext });
-        for (const url of generated) {
+        if (onAddExtracted) {
           assertAccountContext(ownerContext);
-          if (attachedFrames.current.has(url) || photos.includes(url)) continue;
-          await onAdd('photoUrls', url);
-          attachedFrames.current.add(url);
+          await onAddExtracted(generated);
+          generated.forEach((url) => attachedFrames.current.add(url));
+        } else if (onAdd) {
+          for (const url of generated) {
+            assertAccountContext(ownerContext);
+            if (attachedFrames.current.has(url) || photos.includes(url)) continue;
+            await onAdd('photoUrls', url);
+            attachedFrames.current.add(url);
+          }
         }
         await api(`/media/property-video/${extraction.id}/complete`, { method: 'POST', ownerContext });
       } else {
@@ -157,16 +168,18 @@ export function NativePropertyMedia({
     }
   }
 
+  if (extractionOnly && photos.length >= 50 && !extraction && !error) return null;
+
   return (
     <View style={{ gap: 10 }}>
-      <Txt v="h3">{photoLabel}</Txt>
-      {camera && !!onAdd && photos.length < 50 && (
+      {!extractionOnly && <Txt v="h3">{photoLabel}</Txt>}
+      {!extractionOnly && camera && !!onAdd && photos.length < 50 && (
         <Button title="Take property photo" variant="secondary" disabled={disabled || pending} onPress={() => void add(false, true)} />
       )}
-      {!!onAdd && photos.length < 50 && (
+      {!extractionOnly && !!onAdd && photos.length < 50 && (
         <Button title={pending ? 'Uploading…' : 'Upload photos'} variant="secondary" disabled={disabled || pending} onPress={() => void add(false)} />
       )}
-      {!!onAdd && !extraction && photos.length < 50 && (
+      {canExtract && !extraction && photos.length < 50 && (
         <Button title={pending ? 'Processing…' : 'Extract photos from video'} variant="secondary" disabled={disabled || pending} onPress={() => void extract()} />
       )}
       {extraction && (
@@ -187,7 +200,7 @@ export function NativePropertyMedia({
           <Button title="Discard" variant="ghost" disabled={disabled || pending} onPress={() => void finishExtraction(false)} />
         </View>
       )}
-      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+      {!extractionOnly && <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {photos.map((url, i) => (
           <View key={`${url}-${i}`} style={{ gap: 4 }}>
             <Image source={{ uri: img(url, 320) }} accessibilityLabel={`Property photo ${i + 1}`} style={{ width: 100, height: 76, borderRadius: 10 }} />
@@ -196,8 +209,8 @@ export function NativePropertyMedia({
             )}
           </View>
         ))}
-      </View>
-      {!onlyPhotos && (
+      </View>}
+      {!extractionOnly && !onlyPhotos && (
         <>
           <Txt v="h3">Property videos</Txt>
           {!!onAdd && videos.length < 10 && (

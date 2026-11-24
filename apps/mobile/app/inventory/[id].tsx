@@ -1,4 +1,5 @@
 import { PropertyOwnerPanel } from '@/launch/property-owner-panel';
+import { NativePropertyMedia } from '@/launch/property-media';
 import { NativeInventoryRecordActions } from '@/launch/inventory-record-actions';
 import { goBack } from '@/lib/navigation';
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
@@ -70,6 +71,7 @@ export default function PropertyDetail() {
   const [shareWithLead, setShareWithLead] = useState(share === '1');
   const [updatingAssignee, setUpdatingAssignee] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [extractingPhotos, setExtractingPhotos] = useState(false);
   const [savingCover, setSavingCover] = useState(false);
 
   const q = useQuery({
@@ -118,6 +120,18 @@ export default function PropertyDetail() {
     } finally {
       setUploadingPhoto(false);
     }
+  }
+
+  async function addExtractedPhotos(urls: string[]) {
+    if (!item || !canEdit || item.deletedAt) throw new Error('Photo upload is unavailable for this property.');
+    const updated = await api<LedgerItem>(`/inventory/${item.id}/photos`, {
+      method: 'PATCH',
+      ownerContext: captureAccountContext(),
+      body: { urls },
+    });
+    qc.setQueryData(['ledger-item', id], updated);
+    await Promise.all([qc.invalidateQueries({ queryKey: ['ledger-item', id] }), qc.invalidateQueries({ queryKey: ['ledger'] })]);
+    toast.success('Selected photos saved to this property');
   }
 
   async function setAgentCover(url: string | null) {
@@ -579,7 +593,17 @@ export default function PropertyDetail() {
             )}
 
             {!item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
-              <Button title="Add property photo" disabled={!canEdit || savingCover} variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
+              <Button title="Add property photo" disabled={!canEdit || savingCover || extractingPhotos} variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
+            )}
+            {!item.deletedAt && canEdit && (
+              <NativePropertyMedia
+                key={item.id}
+                extractionOnly
+                photos={item.photoUrls ?? []}
+                disabled={uploadingPhoto || savingCover}
+                onUploading={setExtractingPhotos}
+                onAddExtracted={addExtractedPhotos}
+              />
             )}
             {/* Photos & Videos */}
             {!!item.agentCoverPhotoUrl && !item.photoUrls?.length && (
@@ -602,7 +626,7 @@ export default function PropertyDetail() {
                     <Button
                       title={item.agentCoverPhotoUrl === uri ? 'Remove agent cover photo' : `Set photo ${index + 1} as agent cover`}
                       variant="secondary"
-                      disabled={savingCover || uploadingPhoto}
+                      disabled={savingCover || uploadingPhoto || extractingPhotos}
                       onPress={() => void setAgentCover(item.agentCoverPhotoUrl === uri ? null : uri)}
                     />
                   </>

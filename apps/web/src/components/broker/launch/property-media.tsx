@@ -5,11 +5,12 @@ import { ImagePlus, Video, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api, assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
 import { img } from '@/lib/utils';
-import { shareablePropertyPhotoUrls, type PropertyVideoStatus, type PropertyVideoUpload } from '@brokeriq/shared';
+import { propertyVideoContentType, shareablePropertyPhotoUrls, type PropertyVideoStatus, type PropertyVideoUpload } from '@brokeriq/shared';
 
 export function PropertyMedia({
   urls,
   onAdd,
+  onAddExtracted,
   onRemove,
   onUploading,
   video = false,
@@ -21,6 +22,7 @@ export function PropertyMedia({
 }: {
   urls: readonly string[];
   onAdd: (url: string) => void | Promise<void>;
+  onAddExtracted?: (urls: string[]) => Promise<void>;
   onRemove?: (index: number) => void;
   onUploading?: (busy: boolean) => void;
   video?: boolean;
@@ -97,7 +99,9 @@ export function PropertyMedia({
     setError('');
     let id: string | undefined;
     try {
-      const signed = await api<PropertyVideoUpload>('/media/property-video', { body: { contentType: file.type }, ownerContext });
+      const contentType = propertyVideoContentType(file.type, file.name);
+      if (!contentType || !file.size) throw new Error('Choose a nonempty MP4, MOV or WebM video.');
+      const signed = await api<PropertyVideoUpload>('/media/property-video', { body: { contentType }, ownerContext });
       id = signed.id;
       if (file.size > signed.maxBytes) throw new Error('Choose a video up to 100 MB.');
       const response = await fetch(signed.uploadUrl, { method: 'PUT', headers: signed.headers, body: file });
@@ -134,11 +138,17 @@ export function PropertyMedia({
     try {
       if (save) {
         const { urls: generated } = await api<{ urls: string[] }>(`/media/property-video/${extraction.id}/save`, { body: { indices: extraction.selected }, ownerContext });
-        for (const url of generated) {
+        if (onAddExtracted) {
           assertAccountContext(ownerContext);
-          if (attachedFrames.current.has(url) || urls.includes(url)) continue;
-          await onAdd(url);
-          attachedFrames.current.add(url);
+          await onAddExtracted(generated);
+          generated.forEach((url) => attachedFrames.current.add(url));
+        } else {
+          for (const url of generated) {
+            assertAccountContext(ownerContext);
+            if (attachedFrames.current.has(url) || urls.includes(url)) continue;
+            await onAdd(url);
+            attachedFrames.current.add(url);
+          }
         }
         await api(`/media/property-video/${extraction.id}/complete`, { method: 'POST', ownerContext });
       } else {

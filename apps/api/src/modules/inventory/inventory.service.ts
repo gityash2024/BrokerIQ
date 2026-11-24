@@ -1162,16 +1162,17 @@ export class InventoryService {
     });
     return this.propertyPhotos.inventory(ledgerJson(item));
   }
-  async addPhoto(id: string, url: string, user: RequestUser) {
+  async addPhotos(id: string, urls: string[], user: RequestUser) {
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id, deletedAt: null }, include });
       if (!current) throw new NotFoundException('Inventory item not found');
-      if (current.photoUrls.includes(url)) return { item: current, changed: false };
-      if (current.photoUrls.length >= 50) throw new BadRequestException('A property can have up to 50 photos');
+      const newUrls = [...new Set(urls)].filter((url) => !current.photoUrls.includes(url));
+      if (!newUrls.length) return { item: current, changed: false };
+      if (current.photoUrls.length + newUrls.length > 50) throw new BadRequestException('A property can have up to 50 photos');
       const item = await tx.inventoryItem.update({
         where: { id },
-        data: { photoUrls: { push: url }, revision: { increment: 1 } },
+        data: { photoUrls: { push: newUrls }, revision: { increment: 1 } },
         include,
       });
       return { item, changed: true };

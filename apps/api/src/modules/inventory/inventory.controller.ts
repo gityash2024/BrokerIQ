@@ -200,10 +200,13 @@ export class InventoryController {
   }
   @Patch(':id/photos') addPhoto(
     @Param('id') id: string,
-    @Body(new ZodPipe(z.object({ url: inventoryInputSchema.shape.photoUrls.unwrap().element }))) body: { url: string },
+    @Body(new ZodPipe(z.union([
+      z.object({ url: inventoryInputSchema.shape.photoUrls.unwrap().element }),
+      z.object({ urls: inventoryInputSchema.shape.photoUrls.unwrap().min(1) }),
+    ]))) body: { url: string } | { urls: string[] },
     @CurrentUser() user: RequestUser,
   ) {
-    return this.inventory.addPhoto(id, body.url, user);
+    return this.inventory.addPhotos(id, 'urls' in body ? body.urls : [body.url], user);
   }
   @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
   @Patch(':id/agent-cover-photo')

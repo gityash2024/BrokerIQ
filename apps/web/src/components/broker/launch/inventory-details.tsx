@@ -23,6 +23,7 @@ export function InventoryDetails({
   onArchive,
   onRestore,
   onUploadPhoto,
+  onUploadExtractedPhotos,
   onSetAgentCoverPhoto,
 }: {
   sourceHref?: string | null;
@@ -30,6 +31,7 @@ export function InventoryDetails({
   onArchive?: () => void;
   onRestore?: () => void;
   onUploadPhoto?: (url: string) => Promise<void>;
+  onUploadExtractedPhotos?: (urls: string[]) => Promise<void>;
   onSetAgentCoverPhoto?: (url: string | null) => Promise<void>;
   item: LedgerItem;
   onEdit?: () => void;
@@ -221,6 +223,7 @@ export function InventoryDetails({
                     camera={survey}
                     disabled={!!item.deletedAt || !onUploadPhoto}
                     onAdd={(url) => onUploadPhoto?.(url)}
+                    onAddExtracted={onUploadExtractedPhotos}
                     agentCoverPhotoUrl={item.agentCoverPhotoUrl}
                     onSetAgentCoverPhoto={onSetAgentCoverPhoto}
                   />

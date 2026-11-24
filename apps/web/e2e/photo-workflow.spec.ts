@@ -1,8 +1,49 @@
 import { expect, test } from '@playwright/test';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { inventoryMonth } from '@brokeriq/shared';
 import { API, createBrokerFixture } from './fixtures';
+
+test('an empty property gallery offers normal upload and saves reviewed video frames', async ({ page, request }) => {
+  test.setTimeout(95_000);
+  const folder = mkdtempSync(resolve(tmpdir(), 'brokeriq-browser-video-'));
+  const file = resolve(folder, 'walkthrough.mp4');
+  try {
+    execFileSync(process.env.PROPERTY_VIDEO_FFMPEG ?? 'ffmpeg', [
+      '-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=duration=2:size=320x240:rate=10', '-an', '-c:v', 'mpeg4', file,
+    ]);
+    const { session } = await createBrokerFixture(request);
+    const headers = { Authorization: 'Bearer ' + session.accessToken };
+    const response = await request.post(API + '/inventory', {
+      headers, data: { houseNo: 'Video test', sector: 'Sector 45', purpose: 'RENT', propertyType: 'APARTMENT', availability: 'UNKNOWN' },
+    });
+    expect(response.status()).toBe(201);
+    const item = await response.json();
+    await page.goto('/');
+    await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
+    await page.goto('/broker/inventory/' + item.id);
+    await expect(page.getByRole('button', { name: 'Upload photos', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Extract photos from video', exact: true })).toBeEnabled();
+    await page.getByLabel('Select a video for property photos').setInputFiles(file);
+    const review = page.getByLabel('Review extracted property photos');
+    await expect(review.getByRole('checkbox').first()).toBeVisible({ timeout: 60_000 });
+    for (const box of (await review.getByRole('checkbox').all()).slice(1)) await box.uncheck();
+    const attached = page.waitForResponse((r) => r.url().endsWith(`/inventory/${item.id}/photos`) && r.request().method() === 'PATCH' && r.ok());
+    await review.getByRole('button', { name: 'Add selected photos' }).click();
+    const result = await attached;
+    expect(result.request().postDataJSON().urls).toHaveLength(1);
+    await expect(review).toHaveCount(0);
+    const saved = await (await request.get(API + '/inventory/' + item.id, { headers })).json();
+    expect(saved.photoUrls).toHaveLength(1);
+    expect(saved.videoUrls ?? []).toHaveLength(0);
+    await expect(page.getByRole('button', { name: 'Upload photos', exact: true })).toBeEnabled();
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
 
 test('WhatsApp Share property marks shareable photos before choosing a property', async ({ page, request }) => {
   const { session } = await createBrokerFixture(request);

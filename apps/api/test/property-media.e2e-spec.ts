@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -161,16 +162,26 @@ describe('Property identity, watermark and video extraction', () => {
       .expect(404);
   });
 
-  it('isolates video jobs, uses manual review when AI fails, and deletes the video only after completing the save', async () => {
+  it('reviews eight distinct walkthrough scenes and saves only approved frames to the same property', async () => {
     const file = join(work, 'video.mp4');
+    for (let scene = 0; scene < 8; scene++) {
+      const hash = createHash('sha256').update(`scene-${scene}`).digest();
+      const pixels = Buffer.from(Array.from({ length: 80 }, (_, cell) => (hash[cell % hash.length] & 1 ? 224 : 36)));
+      await sharp(pixels, { raw: { width: 10, height: 8, channels: 1 } })
+        .resize(320, 240, { fit: 'fill', kernel: 'nearest' })
+        .jpeg()
+        .toFile(join(work, `scene-${String(scene + 1).padStart(2, '0')}.jpg`));
+    }
     await promisify(execFile)(env().PROPERTY_VIDEO_FFMPEG ?? 'ffmpeg', [
       '-v',
       'error',
-      '-f',
-      'lavfi',
+      '-framerate',
+      '1',
       '-i',
-      'testsrc2=duration=2:size=320x240:rate=10',
+      join(work, 'scene-%02d.jpg'),
       '-an',
+      '-pix_fmt',
+      'yuv420p',
       '-c:v',
       'mpeg4',
       file,
@@ -179,7 +190,7 @@ describe('Property identity, watermark and video extraction', () => {
     const previous = env().JOBS_ENABLED;
     try {
       env().JOBS_ENABLED = true;
-      const { body: upload } = await http().post('/api/media/property-video').set(auth(owner)).send({ contentType: 'video/mp4' }).expect(201);
+      const { body: upload } = await http().post('/api/media/property-video').set(auth()).send({ contentType: 'video/mp4' }).expect(201);
       env().JOBS_ENABLED = false;
       await http()
         .get('/api/media/property-video/' + upload.id)
@@ -196,28 +207,37 @@ describe('Property identity, watermark and video extraction', () => {
         .expect(404);
       await http()
         .post('/api/media/property-video/' + upload.id + '/start')
-        .set(auth(owner))
+        .set(auth())
         .expect(201);
       await (app.get(PropertyVideoService) as any).extract(upload.id);
       const { body: result } = await http()
         .get('/api/media/property-video/' + upload.id)
-        .set(auth(owner))
+        .set(auth())
         .expect(200);
       expect(result).toMatchObject({ aiVerified: false, state: 'READY' });
-      expect(result.frames.length).toBeGreaterThan(0);
-      expect(result.frames.length).toBeLessThanOrEqual(5);
+      expect(result.frames).toHaveLength(8);
+      expect(ai).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('distinct room'), expect.objectContaining({ openRouterOnly: true }));
       const save = () =>
         http()
           .post('/api/media/property-video/' + upload.id + '/save')
-          .set(auth(owner))
-          .send({ indices: [0] })
+          .set(auth())
+          .send({ indices: [0, 5, 7] })
           .expect(201);
       const first = await save();
       expect((await save()).body).toEqual(first.body);
+      expect(first.body.urls).toHaveLength(3);
+      const normalPhoto = 'https://example.test/existing-property-photo.jpg';
+      const property = await db.inventoryItem.create({ data: { organizationId: firm, sourceType: 'MANUAL', purpose: 'RENT', photoUrls: [normalPhoto] } });
+      const attach = (token = staff) => http().patch(`/api/inventory/${property.id}/photos`).set(auth(token)).send(first.body);
+      await attach(outside).expect(404);
+      await Promise.all([attach().expect(200), attach(delegate).expect(200)]);
+      const saved = await db.inventoryItem.findUniqueOrThrow({ where: { id: property.id } });
+      expect(saved.photoUrls).toEqual([normalPhoto, ...first.body.urls]);
+      expect(saved.revision).toBe(property.revision + 1);
       expect((await app.get(LocalStorageService).read(row.sourceKey)).contentType).toBe('video/mp4');
       await http()
         .post('/api/media/property-video/' + upload.id + '/complete')
-        .set(auth(owner))
+        .set(auth())
         .expect(201);
       await expect(app.get(LocalStorageService).read(row.sourceKey)).rejects.toThrow();
       await http().get(new URL(first.body.urls[0]).pathname).expect(200);
