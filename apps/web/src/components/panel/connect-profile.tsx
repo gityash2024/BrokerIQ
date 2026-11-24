@@ -13,7 +13,11 @@ import { ApiErrorState } from '@/components/ui/api-error';
 type Profile = { downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
+type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
+  applied: boolean; confidence: number; evidence: string };
+const surveyLabels = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
 type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number };
+  survey?: SurveySuggestion[];
   transcript?: { language: string; segments: { start: number; end: number; text: string }[] } } | null };
 
 export function ConnectProfile() {
@@ -102,6 +106,11 @@ export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enab
         {detail.data.details?.proposal?.summary && <p>{detail.data.details.proposal.summary}</p>}
         {detail.data.details?.proposal?.evidence && <blockquote className="border-l-2 border-line pl-3">{detail.data.details.proposal.evidence}</blockquote>}
         {detail.data.details?.proposal?.nextSteps?.map((item) => <p key={item}>{item}</p>)}
+        {detail.data.details?.survey?.map((field) => <div key={field.field} className="rounded-lg border border-line p-2">
+          <p><strong>{surveyLabels[field.field]}</strong> · {field.previous ?? 'Empty'} → {field.proposed}</p>
+          <p className="text-xs text-muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</p>
+          {field.evidence && <p className="text-xs">{field.evidence}</p>}
+        </div>)}
         {detail.data.details?.transcript?.segments.map((segment) => <p key={segment.start}><strong>{Math.floor(segment.start)}s</strong> {segment.text}</p>)}
       </div>}
     </Dialog>

@@ -268,6 +268,49 @@ export class ConnectService {
     return { id, status: 'PENDING' };
   }
 
+  private async surveySuggestions(tx: Prisma.TransactionClient, row: { id: string; leadId: string; userId: string; organizationId: string },
+    proposal: Insight, original: string, allowApply: boolean) {
+    if (proposal.intent !== 'OFFER' || !proposal.address || !original.toLowerCase().includes(proposal.address.toLowerCase())) return [];
+    const member = await tx.user.findFirst({ where: { id: row.userId, organizationId: row.organizationId, status: 'ACTIVE', deletedAt: null },
+      select: { role: true, delegatedPermissions: true } });
+    if (!member || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) return [];
+    if (member.role === 'SUB_BROKER_ADMIN' && !['inventory:view', 'inventory:edit'].every((grant) => member.delegatedPermissions.includes(grant))) return [];
+    const owners = member.role === 'BROKER_AGENT' ? { OR: [{ createdById: row.userId }, { assignedToId: row.userId }] } : {};
+    const matches = await tx.inventoryItem.findMany({ where: {
+      organizationId: row.organizationId, deletedAt: null, address: { equals: proposal.address, mode: 'insensitive' },
+      visits: { some: { leadId: row.leadId, organizationId: row.organizationId,
+        lead: { deletedAt: null, ...(member.role === 'BROKER_AGENT' ? { assignedToId: row.userId } : {}) } } }, ...owners,
+    }, take: 2, select: { id: true, furnishing: true, floor: true, bhk: true, purpose: true, status: true, verificationStatus: true,
+      publishedListingId: true, revision: true } });
+    if (matches.length !== 1) return [];
+    const survey = matches[0];
+    const evidence = proposal.evidence ?? '';
+    const floor = proposal.floor?.trim().replace(/[^a-zA-Z0-9 ]/g, '');
+    const evidenceFloor = floor && /\bfloor\b/i.test(floor) ? new RegExp(`\\b${floor}\\b`, 'i') : floor
+      ? new RegExp(`\\b(?:${floor}(?:st|nd|rd|th)?\\s+floor|floor\\s+${floor})\\b`, 'i') : null;
+    const suggestions = [
+      { field: 'bhk' as const, proposed: proposal.bedrooms, verified: new RegExp(`\\b${proposal.bedrooms}\\s*BHK\\b`, 'i').test(evidence) },
+      { field: 'floor' as const, proposed: proposal.floor, verified: Boolean(evidenceFloor?.test(evidence)) },
+      { field: 'purpose' as const, proposed: proposal.purpose, verified: proposal.purpose === 'RENT' ? /\brent(?:al)?\b/i.test(evidence) : /\bfor sale\b/i.test(evidence) },
+    ].flatMap(({ field, proposed, verified }) => proposed === undefined ? [] : [{
+      field, proposed, previous: survey[field], conflict: survey[field] !== null && survey[field] !== proposed,
+      verified, confidence: proposal.confidence, evidence, inventoryId: survey.id, applied: false,
+    }]);
+    const fill = suggestions.filter((suggestion) => suggestion.verified && suggestion.previous === null);
+    if (!allowApply || !evidence.toLowerCase().includes(proposal.address.toLowerCase()) || !fill.length || survey.status !== 'DRAFT' || survey.verificationStatus !== 'NEEDS_REVIEW' || survey.publishedListingId) return suggestions;
+    const fields = Object.fromEntries(fill.map(({ field, proposed }) => [field, proposed]));
+    const changed = await tx.inventoryItem.updateMany({
+      where: { id: survey.id, organizationId: row.organizationId, revision: survey.revision, sourceType: 'SURVEY', deletedAt: null, ...owners },
+      data: { ...fields, revision: { increment: 1 } },
+    });
+    if (changed.count) {
+      for (const field of fill) field.applied = true;
+      await tx.auditLog.create({ data: { actorId: row.userId, actorRole: member.role, organizationId: row.organizationId,
+        action: 'connect.survey.fill', entity: 'InventoryItem', entityId: survey.id, meta: { eventId: row.id, fields: Object.keys(fields) } } });
+    }
+    return suggestions;
+  }
+
   private async process(id: string) {
     const row = await this.db.connectEvent.findUnique({ where: { id }, include: { device: true } });
     if (!row || !['PENDING', 'PROCESSING', 'FAILED'].includes(row.status)) return;
@@ -307,7 +350,16 @@ export class ConnectService {
         const result = await tx.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: {
           encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal })), status: 'REVIEW',
         } });
-        if (!result.count || !proposal || proposal.confidence < 90 || !proposal.evidence || !redact(text).includes(proposal.evidence)) return;
+        if (!result.count || !proposal) return;
+        const eligible = proposal.confidence >= 90 && Boolean(proposal.evidence && redact(text).includes(proposal.evidence));
+        if (row.leadId && live.fillSurvey) {
+          const survey = await this.surveySuggestions(tx, { ...row, leadId: row.leadId }, proposal, text, eligible);
+          if (survey.length) await tx.connectEvent.update({ where: { id }, data: {
+            encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal, survey })),
+            status: survey.some((field) => field.applied) ? 'APPLIED' : 'REVIEW',
+          } });
+        }
+        if (!eligible) return;
         if (row.leadId && live.fillSurvey) {
           await tx.lead.updateMany({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null, aiSummary: null }, data: { aiSummary: proposal.summary } });
           await tx.activity.create({ data: { organizationId: row.organizationId, leadId: row.leadId,

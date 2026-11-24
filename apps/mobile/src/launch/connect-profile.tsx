@@ -13,7 +13,11 @@ const ConnectRecordingPlayer = lazy(() => import('./connect-recording-player'));
 type Profile = { downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
+type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
+  applied: boolean; confidence: number; evidence: string };
+const surveyLabels = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
 type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string };
+  survey?: SurveySuggestion[];
   transcript?: { segments: { start: number; text: string }[] } } | null };
 
 export function NativeConnectProfile() {
@@ -97,6 +101,11 @@ export function NativeConnectLeadActivity({ leadId, enabled }: { leadId?: string
         {detail.data.details?.proposal?.summary && <Txt>{detail.data.details.proposal.summary}</Txt>}
         {detail.data.details?.proposal?.evidence && <Txt v="caption" color="muted">{detail.data.details.proposal.evidence}</Txt>}
         {detail.data.details?.proposal?.nextSteps?.map((item) => <Txt key={item}>{item}</Txt>)}
+        {detail.data.details?.survey?.map((field) => <NativeCard key={field.field}>
+          <Txt v="bodyStrong">{surveyLabels[field.field]} · {field.previous ?? 'Empty'} → {field.proposed}</Txt>
+          <Txt v="caption" color="muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</Txt>
+          {!!field.evidence && <Txt v="small">{field.evidence}</Txt>}
+        </NativeCard>)}
         {detail.data.details?.transcript?.segments.map((segment) => <Txt key={segment.start}>{Math.floor(segment.start)}s · {segment.text}</Txt>)}
       </>}
     </Sheet>

@@ -20,8 +20,8 @@ Baseline Web revision `bdbbd540d04e61b4bae9e0f46c3acddea620d79b`. Released Andro
 | 12 | Promote verified WhatsApp demand in CRM | Scoped lead and requirement creation after structured validation. Real WhatsApp ingestion and update review remain pending. |
 | 13 | Create reviewed property drafts | Structured WhatsApp offer can create a private inventory draft. Real messages and updates of existing properties remain pending. |
 | 14 | Timestamped Hindi, English and Hinglish transcription | Faster Whisper worker integration. Audio sample, long call and speaker acceptance remain pending. |
-| 15 | Extract evidence and next steps | Structured proposal and transcript surfaces available. Real call accuracy remains unverified. |
-| 16 | Fill current Survey and Call fields by firm schema | Generalized runtime field application and conflict review remain pending. |
+| 15 | Extract evidence and next steps | Structured proposal and transcript surfaces available. Real call accuracy remains unverified. Quota-based retries defer to the provider window without consuming the ordinary retry budget. |
+| 16 | Fill current Survey and Call fields by firm schema | An exact address, live assignment and linked visit can supply a Survey draft with evidence-supported BHK, floor or purpose. Conflicting prior values are preserved and visible. Arbitrary firm-defined fields remain pending. |
 | 17 | Apply validated brokerage actions | Restricted lead and inventory actions. Task creation, visit suggestions, stale alerts and approval integrations remain incomplete. |
 | 18 | Web and Mobile profiles, activity and private playback | Both clients have UI and authenticated playback. Real recordings remain to be checked on Android and iOS. |
 | 19 | Connect app workspaces and device statuses | Compose navigation and sign-in screen verified on emulator. Functional screens require pilot credentials and a configured backend. |

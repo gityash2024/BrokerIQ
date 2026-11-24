@@ -4,6 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
+import { ConnectService } from '../src/modules/connect/connect.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -60,4 +61,31 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     await http().get('/api/auth/me').set(broker.headers).expect(401);
     await http().get('/api/auth/me').set(webHeaders).expect(200);
   });
+
+  it('fills only empty fields on an unverified scoped Survey draft and records the previous value', async () => {
+    const key = randomUUID();
+    const firm = await db.organization.create({ data: { name: 'Connect survey scope', slug: 'connect-survey-' + key } });
+    const agent = await db.user.create({ data: { name: 'Survey agent', organizationId: firm.id, role: 'BROKER_AGENT', email: key + '@e2e.test' } });
+    const lead = await db.lead.create({ data: { name: 'Survey lead', phone: '+919881188233', organizationId: firm.id, assignedToId: agent.id } });
+    const draft = await db.inventoryItem.create({ data: {
+      organizationId: firm.id, createdById: agent.id, assignedToId: agent.id, address: '34 Crown Court', floor: 'First floor', sourceType: 'SURVEY',
+    } });
+    await db.siteVisit.create({ data: { organizationId: firm.id, leadId: lead.id, inventoryId: draft.id, scheduledAt: new Date() } });
+    const row = { id: key, organizationId: firm.id, leadId: lead.id, userId: agent.id };
+    const evidence = '34 Crown Court is a 3 BHK for rent on the 2nd floor.';
+    const proposal = { address: draft.address!, summary: evidence, evidence, purpose: 'RENT' as const, bedrooms: 3, floor: '2', intent: 'OFFER' as const,
+      confidence: 97, objections: [], commitments: [], preferences: [], nextSteps: [] };
+    const service = app.get(ConnectService);
+    const suggestions = await db.$transaction((tx) => service['surveySuggestions'](tx, row, proposal, evidence, true));
+    expect(suggestions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'bhk', previous: null, proposed: 3, conflict: false, applied: true }),
+      expect.objectContaining({ field: 'floor', previous: 'First floor', proposed: '2', conflict: true, applied: false }),
+    ]));
+    expect(await db.inventoryItem.findUniqueOrThrow({ where: { id: draft.id } })).toMatchObject({
+      bhk: 3, purpose: 'RENT', floor: 'First floor', revision: 2,
+    });
+    await db.lead.update({ where: { id: lead.id }, data: { assignedToId: null } });
+    expect(await db.$transaction((tx) => service['surveySuggestions'](tx, row, proposal, evidence, true))).toEqual([]);
+  });
+
 });
