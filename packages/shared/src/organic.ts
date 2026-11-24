@@ -88,6 +88,7 @@ export const organicDeliveryInput = z.object({
 export type OrganicDeliveryInput = z.infer<typeof organicDeliveryInput>;
 export const organicQuery = z.object({
   kind: organicKind, page: z.coerce.number().int().min(1).max(10000).default(1),
+  view: z.enum(['DIRECT_OWNERS', 'OWNER_REVIEW', 'GENUINE_DEMAND', 'ALL']).optional(),
   status: organicStatus.optional(), sourceId: z.string().max(80).optional(),
   since: z.iso.date().optional(), until: z.iso.date().optional(), dateField: z.enum(['PUBLISHED', 'DISCOVERED', 'UNKNOWN']).default('PUBLISHED'),
   sectors: z.string().max(1500).optional(), locality: text.optional(), society: text.optional(), propertyType: text.optional(),

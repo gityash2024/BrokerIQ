@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { organicQuery } from '@brokeriq/shared';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -32,6 +33,15 @@ describe('Organic daily delivery', () => {
     expect(normalizeOrganicRecord(property, [], false)?.data.phone).toBeUndefined();
     expect(normalizeOrganicRecord({ ...property, city: 'Noida' }, [], true)).toBeNull();
     expect(nextOrganicTime('07:00', new Date('2026-11-24T01:31:00Z')).toISOString()).toBe('2026-11-25T01:30:00.000Z');
+  });
+
+  it('separates confirmed owners, uncertain owners and genuine demand while honoring explicit filters', () => {
+    const service = app.get(OrganicService);
+    const view = (query: Record<string, string>) => service.where(organicQuery.parse(query));
+    expect(view({ kind: 'SUPPLY', view: 'DIRECT_OWNERS' })).toMatchObject({ ownership: 'OWNER_CONFIRMED' });
+    expect(view({ kind: 'SUPPLY', view: 'OWNER_REVIEW' })).toMatchObject({ ownership: { in: ['OWNER_LIKELY', 'UNKNOWN'] } });
+    expect(view({ kind: 'DEMAND', view: 'GENUINE_DEMAND' })).toMatchObject({ intent: { in: expect.arrayContaining(['BUYER', 'TENANT']) } });
+    expect(view({ kind: 'SUPPLY', view: 'DIRECT_OWNERS', ownership: 'DEVELOPER' })).toMatchObject({ ownership: 'DEVELOPER' });
   });
 
   it('saves a restart-safe scheduled run and publishes only the previous IST day after classification', async () => {

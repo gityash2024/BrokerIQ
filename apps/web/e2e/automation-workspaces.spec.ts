@@ -12,6 +12,12 @@ test('the four organic workspaces open in Super Admin', async ({ page }) => {
   ]) {
     await page.goto('/admin/organic/' + path);
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    if (path === 'supply' || path === 'demand') {
+      const recommended = page.getByRole('button', { name: path === 'supply' ? 'Direct owners' : 'Genuine demand', exact: true });
+      await expect(recommended).toHaveAttribute('aria-pressed', 'true');
+      await page.getByRole('button', { name: 'All records', exact: true }).click();
+      await expect(recommended).toHaveAttribute('aria-pressed', 'false');
+    }
   }
   await expect(page.getByText('All new eligible leads', { exact: true })).toBeAttached();
 });

@@ -385,9 +385,16 @@ export class OrganicService {
 
   where(q: OrganicQuery): Prisma.OrganicRecordWhereInput {
     const { search, sourceId, organizationId, delivered, sectors, since, until, dateField, page: _page,
-      minConfidence, minPrice, maxPrice, minArea, maxArea, locality, society, ...filters } = q;
+      minConfidence, minPrice, maxPrice, minArea, maxArea, locality, society, view, ...filters } = q;
+    const selectedView: Prisma.OrganicRecordWhereInput =
+      q.kind === 'SUPPLY' && !q.ownership && view === 'DIRECT_OWNERS' ? { ownership: 'OWNER_CONFIRMED' }
+        : q.kind === 'SUPPLY' && !q.ownership && view === 'OWNER_REVIEW' ? { ownership: { in: ['OWNER_LIKELY', 'UNKNOWN'] } }
+        : q.kind === 'DEMAND' && !q.intent && view === 'GENUINE_DEMAND'
+          ? { intent: { in: ['BUYER', 'TENANT', 'COMMERCIAL_BUYER', 'COMMERCIAL_TENANT', 'INVESTOR', 'RELOCATION'] } }
+          : {};
     return {
       ...filters,
+      ...selectedView,
       ...(locality ? { locality: { contains: locality, mode: 'insensitive' } } : {}),
       ...(society ? { society: { contains: society, mode: 'insensitive' } } : {}),
       ...(sourceId ? { sourceRefs: { some: { sourceId } } } : {}),

@@ -60,7 +60,9 @@ const optionsByKind: Record<Kind, FilterField[]> = {
 
 function RecordsPage({ kind }: { kind: Kind }) {
   const cache = useQueryClient();
-  const [filters, filtersSet] = useRouteState<Record<string, string>>('organic.filters', {});
+  const kindView = kind === 'SUPPLY' ? 'DIRECT_OWNERS' : 'GENUINE_DEMAND';
+  const [savedFilters, filtersSet] = useRouteState<Record<string, string>>('organic.filters', {});
+  const filters: Record<string, string> = { ...savedFilters, view: savedFilters.view ?? kindView };
   const [page, setPage] = useRouteState('organic.page', 1);
   const [selected, select] = useState<string[]>([]);
   const [all, setAll] = useState(false);
@@ -112,13 +114,18 @@ function RecordsPage({ kind }: { kind: Kind }) {
             update({ ...filters, since, until: Number(days) === 1 ? since : inventoryDate() });
           }}>{label}</Button>
         ))}
-        {kind === 'SUPPLY' && <Button size="sm" variant="secondary" onClick={() => update({ ownership: 'OWNER_CONFIRMED' })}>Direct owners</Button>}
-        {kind === 'DEMAND' && <Button size="sm" variant="secondary" onClick={() => update({ intent: 'BUYER' })}>Buyer demand</Button>}
-        <Button size="sm" variant="secondary" onClick={() => update({})}>Clear filters</Button>
+        {[
+          [kindView, kind === 'SUPPLY' ? 'Direct owners' : 'Genuine demand'],
+          ...(kind === 'SUPPLY' ? [['OWNER_REVIEW', 'Uncertain owners']] : []),
+          ['ALL', 'All records'],
+        ].map(([view, label]) => <Button key={view} size="sm" variant="secondary"
+          aria-pressed={filters.view === view} onClick={() => update({ ...filters, view, ownership: '', intent: '' })}>{label}</Button>)}
+        <Button size="sm" variant="secondary" onClick={() => update({ view: kindView })}>Clear filters</Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[...baseFields, ...optionsByKind[kind]].map(([key, label, choices]) => <label className="text-sm" key={key}>{label}
-          {choices ? <select className={input} value={filters[key] ?? ''} onChange={(e) => update({ ...filters, [key]: e.target.value })}>
+          {choices ? <select className={input} value={filters[key] ?? ''} onChange={(e) =>
+            update({ ...filters, ...(key === 'ownership' || key === 'intent' ? { view: 'ALL' } : {}), [key]: e.target.value })}>
             <option value="">Any</option>{choices.map((choice) => <option key={choice} value={choice}>{readableValue(choice)}</option>)}
           </select> : <input className={input} type={key === 'since' || key === 'until' ? 'date' : /^(min|max|bhk)/.test(key) ? 'number' : 'text'}
             value={filters[key] ?? ''} onChange={(e) => update({ ...filters, [key]: e.target.value })} />}
