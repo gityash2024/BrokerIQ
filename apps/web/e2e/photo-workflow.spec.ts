@@ -1,6 +1,46 @@
 import { expect, test } from '@playwright/test';
+import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { inventoryMonth } from '@brokeriq/shared';
 import { API, createBrokerFixture } from './fixtures';
+
+test('WhatsApp Share property marks shareable photos before choosing a property', async ({ page, request }) => {
+  const { session } = await createBrokerFixture(request);
+  const headers = { Authorization: 'Bearer ' + session.accessToken };
+  const { PrismaClient } = createRequire(resolve(__dirname, '../../api/package.json'))('@prisma/client');
+  const db = new PrismaClient();
+  let conversationId: string;
+  try {
+    const organizationId = session.user.organization!.id;
+    const lead = await db.lead.create({ data: { organizationId, name: 'Isolated sharing recipient', phone: '+919811100063', source: 'HOUSING' } });
+    const conversation = await db.conversation.create({ data: {
+      organizationId, leadId: lead.id, channel: 'WHATSAPP', contactKey: '919811100063', contactPhone: '+919811100063',
+    } });
+    conversationId = conversation.id;
+  } finally {
+    await db.$disconnect();
+  }
+  const property = {
+    sector: 'Sector 45', purpose: 'RENT', category: 'RESIDENTIAL', propertyType: 'APARTMENT',
+    roomKind: 'BHK', bhk: 2, area: 1100, areaUnit: 'SQ_FT', monthlyRent: 26000, furnishing: 'SEMI_FURNISHED',
+    directoryMonth: inventoryMonth(),
+  };
+  for (const [houseNo, photoUrls] of [['Photo picker A', ['https://example.test/property-a.jpg']], ['Photo picker B', []]] as const) {
+    const response = await request.post(API + '/inventory', { headers, data: { ...property, houseNo, photoUrls } });
+    expect(response.status()).toBe(201);
+  }
+  await page.goto('/');
+  await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
+  await page.goto('/broker/inbox?channel=WHATSAPP&c=' + conversationId);
+  await page.getByRole('button', { name: 'Share property', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Share property', exact: true });
+  const withPhotos = dialog.getByRole('button', { name: /Photo picker A/ });
+  const withoutPhotos = dialog.getByRole('button', { name: /Photo picker B/ });
+  await expect(withPhotos).toContainText('· Photos');
+  await expect(withoutPhotos).not.toContainText('· Photos');
+  await withPhotos.click();
+  await expect(dialog.getByText(/AVAILABLE · Photos/)).toBeVisible();
+});
 
 test('property upload persists and photo links enter the lead draft, then avatar upload persists', async ({ page, request }) => {
   test.setTimeout(90_000);

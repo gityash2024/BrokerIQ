@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { LedgerItem } from './inventory';
+import { shareablePropertyPhotoUrls, type LedgerItem } from './inventory';
 import { inventoryPrice } from './inventory-presentation';
 
 export const MAX_VISIT_PROPERTIES = 20;
@@ -70,8 +70,9 @@ export function visitInventoryTitle(item: Pick<LedgerItem, 'houseNo' | 'unitLabe
     [item.houseNo, item.unitLabel, item.floor, item.sector].filter((v) => v !== null && v !== undefined && v !== '').join(' · ') || item.address || 'Property'
   );
 }
-export function visitInventoryDetails(item: LedgerItem): string {
-  return [item.bhk != null ? `${item.bhk} ${item.roomKind || 'BHK'}` : item.roomKind, item.purpose, inventoryPrice(item), item.availability]
+export function visitInventoryDetails(item: LedgerItem, purpose: 'visit' | 'photos' = 'visit'): string {
+  const hasPhotos = purpose === 'photos' && ['OWN', 'APPROVED'].includes(item.detailAccess ?? 'OWN') && shareablePropertyPhotoUrls(item.photoUrls).length > 0;
+  return [item.bhk != null ? `${item.bhk} ${item.roomKind || 'BHK'}` : item.roomKind, item.purpose, inventoryPrice(item), item.availability, hasPhotos && 'Photos']
     .filter(Boolean)
     .join(' · ');
 }

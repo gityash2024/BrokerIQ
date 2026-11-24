@@ -43,7 +43,7 @@ export function VisitPropertyPicker({
       <>
         <Txt v="bodyStrong">{visitInventoryTitle(value)}</Txt>
         <Txt v="caption" color="muted">
-          {visitInventoryDetails(value)}
+          {visitInventoryDetails(value, purpose)}
         </Txt>
         <Button title={purpose === 'photos' ? 'Change property' : 'Change / custom address'} variant="secondary" onPress={() => onChange(null)} />
       </>
@@ -67,7 +67,7 @@ export function VisitPropertyPicker({
               <PressableScale key={item.id} onPress={() => onChange(item)} style={{ padding: 12, borderBottomWidth: 1, borderColor: c.line }}>
                 <Txt v="bodyStrong">{visitInventoryTitle(item)}</Txt>
                 <Txt v="caption" color="muted">
-                  {visitInventoryDetails(item)}
+                  {visitInventoryDetails(item, purpose)}
                 </Txt>
               </PressableScale>
             ))}

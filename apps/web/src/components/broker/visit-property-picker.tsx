@@ -39,7 +39,7 @@ export function VisitPropertyPicker({
     return (
       <div className="rounded-xl border border-brand-300 p-3">
         <p className="font-semibold">{visitInventoryTitle(value)}</p>
-        <p className="text-xs text-muted">{visitInventoryDetails(value)}</p>
+        <p className="text-xs text-muted">{visitInventoryDetails(value, purpose)}</p>
         <Button type="button" size="xs" variant="ghost" onClick={() => onChange(null)}>
           {purpose === 'photos' ? 'Change property' : 'Change / custom address'}
         </Button>
@@ -59,7 +59,7 @@ export function VisitPropertyPicker({
             .map((item) => (
               <button type="button" key={item.id} onClick={() => onChange(item)} className="block w-full border-b border-line p-3 text-left hover:bg-surface-2">
                 <p className="text-sm font-semibold">{visitInventoryTitle(item)}</p>
-                <p className="text-xs text-muted">{visitInventoryDetails(item)}</p>
+                <p className="text-xs text-muted">{visitInventoryDetails(item, purpose)}</p>
               </button>
             ))}
           {list.isPending && <LoadingArtwork className="h-16" label="Loading…" />}

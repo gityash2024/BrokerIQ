@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseVisitLocalDateTime,
   parseVisit12HourDateTime,
+  visitInventoryDetails,
   visitInventoryTitle,
   visitInputSchema,
   visitUpdateSchema,
@@ -10,6 +11,7 @@ import {
   inventoryInputSchema,
   inventoryNavigation,
   surveyLocationLink,
+  type LedgerItem,
 } from '../index';
 test('calendar validation rejects rollover, incomplete inputs and invalid 12-hour times', () => {
   for (const input of ['2026-02-29T11:00', '2026-04-31T11:00', '2026-11-01T24:00', '', '2026-1-1T11:00']) assert.equal(parseVisitLocalDateTime(input), null);
@@ -31,6 +33,20 @@ test('same house on separate floors has distinct selection labels', () => {
     visitInventoryTitle({ houseNo: '1994', sector: 'Sector 38', floor: 'Ground floor' }),
     visitInventoryTitle({ houseNo: '1994', sector: 'Sector 38', floor: '2nd floor' }),
   );
+});
+test('only the sharing picker labels accessible gallery photos', () => {
+  const record: LedgerItem = {
+    id: 'property', organizationId: 'firm', revision: 1, sourceType: 'MANUAL', contacts: [],
+    createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-01T00:00:00Z', purpose: 'RENT',
+    photoUrls: ['https://example.test/media/property-photo/property/image.jpg'],
+  };
+  const visit = visitInventoryDetails(record);
+  assert.equal(visitInventoryDetails(record, 'photos'), visit + ' · Photos');
+  assert.equal(visitInventoryDetails({ ...record, detailAccess: 'APPROVED' }, 'photos'), visit + ' · Photos');
+  assert.equal(visitInventoryDetails({ ...record, detailAccess: 'LOCKED' }, 'photos'), visit);
+  assert.equal(visitInventoryDetails({ ...record, photoUrls: [] }, 'photos'), visit);
+  assert.equal(visitInventoryDetails({ ...record, photoUrls: ['https://example.test/media/private/scan.jpg'] }, 'photos'), visit);
+  assert.equal(visitInventoryDetails({ ...record, agentCoverPhotoUrl: record.photoUrls?.[0], photoUrls: [] }, 'photos'), visit);
 });
 
 test('directions links are private inventory fields preserved on single-stop and multiple-stop visits', () => {

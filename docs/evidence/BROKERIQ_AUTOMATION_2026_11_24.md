@@ -146,3 +146,8 @@ Later work for Connect transcription limits, local lead review, retention, free-
 - Returning an eligible historical record to Survey uses its existing Property ID. It preserves the source, original date, status, availability and media. The repeat Survey date controls Survey date filters. Available properties and open marketplace listings stay protected. A later availability confirmation or rented outcome clears the repeat Survey marker.
 - The isolated API test verifies sector aliases, multiple units, firm and agent scope, concurrent repeat requests, audit history and completion. Browser coverage verifies both entry forms at phone width. A Mobile test verifies the correct unit is queued only after confirmation. An unavailable lookup still allows the existing offline draft flow.
 - This feature and its additive migration were added after the replacement Build 100 pin.
+
+## WhatsApp property picker feedback
+
+- Web and Mobile show an inline Photos label in property sharing before selection and in the selected preview. The label uses the existing gallery photo eligibility and record access rules. The Site Visit picker, search, pagination, draft and send behaviour retain their existing paths.
+- The isolated WhatsApp Web thread test verified rows with and without photos and the selected preview. Mobile verified the sharing and visit modes. Shared verification covered empty media, private URLs, expired access and cover-only records. This change was added after the replacement Build 100 pin.
