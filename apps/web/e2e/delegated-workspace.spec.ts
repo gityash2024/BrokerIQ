@@ -62,7 +62,7 @@ test('lead view only does not request the assignee list or blocked modules', asy
   await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
   await page.goto('/broker/leads');
   await expect(page.getByRole('heading', { name: 'Lead inbox', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add lead', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add lead', exact: true })).toBeDisabled();
   await page.goto('/broker/inventory');
   await expect(page.getByText('Access restricted', { exact: true })).toBeVisible();
   expect(requests).not.toContain('/api/leads/assignees');

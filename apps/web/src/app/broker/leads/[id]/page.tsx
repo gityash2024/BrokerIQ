@@ -2,7 +2,7 @@
 import { useFlag, useConfig } from '@/lib/config';
 import { BackLink } from '@/components/ui/back-button';
 import { ConnectLeadActivity } from '@/components/panel/connect-profile';
-import { useRouteState } from '@/lib/navigation';
+import { hasPreviousPage, useRouteState } from '@/lib/navigation';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitItinerary } from '@/components/broker/visit-itinerary';
@@ -126,12 +126,20 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const declineAssignment = useApiMutation((assignmentId: string | null) => post(`/leads/${id}/assignment/decline`, { assignmentId }), {
     success: 'Lead declined',
     onSuccess: () => {
-      router.replace('/broker/leads');
+      if (hasPreviousPage()) router.back();
+      else router.replace('/broker/leads');
       refresh();
       void qc.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
-  const remove = useApiMutation(() => del(`/leads/${id}`), { success: 'Lead deleted', onSuccess: () => router.push('/broker/leads') });
+  const remove = useApiMutation(() => del(`/leads/${id}`), {
+    success: 'Lead deleted',
+    invalidate: [['leads'], ['kanban'], ['broker-dashboard'], ['agent-assignments'], ['agent-assignment-records']],
+    onSuccess: () => {
+      if (hasPreviousPage()) router.back();
+      else router.replace('/broker/leads');
+    },
+  });
 
   if (q.isLoading) return <PageLoader />;
   if (q.error) return <ApiErrorState error={q.error} />;

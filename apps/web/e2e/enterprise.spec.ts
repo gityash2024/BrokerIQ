@@ -50,7 +50,8 @@ test('dashboards render charts and drilldowns at desktop and narrow widths', asy
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('enterprise-broker-mobile.png'), fullPage: true });
   await page.goto('/broker/inventory');
-  await expect(page.locator('table')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Available Inventory', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Inventory folder path' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('consumer cannot mount private broker pages or bypass future feature guards', async ({ request }) => {

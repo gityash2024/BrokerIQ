@@ -24,6 +24,7 @@ test('broker logs in, adds a lead and moves it to Contacted', async ({ page }) =
   await page.locator('input[type="password"]').fill(broker.password);
   await page.locator('input[type="password"]').press('Enter');
   await expect(page).toHaveURL(/\/broker/, { timeout: 20_000 });
+  token = await page.evaluate(() => JSON.parse(localStorage.getItem('biq.auth')!).accessToken);
 
   await page.goto('/broker/leads');
   // First visit shows the one-time location-consent card; a user can close it.
@@ -37,18 +38,14 @@ test('broker logs in, adds a lead and moves it to Contacted', async ({ page }) =
     await page.keyboard.press('Escape');
     await expect(consent).toBeHidden();
   }
-  await page
-    .getByRole('button', { name: /^(Lead|Add lead)$/, exact: true })
-    .first()
-    .click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await dialog.locator('input').nth(0).fill(lead.name);
-  await dialog.locator('input').nth(1).fill(lead.phone);
-  await dialog.getByRole('button', { name: 'Save lead' }).click();
+  await page.getByRole('link', { name: 'Add lead', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add lead', exact: true })).toBeVisible();
+  await page.getByLabel('नाम', { exact: false }).fill(lead.name);
+  await page.getByLabel('Mobile', { exact: false }).fill(lead.phone);
+  await page.getByRole('button', { name: 'Save lead', exact: true }).click();
 
   await expect(page).toHaveURL(/\/broker\/leads\/[\w-]+$/, { timeout: 20_000 });
-  const leadId = page.url().split('/').pop()!;
+  const leadId = new URL(page.url()).pathname.split('/').pop()!;
   await expect(page.getByText(lead.name).first()).toBeVisible();
 
   if (process.env.BROKER_FIRST === 'true') {
@@ -64,8 +61,11 @@ test('broker logs in, adds a lead and moves it to Contacted', async ({ page }) =
     expect((await saved.json()).total).toBe(1);
   }
 
-  await page.getByRole('button', { name: 'Contacted', exact: true }).click();
-  await expect
-    .poll(async () => (await (await api.get(`leads/${leadId}`, { headers: { Authorization: `Bearer ${token}` } })).json()).stage, { timeout: 10_000 })
-    .toBe('CONTACTED');
+  const stages = page.getByRole('group', { name: 'Lead progress' });
+  const contacted = stages.getByRole('button', { name: 'Contacted', exact: true });
+  await expect(stages.getByRole('button', { name: 'New', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await contacted.click();
+  await expect(contacted).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 });
+  await page.reload();
+  await expect(contacted).toHaveAttribute('aria-pressed', 'true');
 });
