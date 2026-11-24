@@ -69,8 +69,10 @@ describe('Organic daily delivery', () => {
     expect(preview.firms[0]).toMatchObject({ selected: 1, duplicates: 0, newRecords: 1 });
 
     const service = app.get(OrganicDeliveryService);
-    await service['deliverRun'](rule.id, cutoff.toISOString());
-    await service['deliverRun'](rule.id, cutoff.toISOString());
+    await Promise.all([
+      service['deliverRun'](rule.id, cutoff.toISOString()),
+      service['deliverRun'](rule.id, cutoff.toISOString()),
+    ]);
     expect(await db.organicTransfer.count({ where: { recordId: record.id, organizationId: first.id } })).toBe(1);
     const lead = await db.lead.findUniqueOrThrow({ where: { organizationId_phone: { organizationId: first.id, phone: '+919811100831' } }, include: { requirement: true } });
     expect(lead).toMatchObject({ source: 'ORGANIC_DEMAND', assignedToId: broker.user.id, requirement: { bedrooms: [2], maxBudget: 43000 } });

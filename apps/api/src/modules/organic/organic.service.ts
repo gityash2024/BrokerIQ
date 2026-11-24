@@ -96,6 +96,7 @@ export class OrganicService {
     const yesterday = new Date(discoveryDay + 'T00:00:00+05:30');
     yesterday.setTime(yesterday.valueOf() - day);
     const windowTo = new Date(yesterday.valueOf() + day);
+    const scheduled = !key.startsWith('organic-manual:');
     const run = await this.db.organicRun.upsert({ where: { key }, update: { status: 'RUNNING' }, create: {
       kind, key, status: 'RUNNING', windowFrom: yesterday, windowTo,
     } });
@@ -114,7 +115,8 @@ export class OrganicService {
       });
       if (!lease.count) { report.skipped++; continue; }
       try {
-        const content = await readOrganicSource(source.url, source[etagField]);
+        // The date window moves even if the feed bytes stay the same.
+        const content = await readOrganicSource(source.url, scheduled ? null : source[etagField]);
         let inserted = 0;
         let duplicate = 0;
         let reviewed = 0;
@@ -123,7 +125,7 @@ export class OrganicService {
         for (const entry of entries) {
           if (entry.kind !== kind) continue;
           if (entry.publishedAt && new Date(entry.publishedAt) > now) continue;
-          if (!key.startsWith('organic-manual') && entry.publishedAt) {
+          if (scheduled && entry.publishedAt) {
             const published = new Date(entry.publishedAt);
             const updated = entry.updatedAt ? new Date(entry.updatedAt) : published;
             if (published >= windowTo || updated < yesterday) continue;
