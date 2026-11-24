@@ -21,6 +21,7 @@ import {
   Mail,
   MessageCircle,
   MessageSquare,
+  Pencil,
   Phone,
   PhoneCall,
   Send,
@@ -31,6 +32,9 @@ import {
 } from 'lucide-react-native';
 import {
   LEAD_STAGES,
+  leadContactChanges,
+  leadContactDraft,
+  type LeadContactInput,
   visitShortlistedIds,
   LEAD_STAGE_COLORS,
   LEAD_STAGE_LABELS,
@@ -73,6 +77,9 @@ export default function LeadDetail() {
   const policyRole = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '');
   const canMatch = moduleAllowed(config.modules, 'inventory', policyRole) && hasDelegatedAccess(user, 'inventory', 'view');
   const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canEditContact = isBrokerAdmin || (delegated && hasDelegatedAccess(user, 'leads', 'view', 'edit'));
+  const canDelete = isBrokerAdmin || (delegated && hasDelegatedAccess(user, 'leads', 'view', 'delete'));
   const canCreateTask = hasDelegatedAccess(user, 'leads', 'create');
   const canSharePhotos = canMatch && moduleAllowed(config.modules, 'inbox', policyRole) && hasDelegatedAccess(user, 'inbox', 'view', 'edit', 'send');
   const assistantOn = moduleAllowed(config.modules, 'assistant', user?.role ?? '');
@@ -84,7 +91,7 @@ export default function LeadDetail() {
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'shortlist' | 'tasks' | 'matches' | 'ai'>(initialTab === 'shortlist' ? 'shortlist' : initialTab === 'tasks' ? 'tasks' : 'timeline');
-  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'lost' | 'not_interested' | 'deal'>(null);
+  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'lost' | 'not_interested' | 'deal' | 'editContact'>(null);
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
   const [connectDraft, setConnectDraft] = useState<ConnectActionDraft | null>(null);
   function draftConnectAction(action: ConnectActionDraft) {
@@ -131,10 +138,15 @@ export default function LeadDetail() {
   const declineAssignment = useApiMutation((assignmentId: string | null) => post(`/leads/${id}/assignment/decline`, { assignmentId }), {
     success: 'Lead declined',
     onSuccess: () => {
-      router.replace('/(broker)/leads');
+      goBack('/(broker)/leads');
       refresh();
       void qc.invalidateQueries({ queryKey: ['notifications'] });
     },
+  });
+  const remove = useApiMutation(() => del(`/leads/${id}`), {
+    success: 'Lead हटाई',
+    invalidate: [['leads'], ['kanban'], ['broker-dashboard'], ['agent-assignments'], ['agent-assignment-records']],
+    onSuccess: () => goBack('/(broker)/leads'),
   });
 
   if (q.isLoading) return <Loader />;
@@ -156,18 +168,25 @@ export default function LeadDetail() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Row style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
-        <IconBtn accessibilityLabel="Back" onPress={() => goBack()}>
+        <IconBtn accessibilityLabel="Back" onPress={() => goBack('/(broker)/leads')}>
           <ChevronLeft size={24} color={c.fg} />
         </IconBtn>
         <View style={{ flex: 1 }} />
         <NotificationBell />
+        {canEditContact && (
+          <IconBtn accessibilityLabel="Edit lead" onPress={() => setSheet('editContact')}>
+            <Pencil size={20} color={c.fg} />
+          </IconBtn>
+        )}
         <IconBtn
-          access={isBrokerAdmin}
+          access={canDelete}
+          disabled={remove.isPending}
           accessibilityLabel="Delete lead"
           onPress={() =>
-            del(`/leads/${id}`)
-              .then(() => (toast.success('Lead हटाई'), qc.invalidateQueries({ queryKey: ['leads'] }), router.back()))
-              .catch(showError)
+            Alert.alert('Delete lead?', 'Remove this lead from the active list?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(undefined) },
+            ])
           }
         >
           <Trash2 size={20} color={c.danger} />
@@ -425,6 +444,7 @@ export default function LeadDetail() {
         </View>
       </ScrollView>
 
+      {canEditContact && sheet === 'editContact' && <EditLeadContact lead={l} onClose={() => setSheet(null)} onDone={refresh} />}
       <NoteSheet open={sheet === 'note'} onClose={() => setSheet(null)} leadId={id} onDone={refresh} />
       <CallSheet open={sheet === 'call'} onClose={() => setSheet(null)} lead={l} onDone={refresh} onFollowUp={() => setSheet('followup')} />
       <FollowUpSheet
@@ -452,6 +472,30 @@ export default function LeadDetail() {
       />
       {dealsOn && <DealSheet open={sheet === 'deal'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />}
     </SafeAreaView>
+  );
+}
+
+function EditLeadContact({ lead, onClose, onDone }: {
+  lead: LeadContactInput & { id: string }; onClose: () => void; onDone: () => void;
+}) {
+  const [original] = useState(() => leadContactDraft(lead));
+  const [draft, setDraft] = useState(original);
+  const changes = leadContactChanges(original, draft);
+  const changed = changes.success && Object.keys(changes.data).length > 0;
+  const save = useApiMutation((value: LeadContactInput) => patch(`/leads/${lead.id}`, value), {
+    success: 'Lead updated', onSuccess: onDone,
+  });
+  return (
+    <Sheet open title="Edit lead" onClose={() => { if (!save.isPending) onClose(); }}>
+      <Input label="Name" accessibilityLabel="Name" maxLength={80} value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} />
+      <Input label="Phone" accessibilityLabel="Phone" keyboardType="phone-pad" value={draft.phone} onChangeText={(phone) => setDraft({ ...draft, phone })} />
+      <Input label="Alternate phone" accessibilityLabel="Alternate phone" keyboardType="phone-pad" value={draft.alternatePhone} onChangeText={(alternatePhone) => setDraft({ ...draft, alternatePhone })} />
+      <Input label="Email" accessibilityLabel="Email" keyboardType="email-address" autoCapitalize="none" value={draft.email} onChangeText={(email) => setDraft({ ...draft, email })} />
+      <Input label="Notes" accessibilityLabel="Notes" multiline maxLength={4000} value={draft.notes} onChangeText={(notes) => setDraft({ ...draft, notes })} />
+      {!changes.success && <Txt color="danger">{changes.error.issues[0]?.message}</Txt>}
+      <Button title="Save changes" loading={save.isPending} disabled={!changed}
+        onPress={() => { if (changed) save.mutate(changes.data, { onSuccess: onClose }); }} />
+    </Sheet>
   );
 }
 

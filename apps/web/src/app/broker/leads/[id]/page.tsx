@@ -2,7 +2,7 @@
 import { useFlag, useConfig } from '@/lib/config';
 import { BackLink } from '@/components/ui/back-button';
 import { ConnectLeadActivity } from '@/components/panel/connect-profile';
-import { hasPreviousPage, useRouteState } from '@/lib/navigation';
+import { hasPreviousPage, pushRouteView, useGoBack, useRouteState } from '@/lib/navigation';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitItinerary } from '@/components/broker/visit-itinerary';
@@ -24,6 +24,7 @@ import {
   Home,
   Mail,
   MessageCircle,
+  Pencil,
   Phone,
   PhoneCall,
   Send,
@@ -36,6 +37,9 @@ import {
 } from 'lucide-react';
 import {
   FURNISHING_LABELS,
+  leadContactChanges,
+  leadContactDraft,
+  type LeadContactInput,
   futureConnectDate,
   type ConnectActionDraft,
   LEAD_STAGES,
@@ -92,16 +96,24 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const qc = useQueryClient();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const canAssign = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'assign'));
-  const canDelete = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'delete'));
+  const canDelete = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'view', 'delete'));
+  const canEditContact = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'view', 'edit'));
   const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
   const canCreateTask = hasDelegatedAccess(user, 'leads', 'create');
   const canSharePhotos = allowed('inventory') && allowed('inbox') && hasDelegatedAccess(user, 'inbox', 'edit', 'send');
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const query = useSearchParams();
+  const entryTab = query.get('tab');
   const [tab, setTab] = useRouteState<'timeline' | 'shortlist' | 'matches' | 'tasks' | 'requirement'>('detail.tab',
-    query.get('tab') === 'shortlist' ? 'shortlist' : query.get('tab') === 'tasks' ? 'tasks' : 'timeline',
+    entryTab === 'shortlist' || entryTab === 'tasks' || entryTab === 'requirement' ? entryTab : 'timeline',
   );
+  const [editingContact, setEditingContact] = useRouteState('detail.editContact', false);
+  const returnToLead = useGoBack(`/broker/leads/${id}`, { samePath: true });
+  function closeContactEditor() {
+    if (hasPreviousPage({ samePath: true })) returnToLead();
+    else setEditingContact(false);
+  }
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
   const [connectDraft, setConnectDraft] = useState<{ note: string; at: Date | null; revision: number } | null>(null);
   function draftConnectAction(action: ConnectActionDraft) {
@@ -214,6 +226,13 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               {l.sourceDetail && <span className="text-xs">{l.sourceDetail}</span>}
               <span className="text-xs">· {timeAgo(l.createdAt)}</span>
             </p>
+            {canEditContact && (
+              <Button variant="ghost" size="sm" className="mt-1" onClick={() => {
+                if (!pushRouteView({ 'detail.editContact': true })) setEditingContact(true);
+              }}>
+                <Pencil className="size-4" /> Edit lead
+              </Button>
+            )}
             {l.scoreReasons?.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Score के कारण">
                 {l.scoreReasons.map((r: string) => (
@@ -391,6 +410,9 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
+      {canEditContact && editingContact && (
+        <EditLeadContact lead={l} onClose={closeContactEditor} onSave={refresh} />
+      )}
       <Dialog
         open={lostOpen}
         onOpenChange={setLostOpen}
@@ -779,6 +801,34 @@ function Tasks({
         </div>
       </div>
     </div>
+  );
+}
+
+function EditLeadContact({ lead, onClose, onSave }: {
+  lead: LeadContactInput & { id: string }; onClose: () => void; onSave: () => void;
+}) {
+  const [original] = useState(() => leadContactDraft(lead));
+  const [draft, setDraft] = useState(original);
+  const changes = leadContactChanges(original, draft);
+  const changed = changes.success && Object.keys(changes.data).length > 0;
+  const save = useApiMutation((value: LeadContactInput) => patch(`/leads/${lead.id}`, value), {
+    success: 'Lead updated', onSuccess: onSave,
+  });
+  return (
+    <Dialog open title="Edit lead" onOpenChange={(open) => { if (!open && !save.isPending) onClose(); }}>
+      <form className="space-y-4" onSubmit={(event) => {
+        event.preventDefault();
+        if (changed) save.mutate(changes.data, { onSuccess: onClose });
+      }}>
+        <Field label="Name"><Input maxLength={80} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></Field>
+        <Field label="Phone"><Input type="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></Field>
+        <Field label="Alternate phone"><Input type="tel" value={draft.alternatePhone} onChange={(event) => setDraft({ ...draft, alternatePhone: event.target.value })} /></Field>
+        <Field label="Email"><Input value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} /></Field>
+        <Field label="Notes"><Textarea maxLength={4000} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></Field>
+        {!changes.success && <p className="text-sm text-rose-600" role="status">{changes.error.issues[0]?.message}</p>}
+        <Button type="submit" loading={save.isPending} disabled={!changed}>Save changes</Button>
+      </form>
+    </Dialog>
   );
 }
 

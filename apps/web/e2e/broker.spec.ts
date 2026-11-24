@@ -44,18 +44,17 @@ test('broker logs in, adds a lead and moves it to Contacted', async ({ page }) =
   await page.getByLabel('Mobile', { exact: false }).fill(lead.phone);
   await page.getByRole('button', { name: 'Save lead', exact: true }).click();
 
-  await expect(page).toHaveURL(/\/broker\/leads\/[\w-]+$/, { timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: lead.name, exact: true })).toBeVisible({ timeout: 20_000 });
   const leadId = new URL(page.url()).pathname.split('/').pop()!;
-  await expect(page.getByText(lead.name).first()).toBeVisible();
 
   if (process.env.BROKER_FIRST === 'true') {
     await page.getByRole('button', { name: 'Requirement', exact: true }).click();
-    await page.getByRole('button', { name: 'Add requirement', exact: true }).click();
-    const requirement = page.getByRole('dialog');
-    await requirement.locator('input[name=localityNames]').fill('Sector 43');
-    await requirement.locator('select[name=purpose]').selectOption('RENT');
-    await requirement.getByRole('button', { name: 'Save requirement', exact: true }).click();
-    await expect(requirement).toBeHidden();
+    await page.getByRole('link', { name: 'Add requirement', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'New requirement', exact: true })).toBeVisible();
+    await page.locator('input[name=localityNames]').fill('Sector 43');
+    await page.locator('select[name=purpose]').selectOption('RENT');
+    await page.getByRole('button', { name: 'Save requirement', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp('/broker/leads/' + leadId + '$'));
     await expect(page.getByText('Sector 43', { exact: true }).first()).toBeVisible();
     const saved = await api.get(`broker-requirements?leadId=${leadId}`, { headers: { Authorization: `Bearer ${token}` } });
     expect((await saved.json()).total).toBe(1);
@@ -67,5 +66,19 @@ test('broker logs in, adds a lead and moves it to Contacted', async ({ page }) =
   await contacted.click();
   await expect(contacted).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 });
   await page.reload();
+  await expect(contacted).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'Edit lead', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Edit lead' });
+  await expect(editor).toBeVisible();
+  await page.goBack();
+  await expect(editor).toBeHidden();
+  await expect(page).toHaveURL(new RegExp('/broker/leads/' + leadId + '$'));
+  await page.goForward();
+  await expect(editor).toBeVisible();
+  await editor.getByLabel('Name', { exact: true }).fill(lead.name + ' corrected');
+  await editor.getByRole('button', { name: 'Save changes' }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.getByRole('heading', { name: lead.name + ' corrected' })).toBeVisible();
   await expect(contacted).toHaveAttribute('aria-pressed', 'true');
 });

@@ -283,7 +283,30 @@ export const leadInputSchema = z.object({
   requirement: leadRequirementSchema.optional(),
 });
 export type LeadInput = z.infer<typeof leadInputSchema>;
-export const leadUpdateSchema = leadInputSchema.partial().extend({ lostReason: z.string().max(300).optional().nullable() });
+export const leadUpdateSchema = leadInputSchema.partial().extend({
+  source: leadInputSchema.shape.source.removeDefault().optional(),
+  stage: leadInputSchema.shape.stage.removeDefault().optional(),
+  tags: leadInputSchema.shape.tags.removeDefault().optional(),
+  lostReason: z.string().max(300).optional().nullable(),
+});
+const leadContactSchema = leadUpdateSchema.pick({ name: true, phone: true, alternatePhone: true, email: true, notes: true });
+export type LeadContactInput = z.infer<typeof leadContactSchema>;
+export type LeadContactDraft = Record<keyof LeadContactInput, string>;
+export const leadContactDraft = (contact: LeadContactInput): LeadContactDraft => ({
+  name: contact.name ?? '',
+  phone: contact.phone ?? '',
+  alternatePhone: contact.alternatePhone ?? '',
+  email: contact.email ?? '',
+  notes: contact.notes ?? '',
+});
+export function leadContactChanges(previous: LeadContactDraft, draft: LeadContactDraft) {
+  const changed: Record<string, string | null> = {};
+  for (const key of Object.keys(draft) as (keyof LeadContactDraft)[]) {
+    const value = draft[key].trim();
+    if (value !== previous[key].trim()) changed[key] = value || (key === 'name' || key === 'phone' ? '' : null);
+  }
+  return leadContactSchema.safeParse(changed);
+}
 
 export const leadStageSchema = z.object({ stage: z.enum(LEAD_STAGES), lostReason: z.string().max(300).optional().nullable() });
 export const activityInputSchema = z.object({

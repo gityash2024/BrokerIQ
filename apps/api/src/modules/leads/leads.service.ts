@@ -915,9 +915,13 @@ export class LeadsService {
   }
 
   async remove(id: string, user: RequestUser) {
-    await this.getScoped(id, user);
+    const lead = await this.getScoped(id, user);
     if (user.role === 'BROKER_AGENT') throw new ForbiddenException('सिर्फ admin leads delete कर सकते हैं');
-    await this.prisma.lead.update({ where: { id }, data: { deletedAt: new Date() } });
+    await this.prisma.$transaction(async (tx) => {
+      const removed = await tx.lead.updateMany({ where: { id, ...this.scope(user) }, data: { deletedAt: new Date() } });
+      if (!removed.count) throw new NotFoundException('Lead नहीं मिली');
+      await tx.auditLog.create({ data: { actorId: user.id, organizationId: lead.organizationId, entity: 'Lead', entityId: id, action: 'lead.delete' } });
+    });
     return { ok: true };
   }
 

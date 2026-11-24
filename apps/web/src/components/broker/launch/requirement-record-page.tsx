@@ -9,6 +9,7 @@ import { offeredRequirement, type BrokerRequirementInput } from '@brokeriq/share
 import { toast } from 'sonner';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useGoBack } from '@/lib/navigation';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,8 @@ function RecordContent({ mode }: { mode: Mode }) {
     enabled: !!leadId && !!user,
   });
   const item = record.data;
-  const back = leadId ? `/broker/leads/${encodeURIComponent(leadId)}` : base;
+  const back = leadId ? `/broker/leads/${encodeURIComponent(leadId)}?tab=requirement` : base;
+  const returnToSource = useGoBack(back);
   const title = mode === 'new' ? 'New requirement' : mode === 'edit' ? 'Review requirement' : 'Review property before inventory conversion';
 
   useEffect(() => {
@@ -66,7 +68,7 @@ function RecordContent({ mode }: { mode: Mode }) {
     });
     setDirty(false);
     await client.invalidateQueries({ queryKey: ['broker-requirements'] });
-    router.replace(back);
+    returnToSource();
   }
 
   return (

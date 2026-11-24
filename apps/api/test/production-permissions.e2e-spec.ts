@@ -72,6 +72,32 @@ describe('Production agent/firm record boundaries', () => {
     await app?.close();
   });
 
+  it('preserves untouched lead fields and audits a firm-scoped delegated deletion exactly once', async () => {
+    const lead = await db.lead.create({
+      data: { organizationId: org, name: 'Contact edit', phone: '+919700008802', stage: 'CONTACTED', tags: ['keep'], email: 'preserve@e2e.test' },
+    });
+    const user = await db.user.create({
+      data: { organizationId: org, role: 'SUB_BROKER_ADMIN', name: 'Lead editor', email: 'lead-editor.' + uid + '@e2e.test', delegatedPermissions: ['leads:view', 'leads:edit'] },
+      include: { organization: true },
+    });
+    const login = await app.get(AuthService).issue(user);
+    const scoped = { Authorization: 'Bearer ' + login.accessToken };
+    const url = '/api/leads/' + lead.id;
+    const http = () => request(app.getHttpServer());
+    await http().patch(url).set(headers(outsider)).send({ name: 'Other firm' }).expect(404);
+    const edited = await http().patch(url).set(scoped).send({ name: 'Edited contact' }).expect(200);
+    expect(edited.body).toMatchObject({ name: 'Edited contact', stage: 'CONTACTED', tags: ['keep'], email: 'preserve@e2e.test' });
+    await http().delete(url).set(scoped).expect(403);
+
+    await db.user.update({ where: { id: user.id }, data: { delegatedPermissions: ['leads:delete'] } });
+    await http().delete(url).set(scoped).expect(403);
+    await db.user.update({ where: { id: user.id }, data: { delegatedPermissions: ['leads:view', 'leads:delete'] } });
+    const deleted = await Promise.all([http().delete(url).set(scoped), http().delete(url).set(scoped)]);
+    expect(deleted.map((response) => response.status).sort()).toEqual([200, 404]);
+    expect(await db.auditLog.count({ where: { actorId: user.id, organizationId: org, action: 'lead.delete', entityId: lead.id } })).toBe(1);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).deletedAt).toBeInstanceOf(Date);
+  });
+
   it('does not expose or mutate a legacy follow-up after its lead belongs to another agent', async () => {
     const task = await db.followUp.create({ data: { organizationId: org, leadId: leadB, assignedToId: a.id, dueAt: new Date() } });
     const own = await request(app.getHttpServer()).get('/api/follow-ups').set(headers(a)).expect(200);
