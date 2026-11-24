@@ -4,7 +4,7 @@ import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarPlus } from 'lucide-react-native';
-import { hasDelegatedAccess, moduleAllowed, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { futureConnectDate, hasDelegatedAccess, moduleAllowed, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import { DateTimeField } from '@/components/date-time-field';
 import { VisitProperties } from '@/components/visit-properties';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
@@ -19,7 +19,7 @@ import { toast } from '@/lib/toast';
 import { Button, Chip, ErrorView, Input, Loader, Row, Txt } from '@/ui';
 
 export default function ScheduleVisit() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, when } = useLocalSearchParams<{ id: string; when?: string }>();
   const client = useQueryClient();
   const { user } = useAuth();
   const config = useConfig();
@@ -32,8 +32,8 @@ export default function ScheduleVisit() {
     enabled: allowed,
   });
   const { c } = useTheme();
-  const [at, setAt] = useState<Date | null>(null);
-  const [isCustomDate, setIsCustomDate] = useState(false);
+  const [at, setAt] = useState(() => futureConnectDate(when));
+  const [isCustomDate, setIsCustomDate] = useState(!!at);
   const [properties, setProperties] = useState<LedgerItem[]>([]);
   const [address, setAddress] = useState('');
 

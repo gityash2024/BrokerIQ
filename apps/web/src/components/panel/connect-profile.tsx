@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, apiBlob, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { hasDelegatedAccess } from '@brokeriq/shared';
+import { hasDelegatedAccess, type ConnectActionDraft } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -18,7 +18,7 @@ type Event = { id: string; kind: string; status: string; capturedAt: string; rec
 type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
   applied: boolean; confidence: number; evidence: string };
 const surveyLabels = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
-type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number };
+type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number; recommendedAction?: ConnectActionDraft };
   survey?: SurveySuggestion[];
   transcript?: { language: string; segments: { start: number; end: number; text: string }[] } } | null };
 
@@ -72,7 +72,7 @@ export function ConnectProfile() {
   </>;
 }
 
-export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enabled: boolean }) {
+export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?: string; enabled: boolean; draftAction?: (action: ConnectActionDraft) => void }) {
   const { user } = useAuth();
   const [eventId, setEvent] = useState<string | null>(null);
   const [audio, setAudio] = useState<string | null>(null);
@@ -133,6 +133,18 @@ export function ConnectLeadActivity({ leadId, enabled }: { leadId?: string; enab
         {detail.data.details?.proposal?.summary && <p>{detail.data.details.proposal.summary}</p>}
         {detail.data.details?.proposal?.evidence && <blockquote className="border-l-2 border-line pl-3">{detail.data.details.proposal.evidence}</blockquote>}
         {detail.data.details?.proposal?.nextSteps?.map((item) => <p key={item}>{item}</p>)}
+        {detail.data.status !== 'DISMISSED' && detail.data.details?.proposal?.recommendedAction && (() => {
+          const recommendation = detail.data.details.proposal.recommendedAction;
+          return <div className="space-y-2 rounded-lg border border-line p-2">
+            <p>{recommendation.note}</p>
+            <blockquote className="text-xs text-muted">{recommendation.evidence}</blockquote>
+            {draftAction && canReview && <Button size="sm" variant="secondary" onClick={() => {
+              setEvent(null);
+              setAudio(null);
+              draftAction(recommendation);
+            }}>{recommendation.kind === 'SITE_VISIT' ? 'Review site visit draft' : 'Review follow-up draft'}</Button>}
+          </div>;
+        })()}
         {detail.data.details?.survey?.map((field) => <div key={field.field} className="rounded-lg border border-line p-2">
           <p><strong>{surveyLabels[field.field]}</strong> · {field.previous ?? 'Empty'} → {field.proposed}</p>
           <p className="text-xs text-muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</p>

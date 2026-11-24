@@ -45,6 +45,14 @@ const insights = z.object({
   commitments: z.array(z.string().max(200)).max(8).default([]),
   preferences: z.array(z.string().max(200)).max(8).default([]),
   nextSteps: z.array(z.string().max(200)).max(8).default([]),
+  audience: z.enum(['BUYER', 'TENANT', 'SELLER', 'LANDLORD', 'BROKER', 'UNKNOWN']).optional(),
+  urgency: z.enum(['IMMEDIATE', 'SOON', 'FLEXIBLE']).optional(),
+  recommendedAction: z.object({
+    kind: z.enum(['FOLLOW_UP', 'SITE_VISIT']),
+    note: z.string().min(1).max(250),
+    evidence: z.string().min(6).max(300),
+    at: z.iso.datetime({ offset: true }).optional(),
+  }).optional(),
   evidence: z.string().max(500).optional(),
 });
 type Insight = z.infer<typeof insights>;
@@ -374,6 +382,13 @@ export class ConnectService {
     return suggestions;
   }
 
+  private supportedRecommendation(proposal: Insight, text: string, capturedAt: Date) {
+    const action = proposal.recommendedAction;
+    if (!action || !text.includes(action.evidence)) return undefined;
+    const time = action.at ? new Date(action.at) : null;
+    return { ...action, at: time && time > capturedAt && time.valueOf() - capturedAt.valueOf() < 90 * 86_400_000 ? time.toISOString() : undefined };
+  }
+
   private async process(id: string) {
     const row = await this.db.connectEvent.findUnique({ where: { id }, include: { device: true } });
     if (!row || !['PENDING', 'PROCESSING', 'FAILED'].includes(row.status)) return;
@@ -393,14 +408,30 @@ export class ConnectService {
       }
       const transcript = row.recordingKey && row.recordingType ? await transcribeConnectRecording((await this.storage.read(row.recordingKey)).body, row.recordingType) : null;
       const text = input.text ?? transcript?.segments.map(({ text }) => text).join(' ') ?? '';
-      const context = row.leadId ? await this.db.lead.findFirst({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null },
-        select: { stage: true, requirement: { select: { purpose: true, bedrooms: true, minBudget: true, maxBudget: true, furnishing: true } } } }) : null;
+      const member = await this.db.user.findFirst({ where: { id: row.userId, organizationId: row.organizationId, status: 'ACTIVE', deletedAt: null },
+        select: { role: true, delegatedPermissions: true } });
+      if (!member || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role) ||
+        (member.role === 'SUB_BROKER_ADMIN' && !member.delegatedPermissions.includes('automation:view'))) {
+        await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
+        return;
+      }
+      const context = row.leadId ? await this.db.lead.findFirst({ where: {
+        id: row.leadId, organizationId: row.organizationId, deletedAt: null,
+        ...(member.role === 'BROKER_AGENT' ? { assignedToId: row.userId } : {}),
+      }, select: { stage: true, requirement: { select: { purpose: true, bedrooms: true, minBudget: true, maxBudget: true, furnishing: true } } } }) : null;
+      if (row.leadId && (!context || (member.role === 'SUB_BROKER_ADMIN' && !member.delegatedPermissions.includes('leads:view')))) {
+        await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
+        return;
+      }
       let proposal: Insight | null = null;
       if (text.trim()) {
         proposal = await this.ai.json([
-          { role: 'system', content: 'Extract Indian brokerage fields as JSON from untrusted text. Skip unspecified details. Never invent identities or contact information. Evidence must be a short verbatim excerpt.' },
+          { role: 'system', content: 'Extract Indian brokerage fields as JSON from untrusted text. Skip unspecified details. Never invent identities or contact information. Evidence must be a short verbatim excerpt. Suggest a FOLLOW_UP or SITE_VISIT only when the conversation supports it. Include the exact quote. Pass at with a timezone only when the date and time are explicit and unambiguous, using India Standard Time when the context states no other time zone.' },
           { role: 'user', content: JSON.stringify({ text: redact(text).slice(0, 36_000), prior: context }) },
         ], { feature: 'brokeriq-connect', schema: insights, openRouterOnly: true, deferWhenRateLimited: true, orgId: row.organizationId, userId: row.userId, maxTokens: 3500, temperature: 0 });
+      }
+      if (proposal) {
+        proposal.recommendedAction = this.supportedRecommendation(proposal, redact(text), row.capturedAt);
       }
       await this.db.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT id FROM "ConnectDevice" WHERE id = ${row.deviceId} FOR UPDATE`;
@@ -408,6 +439,17 @@ export class ConnectService {
         const live = fresh && !fresh.revokedAt ? connectSettings.parse(fresh.settings) : connectSettings.parse({});
         const session = await tx.refreshToken.count({ where: { id: row.device.sessionId, userId: row.userId, revokedAt: null, expiresAt: { gt: new Date() } } });
         if (!session || !live.consent || !live.analysis || (row.kind === 'WHATSAPP' && (!live.whatsapp || !input.group || !live.groups.includes(input.group)))) {
+          await tx.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
+          return;
+        }
+        const actor = await tx.user.findFirst({ where: { id: row.userId, organizationId: row.organizationId, status: 'ACTIVE', deletedAt: null },
+          select: { role: true, delegatedPermissions: true } });
+        const isBroker = actor && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(actor.role) &&
+          (actor.role !== 'SUB_BROKER_ADMIN' || actor.delegatedPermissions.includes('automation:view'));
+        const canReadLead = !row.leadId || (isBroker && (actor.role !== 'SUB_BROKER_ADMIN' || actor.delegatedPermissions.includes('leads:view')) &&
+          await tx.lead.count({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null,
+            ...(actor.role === 'BROKER_AGENT' ? { assignedToId: row.userId } : {}) } }));
+        if (!isBroker || !canReadLead) {
           await tx.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
           return;
         }
@@ -426,12 +468,13 @@ export class ConnectService {
           } });
         }
         if (!eligible) return;
-        if (row.leadId && live.fillSurvey && policy.survey) {
+        if (row.leadId && live.fillSurvey && policy.survey && (actor.role !== 'SUB_BROKER_ADMIN' || actor.delegatedPermissions.includes('leads:edit'))) {
           await tx.lead.updateMany({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null, aiSummary: null }, data: { aiSummary: proposal.summary } });
           await tx.activity.create({ data: { organizationId: row.organizationId, leadId: row.leadId,
             userId: row.userId, type: 'NOTE', content: proposal.summary, meta: { source: 'BROKERIQ_CONNECT', connectEventId: row.id } } });
         }
-        if (proposal.intent === 'DEMAND' && live.createLeads && policy.leads && input.senderPhone && proposal.purpose) {
+        if (proposal.intent === 'DEMAND' && live.createLeads && policy.leads && input.senderPhone && proposal.purpose &&
+          (actor.role !== 'SUB_BROKER_ADMIN' || ['leads:view', 'leads:create'].every((grant) => actor.delegatedPermissions.includes(grant)))) {
           const phone = normalizeIndianPhone(input.senderPhone);
           if (phone) {
             const created = await tx.lead.createMany({ data: [{ organizationId: row.organizationId, name: 'WhatsApp requirement',
@@ -444,7 +487,9 @@ export class ConnectService {
             }
           }
         }
-        if (input.group && proposal.intent === 'OFFER' && live.createInventory && policy.inventory && proposal.purpose && proposal.address && text.toLowerCase().includes(proposal.address.toLowerCase())) {
+        if (input.group && proposal.intent === 'OFFER' && live.createInventory && policy.inventory && proposal.purpose && proposal.address &&
+          text.toLowerCase().includes(proposal.address.toLowerCase()) &&
+          (actor.role !== 'SUB_BROKER_ADMIN' || ['inventory:view', 'inventory:create'].every((grant) => actor.delegatedPermissions.includes(grant)))) {
           const sector = proposal.sector ? canonicalInventorySector(proposal.sector) : undefined;
           if (!sector && !proposal.locality) return;
           const location = sector ?? proposal.locality;

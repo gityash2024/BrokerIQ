@@ -3,7 +3,7 @@ import { Alert, Linking } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { hasDelegatedAccess } from '@brokeriq/shared';
+import { hasDelegatedAccess, type ConnectActionDraft } from '@brokeriq/shared';
 import { toast } from '@/lib/toast';
 import { Button, Row, Sheet, Txt } from '@/ui';
 import { NativeCard } from './screen';
@@ -18,7 +18,7 @@ type Event = { id: string; kind: string; status: string; capturedAt: string; rec
 type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
   applied: boolean; confidence: number; evidence: string };
 const surveyLabels = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
-type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string };
+type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; recommendedAction?: ConnectActionDraft };
   survey?: SurveySuggestion[];
   transcript?: { segments: { start: number; text: string }[] } } | null };
 
@@ -71,7 +71,7 @@ export function NativeConnectProfile() {
   </>;
 }
 
-export function NativeConnectLeadActivity({ leadId, enabled }: { leadId?: string; enabled: boolean }) {
+export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?: string; enabled: boolean; draftAction?: (action: ConnectActionDraft) => void }) {
   const { user } = useAuth();
   const [id, setId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -127,6 +127,18 @@ export function NativeConnectLeadActivity({ leadId, enabled }: { leadId?: string
         {detail.data.details?.proposal?.summary && <Txt>{detail.data.details.proposal.summary}</Txt>}
         {detail.data.details?.proposal?.evidence && <Txt v="caption" color="muted">{detail.data.details.proposal.evidence}</Txt>}
         {detail.data.details?.proposal?.nextSteps?.map((item) => <Txt key={item}>{item}</Txt>)}
+        {detail.data.status !== 'DISMISSED' && detail.data.details?.proposal?.recommendedAction && (() => {
+          const recommendation = detail.data.details.proposal.recommendedAction;
+          return <NativeCard>
+            <Txt>{recommendation.note}</Txt>
+            <Txt v="caption" color="muted">{recommendation.evidence}</Txt>
+            {draftAction && canReview && <Button size="sm" variant="secondary"
+              title={recommendation.kind === 'SITE_VISIT' ? 'Review site visit draft' : 'Review follow-up draft'} onPress={() => {
+                setId(null);
+                draftAction(recommendation);
+              }} />}
+          </NativeCard>;
+        })()}
         {detail.data.details?.survey?.map((field) => <NativeCard key={field.field}>
           <Txt v="bodyStrong">{surveyLabels[field.field]} · {field.previous ?? 'Empty'} → {field.proposed}</Txt>
           <Txt v="caption" color="muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</Txt>

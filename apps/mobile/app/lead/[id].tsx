@@ -52,6 +52,8 @@ import { ListingRow } from '@/components/listing';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, Segmented, Sheet, Txt } from '@/ui';
 import { NotificationBell } from '@/components/notification-bell';
 
+import { futureConnectDate, type ConnectActionDraft } from '@brokeriq/shared';
+
 const compactAction = { flex: 1, minWidth: 44, paddingHorizontal: 0 };
 
 const OUTCOMES = [
@@ -84,6 +86,17 @@ export default function LeadDetail() {
   const [tab, setTab] = useState<'timeline' | 'shortlist' | 'tasks' | 'matches' | 'ai'>(initialTab === 'shortlist' ? 'shortlist' : initialTab === 'tasks' ? 'tasks' : 'timeline');
   const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'lost' | 'not_interested' | 'deal'>(null);
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
+  const [connectDraft, setConnectDraft] = useState<ConnectActionDraft | null>(null);
+  function draftConnectAction(action: ConnectActionDraft) {
+    if (action.kind === 'SITE_VISIT') {
+      const at = futureConnectDate(action.at);
+      router.push({ pathname: '/schedule-visit', params: { id, ...(at ? { when: at.toISOString() } : {}) } });
+      return;
+    }
+    setAdvanceFollowUpStage(false);
+    setConnectDraft(action);
+    setSheet('followup');
+  }
   const openFollowUpStage = () => {
     setAdvanceFollowUpStage(true);
     setSheet('followup');
@@ -346,7 +359,7 @@ export default function LeadDetail() {
           {tab === 'shortlist' && <VisitShortlist visits={l.visits} canEdit={canEdit} onChange={refresh} />}
           {tab === 'timeline' && (
             <>
-              {config.flags?.connect_enabled && hasDelegatedAccess(user, 'automation', 'view') && <NativeConnectLeadActivity leadId={l.id} enabled />}
+              {config.flags?.connect_enabled && hasDelegatedAccess(user, 'automation', 'view') && <NativeConnectLeadActivity leadId={l.id} enabled draftAction={canCreateTask ? draftConnectAction : undefined} />}
               <Row gap={8}>
                 <Button
                   accessibilityLabel="Note"
@@ -415,10 +428,13 @@ export default function LeadDetail() {
       <NoteSheet open={sheet === 'note'} onClose={() => setSheet(null)} leadId={id} onDone={refresh} />
       <CallSheet open={sheet === 'call'} onClose={() => setSheet(null)} lead={l} onDone={refresh} onFollowUp={() => setSheet('followup')} />
       <FollowUpSheet
+        key={connectDraft ? 'connect-draft' : 'follow-up'}
+        draft={connectDraft}
         open={canCreateTask && sheet === 'followup'}
         advanceStage={advanceFollowUpStage}
         onClose={() => {
           setAdvanceFollowUpStage(false);
+          setConnectDraft(null);
           setSheet(null);
         }}
         lead={l}
@@ -484,16 +500,18 @@ function FollowUpSheet({
   lead,
   onDone,
   advanceStage,
+  draft,
 }: {
   open: boolean;
+  draft?: ConnectActionDraft | null;
   advanceStage: boolean;
   onClose: () => void;
   lead: any;
   onDone: () => void;
 }) {
   const [type, setType] = useState('CALL');
-  const [note, setNote] = useState('');
-  const [at, setAt] = useState<Date | null>(null);
+  const [note, setNote] = useState(draft?.note ?? '');
+  const [at, setAt] = useState(() => futureConnectDate(draft?.at));
   const presets = timePresets();
   const save = useApiMutation(
     () => {

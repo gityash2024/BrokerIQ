@@ -51,3 +51,12 @@ export * from './request-activity';
 export * from './lead-presentation';
 
 export * from './message-links';
+
+/** A Connect suggestion becomes an editable draft in the existing CRM forms. */
+export type ConnectActionDraft = { kind: 'FOLLOW_UP' | 'SITE_VISIT'; note: string; evidence: string; at?: string };
+
+export function futureConnectDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return date.valueOf() > Date.now() ? date : null;
+}

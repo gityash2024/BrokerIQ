@@ -36,6 +36,8 @@ import {
 } from 'lucide-react';
 import {
   FURNISHING_LABELS,
+  futureConnectDate,
+  type ConnectActionDraft,
   LEAD_STAGES,
   visitShortlistedIds,
   LEAD_STAGE_COLORS,
@@ -101,6 +103,19 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
     query.get('tab') === 'shortlist' ? 'shortlist' : query.get('tab') === 'tasks' ? 'tasks' : 'timeline',
   );
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
+  const [connectDraft, setConnectDraft] = useState<{ note: string; at: Date | null; revision: number } | null>(null);
+  function draftConnectAction(action: ConnectActionDraft) {
+    const at = futureConnectDate(action.at);
+    if (action.kind === 'SITE_VISIT') {
+      const params = new URLSearchParams({ lead: id });
+      if (at) params.set('when', at.toISOString());
+      router.push('/broker/visits/new?' + params.toString());
+      return;
+    }
+    setAdvanceFollowUpStage(false);
+    setConnectDraft((prior) => ({ note: action.note, at, revision: (prior?.revision ?? 0) + 1 }));
+    setTab('tasks');
+  }
   const openFollowUpStage = () => {
     setAdvanceFollowUpStage(canEdit);
     setTab('tasks');
@@ -335,7 +350,8 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
           {tab === 'matches' && (!delegated || allowed('inventory')) && <LeadRequirements lead={l} />}
           {tab === 'tasks' && (
             <section id="lead-tasks" aria-label="Lead follow-ups and visits">
-              <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} advanceStage={advanceFollowUpStage} />
+              <Tasks key={connectDraft?.revision ?? 0} lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit}
+                advanceStage={advanceFollowUpStage} connectDraft={connectDraft} clearConnectDraft={() => setConnectDraft(null)} />
             </section>
           )}
           {tab === 'requirement' && <LeadRequirements lead={l} />}
@@ -343,7 +359,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <div className="space-y-4">
           {allowed('assistant') && <AiCard lead={l} onChange={refresh} />}
           {allowed('legacy') && <CallsCard leadId={l.id} />}
-          {config.flags.connect_enabled && allowed('automation') && <ConnectLeadActivity leadId={l.id} enabled />}
+          {config.flags.connect_enabled && allowed('automation') && <ConnectLeadActivity leadId={l.id} enabled draftAction={canCreateTask ? draftConnectAction : undefined} />}
           {allowed('deals') && <DealsCard lead={l} onChange={refresh} />}
           <div className="card space-y-3 p-5 text-sm">
             <h3 className="font-display font-bold">Details</h3>
@@ -617,14 +633,21 @@ function Tasks({
   canCreate,
   canEdit,
   advanceStage,
+  connectDraft,
+  clearConnectDraft,
 }: {
   lead: any;
   onChange: () => void;
   canCreate: boolean;
   canEdit: boolean;
   advanceStage: boolean;
+  connectDraft: { note: string; at: Date | null } | null;
+  clearConnectDraft: () => void;
 }) {
-  const [fu, setFu] = useState({ type: 'CALL', dueAt: toLocalInput(new Date(Date.now() + 2 * 3600_000)), note: '' });
+  const [fu, setFu] = useState(() => ({ type: 'CALL',
+    dueAt: connectDraft ? (connectDraft.at ? toLocalInput(connectDraft.at) : '') : toLocalInput(new Date(Date.now() + 2 * 3600_000)),
+    note: connectDraft?.note ?? '',
+  }));
   const addFu = useApiMutation(
     (retry?: boolean) => {
       if (retry) return submitTask('/follow-ups', lead.id);
@@ -641,6 +664,7 @@ function Tasks({
       success: 'Follow-up scheduled ⏰',
       onSuccess: () => {
         setFu({ ...fu, note: '' });
+        if (connectDraft) clearConnectDraft();
         onChange();
       },
     },
@@ -676,7 +700,7 @@ function Tasks({
             <Input disabled={!canCreate} type="datetime-local" value={fu.dueAt} onChange={(e) => setFu({ ...fu, dueAt: e.target.value })} />
           </div>
           <Input disabled={!canCreate} placeholder="Note" value={fu.note} onChange={(e) => setFu({ ...fu, note: e.target.value })} />
-          <Button access={canCreate} onClick={() => addFu.mutate(undefined)} loading={addFu.isPending}>
+          <Button access={canCreate} disabled={!fu.dueAt} onClick={() => addFu.mutate(undefined)} loading={addFu.isPending}>
             Schedule
           </Button>
           <Button access={canCreate} variant="secondary" className="ml-2" disabled={addFu.isPending} onClick={() => addFu.mutate(true)}>

@@ -4,7 +4,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { parseVisitLocalDateTime, visitInventoryTitle, hasDelegatedAccess, moduleAllowed, type LedgerItem } from '@brokeriq/shared';
+import { futureConnectDate, parseVisitLocalDateTime, visitInventoryTitle, hasDelegatedAccess, moduleAllowed, type LedgerItem } from '@brokeriq/shared';
 import { submitTask } from '@/lib/task-submissions';
 import { api } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
@@ -41,6 +41,8 @@ function VisitScheduleForm() {
   const [lead, setLead] = useState<any>(null);
   const [properties, setProperties] = useState<LedgerItem[]>([]);
   const [at, setAt] = useState(() => {
+    const suggested = futureConnectDate(search.get('when'));
+    if (suggested) return toLocalInput(suggested);
     const d = new Date(Date.now() + 86400_000);
     d.setHours(11, 0, 0, 0);
     return toLocalInput(d);
