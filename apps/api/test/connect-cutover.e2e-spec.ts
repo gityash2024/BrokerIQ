@@ -86,6 +86,7 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     const second = await session();
     const web = await session();
     await http().get('/api/connect/calls').set(web).expect(403);
+    await http().patch('/api/connect/firm-policy').set(web).send({ survey: true }).expect(403);
     for (const headers of [first, second]) {
       await http().post('/api/connect/devices').set(headers).send({ installId: randomUUID(), label: 'Call handset', version: 2 }).expect(201);
       await http().patch('/api/connect/settings').set(headers).send({ consent: true, calls: true, recordings: true }).expect(200);

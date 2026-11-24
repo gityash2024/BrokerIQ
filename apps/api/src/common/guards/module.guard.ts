@@ -126,6 +126,10 @@ export class ModuleGuard implements CanActivate {
       throw new ForbiddenException('यह role अभी launch में उपलब्ध नहीं है।');
     if (user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.orgId) throw new ForbiddenException('Firm membership required');
     const path = requestPath;
+    // The Connect handset routes enforce device, consent and CRM scope. Agents
+    // can use those routes while firm automation settings remain admin-only.
+    const agentConnect = user?.role === 'BROKER_AGENT' &&
+      /^\/connect\/(?:devices(?:\/[^/]+)?|settings|directory|calls|events(?:\/[^/]+(?:\/(?:recording|review))?)?|recordings)\/?$/.test(path);
     const key = moduleForPath(path, 'api');
     if (!user && path.startsWith('/webhooks/') && this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()])) return true;
     if (!user && key === 'consumer' && !this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]))
@@ -135,7 +139,7 @@ export class ModuleGuard implements CanActivate {
       key === 'slot_booking' &&
       /^\/listings\/[^/]+\/slots$/.test(path) &&
       this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
-    await this.modules.assertPath(path, publicSlots ? 'USER' : (user?.role ?? 'PUBLIC'));
+    await this.modules.assertPath(path, agentConnect ? 'BROKER_ADMIN' : publicSlots ? 'USER' : (user?.role ?? 'PUBLIC'));
     return true;
   }
 }

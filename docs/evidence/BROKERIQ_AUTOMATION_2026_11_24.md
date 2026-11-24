@@ -169,3 +169,9 @@ Later work for Connect transcription limits, local lead review, retention, free-
 
 - Editable property detail and editor flows retain regular photo upload and offer video extraction in Web and Mobile. The worker samples across the walkthrough and can present up to eight distinct frames. Free vision can select representative views of different rooms. The user confirms the selected frames before they enter the property gallery.
 - The existing photo endpoint accepts either one regular photo or one atomic set of approved frames. The API test reviewed eight distinct fixture scenes, saved three selected frames alongside a prior photo, rejected another firm and verified that concurrent retries only added one set. The browser verified real video upload and approval on an empty gallery as well as normal photo upload. The Native verification covered the file upload, frame selection and batch attachment.
+
+## BrokerIQ Connect download and linking
+
+- The connected staging API now exposes the owner's restricted Drive link for Connect 1.2.0 Build 3. The setting was absent when the main app showed that the download was unavailable. The verified APK has 20,901,983 bytes and SHA-256 `36d164e90402fb37c523b974091f045c885a8eebeee7b9facd5d06e20147dcad`.
+- The next API release can serve the verified APK from private storage through a five-minute, session-bound link. Signed-in Web and Mobile users obtain a fresh download link on click. Download availability is separate from the device linking status. Invalid, expired and revoked tickets return HTTP 404.
+- Broker Agent handset endpoints now honor the active Connect service and existing device, consent and CRM checks in broker-first mode. Firm policy remains admin-only. The download and enabled pilot suites passed five API checks. Target handset and live consent acceptance remain open. WhatsApp ZIP cutover remains disabled.

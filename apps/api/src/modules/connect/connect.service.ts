@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
+import { stat } from 'node:fs/promises';
 import { canonicalInventorySector, connectSurveyValuesSchema, normalizeIndianPhone, type ConnectSurveyField } from '@brokeriq/shared';
 import { z } from 'zod';
 import { env } from '../../config/env';
@@ -23,6 +24,10 @@ const privateMessage = /\b(?:otp|password|passcode|one.time (?:code|password)|ve
 const redact = (text: string) => text.replace(/(?:\+?91[\s.-]*)?[6-9](?:[\s.-]*\d){9}\b/g, '[contact]')
   .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[contact]');
 const firmPolicyKey = 'connect.automatic_updates';
+const apkTicket = z.object({
+  purpose: z.literal('connect-apk'), sessionId: z.string().min(1), userId: z.string().min(1),
+  version: z.number().int().positive(), expiresAt: z.number().int(),
+});
 const eventProjection = {
   id: true, kind: true, status: true, capturedAt: true, updatedAt: true, leadId: true, callId: true, lastError: true, recordingType: true,
 } as const;
@@ -68,7 +73,7 @@ export class ConnectService {
     jobs.register('connect.retention', (job) => this.expireCaptures(job.orgId, new Date(job.at)));
   }
 
-  async profile(user: RequestUser) {
+  async profile(user: RequestUser, sessionId: string) {
     const options = env();
     const devices = await this.db.connectDevice.findMany({ where: { userId: user.id, organizationId: user.orgId ?? '', revokedAt: null },
       select: { id: true, label: true, version: true, lastSeenAt: true, consentAt: true, sessionId: true }, orderBy: { lastSeenAt: 'desc' } });
@@ -77,8 +82,37 @@ export class ConnectService {
     const connected = devices.filter(({ sessionId }) => sessions.some(({ id }) => id === sessionId)).map(({ sessionId: _session, ...device }) => device);
     const canManagePolicy = user.role === 'BROKER_ADMIN' && !user.delegatedActor && !!user.orgId;
     const policy = options.CONNECT_ENABLED && canManagePolicy ? await this.firmPolicy(this.db, user.orgId!) : undefined;
-    return { downloadUrl: options.CONNECT_APK_URL ?? null, latestVersion: options.CONNECT_APK_VERSION,
+    const locallyHosted = await this.localApk();
+    const ticket = locallyHosted && this.crypto.encrypt(JSON.stringify({ purpose: 'connect-apk', sessionId, userId: user.id,
+      expiresAt: Date.now() + 5 * 60_000, version: options.CONNECT_APK_VERSION }));
+    const downloadUrl = ticket ? options.PUBLIC_API_URL.replace(/\/$/, '') + '/api/media/connect-apk/' + encodeURIComponent(ticket) : options.CONNECT_APK_URL ?? null;
+    return { downloadUrl, latestVersion: options.CONNECT_APK_VERSION,
       enabled: options.CONNECT_ENABLED, devices: connected, policy };
+  }
+
+  private async localApk() {
+    const path = env().CONNECT_APK_PATH;
+    if (!path) return null;
+    const file = await stat(path).catch(() => null);
+    return file?.isFile() && file.size > 0 ? path : null;
+  }
+
+  async downloadApk(ticket: string) {
+    const unavailable = () => new NotFoundException('This Connect download link has expired. Open BrokerIQ Connect again to get a new link.');
+    if (ticket.length > 1024 || ticket.split(':').length !== 4) throw unavailable();
+    let access: z.infer<typeof apkTicket>;
+    try { access = apkTicket.parse(JSON.parse(this.crypto.decrypt(ticket))); }
+    catch { throw unavailable(); }
+    if (access.expiresAt <= Date.now() || access.version !== env().CONNECT_APK_VERSION) throw unavailable();
+    const session = await this.db.refreshToken.findFirst({
+      where: { id: access.sessionId, userId: access.userId, expiresAt: { gt: new Date() }, revokedAt: null, user: { status: 'ACTIVE', deletedAt: null } },
+      select: { sessionVersion: true, user: { select: { sessionVersion: true, role: true, organization: { select: { status: true } } } } },
+    });
+    if (!session || session.sessionVersion !== session.user.sessionVersion ||
+      (session.user.role !== 'SUPER_ADMIN' && session.user.organization?.status === 'SUSPENDED')) throw unavailable();
+    const path = await this.localApk();
+    if (!path) throw unavailable();
+    return path;
   }
 
   private async firmPolicy(tx: Prisma.TransactionClient, organizationId: string) {

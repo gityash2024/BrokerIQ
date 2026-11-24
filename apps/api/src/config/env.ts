@@ -35,6 +35,7 @@ const envSchema = z.object({
   CONNECT_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   CONNECT_WHATSAPP_CUTOVER: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   CONNECT_APK_URL: z.url({ protocol: /^https$/ }).optional(),
+  CONNECT_APK_PATH: z.string().startsWith('/').optional(),
   CONNECT_APK_VERSION: z.coerce.number().int().positive().default(1),
   CONNECT_WHISPER_MODEL: z.string().min(1).optional(),
   CONNECT_WHISPER_PYTHON: z.string().min(1).default('python3'),

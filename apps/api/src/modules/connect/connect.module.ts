@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Module, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Module, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
+import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { AuthModule } from '../auth/auth.module';
 import { ConnectService } from './connect.service';
@@ -16,7 +16,8 @@ class ConnectController {
   constructor(private readonly connect: ConnectService) {}
 
   @Get('profile')
-  profile(@CurrentUser() user: RequestUser) { return this.connect.profile(user); }
+  @Header('Cache-Control', 'private, no-store')
+  profile(@CurrentUser() user: RequestUser, @Req() request: SessionRequest) { return this.connect.profile(user, request.sessionId); }
 
   @Roles('BROKER_ADMIN')
   @Patch('firm-policy')
@@ -100,5 +101,21 @@ class ConnectController {
   retry(@CurrentUser() user: RequestUser, @Param('id') id: string) { return this.connect.retry(user, id); }
 }
 
-@Module({ imports: [AuthModule], controllers: [ConnectController], providers: [ConnectService] })
+@Controller('media/connect-apk')
+class ConnectApkController {
+  constructor(private readonly connect: ConnectService) {}
+
+  @Public()
+  @Get(':ticket')
+  async download(@Param('ticket') ticket: string, @Res() response: Response) {
+    const path = await this.connect.downloadApk(ticket);
+    response.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.download(path, 'BrokerIQ-Connect.apk');
+  }
+}
+
+@Module({ imports: [AuthModule], controllers: [ConnectController, ConnectApkController], providers: [ConnectService] })
 export class ConnectModule {}

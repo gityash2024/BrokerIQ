@@ -51,6 +51,13 @@ export function ConnectProfile() {
     if (!fields.success) { toast.error(fields.error.issues[0].message); return; }
     if (await updatePolicy({ surveyFields: fields.data })) setSurveyField({ label: '', type: 'TEXT', required: false });
   }
+  async function download() {
+    try {
+      const result = await data.refetch({ throwOnError: true });
+      if (!result.data?.downloadUrl) throw new Error('Download is unavailable for this environment.');
+      window.location.assign(result.data.downloadUrl);
+    } catch (error) { toast.error(errorMessage(error)); }
+  }
   if (!user) return null;
   return <>
     <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(true)}>BrokerIQ Connect</Button>
@@ -58,8 +65,9 @@ export function ConnectProfile() {
       {data.isError && <ApiErrorState error={data.error} onRetry={() => data.refetch()} />}
       {data.isPending && <p role="status">Loading device status…</p>}
       {data.data && <div className="space-y-3">
-        <p className="text-sm">{data.data.devices.length ? 'Connected' : 'Not connected'}</p>
-        {data.data.downloadUrl ? <a className="font-semibold text-brand-700 underline" href={data.data.downloadUrl}>Download BrokerIQ Connect</a> :
+        <p className="text-sm">{data.data.enabled ? (data.data.devices.length ? 'Connected' : 'Not connected') : 'Device linking is paused'}</p>
+        {data.data.downloadUrl ? <a className="font-semibold text-brand-700 underline" href={data.data.downloadUrl} referrerPolicy="no-referrer"
+          onClick={(event) => { event.preventDefault(); void download(); }}>Download BrokerIQ Connect</a> :
           <p className="text-sm text-muted">Download is unavailable for this environment.</p>}
         {data.data.devices.map((device) => <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-2" key={device.id}>
           <div><p className="font-semibold">{device.label}</p><p className="text-xs text-muted">

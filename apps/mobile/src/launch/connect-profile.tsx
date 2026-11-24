@@ -52,6 +52,13 @@ export function NativeConnectProfile() {
     if (!fields.success) { toast.error(fields.error.issues[0].message); return; }
     if (await updatePolicy({ surveyFields: fields.data })) setSurveyField({ label: '', type: 'TEXT', required: false });
   }
+  async function download() {
+    try {
+      const result = await data.refetch({ throwOnError: true });
+      if (!result.data?.downloadUrl) throw new Error('Download is unavailable for this environment.');
+      await Linking.openURL(result.data.downloadUrl);
+    } catch (error) { toast.error(errorMessage(error)); }
+  }
   if (!user) return null;
   return <>
     <Button title="BrokerIQ Connect" size="sm" variant="secondary" onPress={() => setOpen(true)} />
@@ -60,8 +67,9 @@ export function NativeConnectProfile() {
       {data.isPending && <Txt>Loading device status…</Txt>}
       {data.error && <Txt color="danger">{errorMessage(data.error)}</Txt>}
       {data.data && <>
-        <Txt>{data.data.devices.length ? 'Connected' : 'Not connected'}</Txt>
-        {data.data.downloadUrl && <Button title="Download BrokerIQ Connect" onPress={() => void Linking.openURL(data.data!.downloadUrl!).catch(() => toast.error('Download link unavailable'))} />}
+        <Txt>{data.data.enabled ? (data.data.devices.length ? 'Connected' : 'Not connected') : 'Device linking is paused'}</Txt>
+        {data.data.downloadUrl ? <Button title="Download BrokerIQ Connect" disabled={data.isFetching} onPress={() => void download()} /> :
+          <Txt v="caption">Download is unavailable for this environment.</Txt>}
         {data.data.devices.map((device) => <NativeCard key={device.id}>
           <Txt v="bodyStrong">{device.label}</Txt>
           <Txt>{device.consentAt ? 'Authorized' : 'Permissions required'}{device.version < data.data!.latestVersion ? ' · Update available' : ''}</Txt>
