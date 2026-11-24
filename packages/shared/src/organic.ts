@@ -46,6 +46,7 @@ export const organicRecordInput = z.object({
   displayName: text.optional(),
   phone: z.string().trim().min(1).max(30).optional(),
   contactUrl: url.optional(),
+  contactSourceId: text.optional(),
   registryRegistration: text.optional(),
   registryRegisteredAt: z.iso.date().optional(),
   registryReference: z.boolean().optional(),

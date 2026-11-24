@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { Prisma, PropertyType } from '@prisma/client';
-import { canonicalInventorySector, normalizeIndianPhone, organicRecordInput, type OrganicDeliveryInput, type OrganicTarget } from '@brokeriq/shared';
+import { canonicalInventorySector, normalizeIndianPhone, organicRecordInput, type OrganicDeliveryInput, type OrganicRecordInput, type OrganicTarget } from '@brokeriq/shared';
 import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobsService } from '../../core/jobs/jobs.service';
@@ -99,6 +99,7 @@ export class OrganicDeliveryService {
 
   private eligible(from: Date, to: Date, rule: { sectors: string[]; leadType: string }): Prisma.OrganicRecordWhereInput {
     return { kind: 'DEMAND', status: 'APPROVED', eligibleAt: { gt: from, lte: to }, availability: { notIn: ['CLOSED', 'STALE'] },
+      sourceRefs: { some: { source: { enabled: true } } },
       ...(rule.sectors.length ? { sectors: { hasSome: rule.sectors } } : {}),
       ...(rule.leadType !== 'ALL' ? { intent: { in: rule.leadType === 'BUYER' ? ['BUYER', 'COMMERCIAL_BUYER', 'INVESTOR'] : ['TENANT', 'COMMERCIAL_TENANT', 'RELOCATION'] } } : {}),
     };
@@ -146,15 +147,21 @@ export class OrganicDeliveryService {
     if (report.failed) throw new Error('Some organic lead transfers need retry');
   }
 
+  private redistributablePhone(data: OrganicRecordInput, refs: { url: string; sourceId: string; source: { contactRedistribution: boolean } }[]) {
+    const matching = refs.filter((ref) => data.contactSourceId ? ref.sourceId === data.contactSourceId : ref.url === data.url);
+    return matching.length === 1 && matching[0].source.contactRedistribution ? normalizeIndianPhone(data.phone) : null;
+  }
+
   async previewTransfer(ids: string[], targets: OrganicTarget[]) {
     const rows = await this.db.organicRecord.findMany({ where: { id: { in: ids }, status: 'APPROVED',
-      availability: { notIn: ['CLOSED', 'STALE'] }, sourceRefs: { some: { source: { enabled: true } } } }, select: { id: true, values: true, kind: true } });
+      availability: { notIn: ['CLOSED', 'STALE'] }, sourceRefs: { some: { source: { enabled: true } } } }, select: { id: true, values: true, kind: true,
+        sourceRefs: { where: { source: { enabled: true } }, select: { url: true, sourceId: true, source: { select: { contactRedistribution: true } } } },
+      } });
     return Promise.all(targets.map(async (target) => {
       await this.verifyTarget(this.db, target);
-      const phones = rows.filter(({ kind }) => kind === 'DEMAND').flatMap(({ values }) => {
-        const phone = normalizeIndianPhone(organicRecordInput.parse(values).phone);
-        return phone ? [phone] : [];
-      });
+      const contacts = new Map(rows.filter(({ kind }) => kind === 'DEMAND').map(({ id, values, sourceRefs }) =>
+        [id, this.redistributablePhone(organicRecordInput.parse(values), sourceRefs)]));
+      const phones = [...contacts.values()].filter((phone): phone is string => Boolean(phone));
       const [previous, current] = await Promise.all([
         this.db.organicTransfer.findMany({ where: { recordId: { in: rows.map(({ id }) => id) }, organizationId: target.organizationId }, select: { recordId: true } }),
         this.db.lead.findMany({ where: { organizationId: target.organizationId, phone: { in: phones } }, select: { phone: true } }),
@@ -162,7 +169,7 @@ export class OrganicDeliveryService {
       const duplicate = new Set(previous.map(({ recordId }) => recordId));
       const matched = new Set(current.map(({ phone }) => phone));
       for (const row of rows) {
-        const phone = row.kind === 'DEMAND' ? normalizeIndianPhone(organicRecordInput.parse(row.values).phone) : null;
+        const phone = contacts.get(row.id);
         if (phone && matched.has(phone)) duplicate.add(row.id);
       }
       return { ...target, selected: ids.length, eligible: rows.length, duplicates: duplicate.size, newRecords: rows.length - duplicate.size };
@@ -201,7 +208,8 @@ export class OrganicDeliveryService {
       });
       if (!record || !record.sourceRefs.length) return 'skipped';
       const data = organicRecordInput.parse(record.values);
-      const phone = record.sourceRefs.some(({ source }) => source.contactRedistribution) ? normalizeIndianPhone(data.phone) : null;
+      if (data.registryReference) return 'skipped';
+      const phone = this.redistributablePhone(data, record.sourceRefs);
       const sourceUrl = record.sourceRefs[0].url;
       let targetId: string;
       let targetType: string;

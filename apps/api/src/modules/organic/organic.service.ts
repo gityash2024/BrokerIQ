@@ -339,7 +339,8 @@ export class OrganicService {
   }
 
   private async saveRecord(source: OrganicSource, normalized: NonNullable<ReturnType<typeof normalizeOrganicRecord>>, batch?: { runId: string; sourceId: string }) {
-    const { data, key, confidence, priority } = normalized;
+    const { key, confidence, priority } = normalized;
+    const data = { ...normalized.data, contactSourceId: normalized.data.phone ? source.id : undefined };
     const identity = { sourceId: source.id, kind: data.kind, externalId: data.externalId ?? digest(data.url) };
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'organic-records:' + data.kind}))`);

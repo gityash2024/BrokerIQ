@@ -132,5 +132,18 @@ describe('Organic daily delivery', () => {
     expect(lead).toMatchObject({ source: 'ORGANIC_DEMAND', assignedToId: broker.user.id, requirement: { bedrooms: [2], maxBudget: 43000 } });
     await api().get('/api/leads/' + lead.id).set(auth(other.token)).expect(404);
     expect(await db.notification.count({ where: { userId: broker.user.id, kind: 'ORGANIC_DELIVERY' } })).toBe(1);
+
+    await db.organicRecord.update({ where: { id: record.id }, data: {
+      values: { ...(record.values as Record<string, unknown>), contactSourceId: source.id },
+    } });
+    await db.organicSource.update({ where: { id: source.id }, data: { contactRedistribution: false } });
+    const alternate = await db.organicSource.create({ data: { name: 'Another authorized publisher', url: source.url + '/other',
+      permissionUrl: source.permissionUrl, format: 'JSON', supports: ['DEMAND'], enabled: true, contactRedistribution: true } });
+    await db.organicSourceReference.create({ data: { sourceId: alternate.id, recordId: record.id, kind: 'DEMAND',
+      externalId: key, url: alternate.url } });
+    const manual = await db.organicRun.create({ data: { kind: 'MANUAL', key: randomUUID() } });
+    await expect(service['transfer'](record.id, { organizationId: outer.id, brokerAdminId: other.user.id }, manual.id, admin.user.id)).resolves.toBe('delivered');
+    expect(await db.lead.count({ where: { organizationId: outer.id, phone: '+919811100831' } })).toBe(0);
+    expect(await db.organicTransfer.findFirst({ where: { recordId: record.id, organizationId: outer.id } })).toMatchObject({ targetType: 'REQUIREMENT' });
   });
 });
