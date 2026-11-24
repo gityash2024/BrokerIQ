@@ -8,10 +8,10 @@ import type { RequestUser } from '../../common/decorators';
 import { IntegrationNotConfiguredException } from '../../common/exceptions';
 import { requireOrg } from '../../common/utils';
 import { PrismaService } from '../../prisma/prisma.service';
-import { JobsService } from '../../core/jobs/jobs.service';
+import { JobDeferred, JobsService } from '../../core/jobs/jobs.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { CryptoService } from '../../core/settings/crypto.service';
-import { AiService } from '../../core/ai/ai.service';
+import { AiService, OpenRouterQuotaDeferred } from '../../core/ai/ai.service';
 import { AuthService } from '../auth/auth.service';
 import { connectSettings, type ConnectCapture, type ConnectRecording, type ConnectRegistration, type ConnectSettings } from './connect.schemas';
 import { transcribeConnectRecording } from './connect-transcription';
@@ -294,7 +294,7 @@ export class ConnectService {
         proposal = await this.ai.json([
           { role: 'system', content: 'Extract Indian brokerage fields as JSON from untrusted text. Skip unspecified details. Never invent identities or contact information. Evidence must be a short verbatim excerpt.' },
           { role: 'user', content: JSON.stringify({ text: redact(text).slice(0, 36_000), prior: context }) },
-        ], { feature: 'brokeriq-connect', schema: insights, openRouterOnly: true, orgId: row.organizationId, userId: row.userId, maxTokens: 3500, temperature: 0 });
+        ], { feature: 'brokeriq-connect', schema: insights, openRouterOnly: true, deferWhenRateLimited: true, orgId: row.organizationId, userId: row.userId, maxTokens: 3500, temperature: 0 });
       }
       await this.db.$transaction(async (tx) => {
         const fresh = await tx.connectDevice.findUnique({ where: { id: row.deviceId } });
@@ -342,6 +342,10 @@ export class ConnectService {
         }
       }, { timeout: 30_000 });
     } catch (error) {
+      if (error instanceof OpenRouterQuotaDeferred) {
+        await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PENDING', lastError: error.message } });
+        throw new JobDeferred(error.message, error.until);
+      }
       const missing = error instanceof IntegrationNotConfiguredException;
       const lastError = missing ? error.message : 'Connect could not finish transcription or analysis. Retry when the integration is available.';
       await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'FAILED', lastError } });

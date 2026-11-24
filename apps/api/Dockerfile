@@ -15,6 +15,7 @@ RUN pnpm --filter @brokeriq/shared build && pnpm --filter @brokeriq/api build
 RUN pnpm deploy --filter @brokeriq/api --prod --legacy /out && cp -r apps/api/dist /out/dist && cp -r apps/api/prisma /out/prisma && cd /out && npx prisma generate
 
 FROM base AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils tesseract-ocr && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production PORT=3000
 WORKDIR /app
 COPY --from=build /out ./

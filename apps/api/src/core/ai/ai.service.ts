@@ -38,6 +38,7 @@ interface CallOpts {
   responseSchema?: ZodType;
   strictSchema?: boolean;
   openRouterOnly?: boolean;
+  deferWhenRateLimited?: boolean;
 }
 
 const PROVIDERS: ProviderName[] = ['qwen_local', 'openrouter', 'groq', 'gemini'];
@@ -69,6 +70,17 @@ class RetryableError extends Error {
 }
 /** The provider itself is unusable (bad key, no credit) — skip all its models. */
 class ProviderError extends Error {}
+
+export class OpenRouterQuotaDeferred extends Error {
+  constructor(readonly until: Date, readonly daily = false) {
+    super(daily ? 'OpenRouter daily request limit reached' : 'Free OpenRouter capacity is temporarily unavailable');
+  }
+}
+function nextUtcDay() {
+  const day = new Date();
+  day.setUTCHours(24, 0, 10, 0);
+  return day;
+}
 
 /**
  * Provider-agnostic AI client. Tries free OpenRouter before the configured fallback providers
@@ -347,10 +359,13 @@ export class AiService {
     );
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
+    const rateLimited: Date[] = [];
     for (const p of providers) {
       const models = kind === 'vision' ? p.visionModels : p.textModels;
       for (const model of models) {
-        if (p.name === 'openrouter' && Date.now() < (this.openRouterRetryAt.get(model) ?? 0)) {
+        const retryAt = this.openRouterRetryAt.get(model) ?? 0;
+        if (p.name === 'openrouter' && Date.now() < retryAt) {
+          rateLimited.push(new Date(retryAt));
           errors.push(`openrouter/${model}: waiting for Retry-After`);
           continue;
         }
@@ -371,9 +386,16 @@ export class AiService {
         } catch (e) {
           await this.track(p.name, model, opts, false, 0);
           errors.push(`${p.name}/${model}: ${(e as Error).message}`.slice(0, 200));
-          if (e instanceof ProviderError) break; // skip this provider's other models
+          if (e instanceof OpenRouterQuotaDeferred) {
+            if (e.daily && opts.openRouterOnly && opts.deferWhenRateLimited) throw e;
+            rateLimited.push(e.until);
+          }
+          if (e instanceof ProviderError || (e instanceof OpenRouterQuotaDeferred && e.daily)) break; // skip this provider's other models
         }
       }
+    }
+    if (opts.openRouterOnly && opts.deferWhenRateLimited && rateLimited.length) {
+      throw new OpenRouterQuotaDeferred(new Date(Math.min(...rateLimited.map((date) => date.valueOf()))));
     }
     this.logger.warn(`AI ${opts.feature} failed on all models: ${errors.join(' | ')}`);
     throw new IntegrationFailedException(providers[0].name, `AI अभी busy है — थोड़ी देर में फिर कोशिश करें। (${errors.length} models tried)`);
@@ -489,7 +511,7 @@ export class AiService {
         WHERE "OpenRouterDailyQuota"."attempts" < 1000
         RETURNING "attempts"
       `;
-      if (!reserved.length) throw new ProviderError('OpenRouter daily request limit reached');
+      if (!reserved.length) throw new OpenRouterQuotaDeferred(nextUtcDay(), true);
     }
     let res: Response;
     try {
@@ -499,11 +521,14 @@ export class AiService {
     }
     if (p.name === 'openrouter' && res.status === 429 && typeof body.model === 'string') {
       const retryAfter = res.headers?.get('retry-after');
-      if (retryAfter) {
-        const now = Date.now();
-        const retryAt = /^\d+$/.test(retryAfter) ? now + Number(retryAfter) * 1000 : Date.parse(retryAfter);
-        if (Number.isFinite(retryAt) && retryAt > now) this.openRouterRetryAt.set(body.model, Math.min(retryAt, now + 86_400_000));
+      const now = Date.now();
+      const retryAt = !retryAfter ? NaN : /^\d+$/.test(retryAfter) ? now + Number(retryAfter) * 1000 : Date.parse(retryAfter);
+      if (Number.isFinite(retryAt) && retryAt > now) {
+        const until = Math.min(retryAt, now + 86_400_000);
+        this.openRouterRetryAt.set(body.model, until);
+        throw new OpenRouterQuotaDeferred(new Date(until));
       }
+      throw new OpenRouterQuotaDeferred(new Date(now + 60_000));
     }
     const data: any = await res.json().catch(() => ({}));
     const msg = data?.error?.message ?? data?.[0]?.error?.message ?? `HTTP ${res.status}`;
@@ -551,7 +576,7 @@ export class AiService {
           .join('\n');
       } catch (e) {
         errors.push(`${model}: ${(e as Error).message}`);
-        if (e instanceof ProviderError) break;
+        if (e instanceof ProviderError || (e instanceof OpenRouterQuotaDeferred && e.daily)) break;
       }
     }
     throw new Error(errors.join(' | ') || 'No model configured');

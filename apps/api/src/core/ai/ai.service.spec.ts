@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { capturedEntitySchema } from '@brokeriq/shared';
 import * as configuration from '../../config/env';
-import { AiService, parseJsonLoose } from './ai.service';
+import { AiService, OpenRouterQuotaDeferred, parseJsonLoose } from './ai.service';
 
 /** Fallback chain: busy models and rejected keys fall through; JSON is validated and repaired once. */
 describe('AiService', () => {
@@ -68,6 +68,17 @@ describe('AiService', () => {
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
     await expect(ai.chat([{ role: 'user', content: 'Draft only' }], { feature: 'diagnostic' })).rejects.toThrow();
     expect(calls).toHaveLength(0);
+  });
+
+  it('reports a bounded deferral time for asynchronous free-only work', async () => {
+    respond = () => ({ status: 429, json: {}, headers: new Headers({ 'Retry-After': '60' }) });
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    const before = Date.now();
+    const options = { feature: 'brokeriq-connect', openRouterOnly: true, deferWhenRateLimited: true };
+    const result = await ai.chat([{ role: 'user', content: 'Draft only' }], options).catch((error: unknown) => error);
+    expect(result).toBeInstanceOf(OpenRouterQuotaDeferred);
+    expect((result as OpenRouterQuotaDeferred).until.getTime()).toBeGreaterThanOrEqual(before + 60_000);
+    expect(calls.map(({ model }) => model)).toEqual(['a:free']);
   });
 
   it('uses the next model when one is rate limited', async () => {

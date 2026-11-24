@@ -7,6 +7,14 @@ import { ModulesService } from '../features/modules.service';
 
 export type JobHandler = (payload: any, job: Job) => Promise<void>;
 
+const heavyJobTypes = ['import.extract', 'import.pdf', 'property.video.extract', 'connect.process', 'organic.discovery', 'organic.manual-transfer'];
+
+export class JobDeferred extends Error {
+  constructor(message: string, readonly until: Date) {
+    super(message);
+  }
+}
+
 /**
  * Postgres-backed job queue (no Redis needed).
  * Workers poll with FOR UPDATE SKIP LOCKED so multiple API instances are safe.
@@ -63,11 +71,11 @@ export class JobsService implements OnModuleDestroy {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brokeriq:job-claim'))`;
         return tx.$queryRaw<Job[]>(Prisma.sql`
           WITH ordinary AS (
-            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type NOT IN ('import.extract', 'import.pdf', 'property.video.extract')
+            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type NOT IN (${Prisma.join(heavyJobTypes)})
             ORDER BY "runAt" ASC, id ASC LIMIT 10 FOR UPDATE SKIP LOCKED
           ), heavy AS (
-            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type IN ('import.extract', 'import.pdf', 'property.video.extract')
-              AND NOT EXISTS (SELECT 1 FROM "Job" WHERE type IN ('import.extract', 'import.pdf', 'property.video.extract') AND status = 'RUNNING')
+            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type IN (${Prisma.join(heavyJobTypes)})
+              AND NOT EXISTS (SELECT 1 FROM "Job" WHERE type IN (${Prisma.join(heavyJobTypes)}) AND status = 'RUNNING')
             ORDER BY "runAt" ASC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED
           )
           UPDATE "Job" SET status = 'RUNNING', "lockedAt" = timezone('UTC', now()), attempts = attempts + 1, "updatedAt" = timezone('UTC', now())
@@ -75,7 +83,7 @@ export class JobsService implements OnModuleDestroy {
       });
       const ordinary: Job[] = [];
       for (const job of jobs) {
-        if (!['import.extract', 'import.pdf', 'property.video.extract'].includes(job.type)) {
+        if (!heavyJobTypes.includes(job.type)) {
           ordinary.push(job);
           continue;
         }
@@ -119,6 +127,13 @@ export class JobsService implements OnModuleDestroy {
       await handler(job.payload, job);
       await this.prisma.job.updateMany({ where: owned, data: { status: 'DONE', lastError: null, lockedAt: null } });
     } catch (e) {
+      if (e instanceof JobDeferred) {
+        await this.prisma.job.updateMany({
+          where: owned,
+          data: { status: 'PENDING', lockedAt: null, runAt: e.until, lastError: e.message, attempts: { decrement: 1 } },
+        });
+        return;
+      }
       const err = (e as Error).message?.slice(0, 1000) ?? 'error';
       const final = job.attempts >= job.maxAttempts;
       const backoffSec = Math.min(3600, 30 * 2 ** (job.attempts - 1));

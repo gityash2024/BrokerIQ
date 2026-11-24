@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { JobsService } from '../src/core/jobs/jobs.service';
+import { JobDeferred, JobsService } from '../src/core/jobs/jobs.service';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import * as configuration from '../src/config/env';
 
@@ -105,6 +105,20 @@ describe('bounded import job capacity and lease ownership', () => {
     await service.tick();
     expect(light).toBe(23);
     expect(await db.job.count({ where: { type: 'import.extract', status: 'RUNNING' } })).toBe(1);
+  });
+  it('defers quota-limited Connect work without consuming its attempts or blocking CRM jobs', async () => {
+    const service = worker();
+    const until = new Date(Date.now() + 60_000);
+    service.register('connect.process', async () => { throw new JobDeferred('Waiting for free AI', until); });
+    service.register('test.light', async () => undefined);
+    const connect = await service.enqueue('connect.process', {}, { maxAttempts: 1 });
+    const crm = await service.enqueue('test.light');
+    await service.tick();
+    await drain();
+    expect(await db.job.findUniqueOrThrow({ where: { id: connect.id } })).toMatchObject({
+      status: 'PENDING', runAt: until, attempts: 0, lockedAt: null,
+    });
+    expect(await db.job.findUniqueOrThrow({ where: { id: crm.id } })).toMatchObject({ status: 'DONE', attempts: 1 });
   });
   it('a scheduled future import neither starts early nor blocks due work', async () => {
     const service = worker(),
