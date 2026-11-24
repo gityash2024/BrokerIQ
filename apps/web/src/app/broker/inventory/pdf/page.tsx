@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { api, assertAccountContext, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { qs } from '@/lib/utils';
-import { useRouteState } from '@/lib/navigation';
+import { hasPreviousPage, pushRouteView, useRouteState } from '@/lib/navigation';
 import { useDebounced } from '@/lib/hooks';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -27,7 +27,7 @@ export default function PdfInventoryPage() {
   const [file, setFile] = useState<File | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [selected, setSelected] = useState<PdfInventoryRow | null>(null);
+  const [selectedId, setSelectedId] = useRouteState<string | null>('pdf-inventory.row', null);
   const [batchBusy, setBatchBusy] = useState('');
   const allowed = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN'].includes(user.role) && hasDelegatedAccess(user, 'inventory', 'view');
   const canCreate = allowed && hasDelegatedAccess(user, 'inventory', 'create');
@@ -40,9 +40,9 @@ export default function PdfInventoryPage() {
     enabled: allowed,
     refetchInterval: (state) => state.state.data?.batches.some(({ status }) => status === 'PENDING' || status === 'PROCESSING') ? 3000 : false,
   });
+  const selected = data.data?.items.find(({ id }) => id === selectedId);
   useEffect(() => {
     setFile(null);
-    setSelected(null);
     if (picker.current) picker.current.value = '';
   }, [user?.id, user?.organization?.id]);
 
@@ -136,7 +136,9 @@ export default function PdfInventoryPage() {
               <td className="p-3">{[row.configuration, row.floor, row.areaSqft && row.areaSqft + ' sq ft'].filter(Boolean).join(' · ')}</td>
               <td className="p-3">{row.monthlyRent == null ? '—' : '₹' + row.monthlyRent.toLocaleString('en-IN')}</td>
               <td className="p-3">{row.availability}</td><td className="p-3">{row.review.replaceAll('_', ' ')}</td>
-              <td className="p-3"><Button size="sm" variant="secondary" onClick={() => setSelected(row)}>Open property</Button></td>
+              <td className="p-3"><Button size="sm" variant="secondary" onClick={() => {
+                if (!pushRouteView({ 'pdf-inventory.row': row.id })) setSelectedId(row.id);
+              }}>Open property</Button></td>
             </tr>)}</tbody>
           </table>
           {data.isPending && <p className="p-4">Loading PDF inventory…</p>}
@@ -148,7 +150,10 @@ export default function PdfInventoryPage() {
         <span>Page {page}</span>
         <Button size="sm" variant="secondary" disabled={page * 30 >= (data.data?.total ?? 0)} onClick={() => setPage(page + 1)}>Next</Button>
       </div>
-      {selected && <RowEditor key={selected.id} row={selected} canEdit={canEdit} canDelete={canDelete} canReadContacts={canReadContacts} close={() => setSelected(null)}
+      {selected && <RowEditor key={`${selected.id}:${canReadContacts}`} row={selected} canEdit={canEdit} canDelete={canDelete} canReadContacts={canReadContacts} close={() => {
+        if (hasPreviousPage({ samePath: true })) window.history.back();
+        else setSelectedId(null);
+      }}
         refresh={() => cache.invalidateQueries({ queryKey: ['pdf-inventory'] })} />}
     </div>
   );
@@ -160,6 +165,11 @@ function RowEditor({ row, canEdit, canDelete, canReadContacts, close, refresh }:
     [...pdfInventoryEditableFields.map(([key]) => [key, String(row[key] ?? '')]), ['availability', row.availability ?? 'UNKNOWN'], ['contacts', row.contacts?.join(', ') ?? '']],
   ));
   const [busy, setBusy] = useState(false);
+  const active = useRef(false);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
 
   async function save(archive = false) {
     if (archive && !window.confirm('Archive this PDF property?')) return;
@@ -173,14 +183,14 @@ function RowEditor({ row, canEdit, canDelete, canReadContacts, close, refresh }:
       await api(`${endpoint}/${row.id}`, archive ? { method: 'DELETE' } : {
         method: 'PATCH', body: { ...changes, availability: fields.availability, ...(canReadContacts ? { contacts: [...new Set(contacts)] } : {}), expectedUpdatedAt: row.updatedAt, reviewed: true },
       });
+      if (active.current) close();
       await refresh();
-      close();
     } catch (error) { toast.error(errorMessage(error)); }
     finally { setBusy(false); }
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }} title={row.address || 'PDF property'} size="lg"
+    <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }} title={row.address || 'PDF property'} size="lg" scrollKey={'pdf-inventory-row-' + row.id}
       footer={<>{canDelete && <Button variant="secondary" disabled={busy} onClick={() => void save(true)}>Archive</Button>}
         {canEdit && <Button disabled={busy} onClick={() => void save()}>Save review</Button>}</>}>
       <div className="grid gap-3 sm:grid-cols-2">

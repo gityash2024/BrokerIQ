@@ -11,7 +11,7 @@ import { ApiErrorState } from '@/components/ui/api-error';
 import { Dialog } from '@/components/ui/dialog';
 import { api, errorMessage } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
-import { useRouteState } from '@/lib/navigation';
+import { hasPreviousPage, pushRouteView, useRouteState } from '@/lib/navigation';
 import { qs } from '@/lib/utils';
 
 const endpoint = '/admin/organic';
@@ -66,7 +66,7 @@ function RecordsPage({ kind }: { kind: Kind }) {
   const [page, setPage] = useRouteState('organic.page', 1);
   const [selected, select] = useState<string[]>([]);
   const [all, setAll] = useState(false);
-  const [detail, setDetail] = useState<string | null>(null);
+  const [detail, setDetail] = useRouteState<string | null>('organic.detail', null);
   const [transfer, showTransfer] = useState(false);
   const [busy, setBusy] = useState(false);
   const clean = JSON.parse(useDebounced(JSON.stringify(filters))) as Record<string, string>;
@@ -148,7 +148,9 @@ function RecordsPage({ kind }: { kind: Kind }) {
         <tbody>{data.data?.rows.map((row) => <tr className="border-t border-line" key={row.id}>
           <td className="p-3"><input aria-label={'Select ' + row.title} type="checkbox" disabled={all} checked={all || selected.includes(row.id)}
             onChange={(e) => select(e.target.checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))} /></td>
-          <td className="p-3"><button className="font-semibold text-brand-700 underline" onClick={() => setDetail(row.id)}>{row.title}</button></td>
+          <td className="p-3"><button className="font-semibold text-brand-700 underline" onClick={() => {
+            if (!pushRouteView({ 'organic.detail': row.id })) setDetail(row.id);
+          }}>{row.title}</button></td>
           <td className="p-3">{[row.values.sectors.join(', '), row.values.society, row.values.locality].filter(Boolean).join(' · ')}</td>
           <td className="p-3">{[row.values.purpose, row.values.propertyType, row.values.bhk].filter(Boolean).join(' · ')}</td>
           <td className="p-3">{row.price == null ? '—' : '₹' + row.price.toLocaleString('en-IN')}</td>
@@ -165,7 +167,11 @@ function RecordsPage({ kind }: { kind: Kind }) {
       <Button size="sm" variant="secondary" disabled={page * 30 >= (data.data?.total ?? 0)} onClick={() => setPage(page + 1)}>Next</Button>
     </div>
     <RunHistory runs={data.data?.runs ?? []} />
-    {detail && <Dialog open onOpenChange={(open) => { if (!open) setDetail(null); }} title={item.data?.title ?? 'Record details'} size="lg"
+    {detail && <Dialog open onOpenChange={(open) => {
+      if (open) return;
+      if (hasPreviousPage({ samePath: true })) window.history.back();
+      else setDetail(null);
+    }} title={item.data?.title ?? 'Record details'} size="lg" scrollKey={'organic-detail-' + detail}
       footer={item.data && <>{['APPROVED', 'NEEDS_REVIEW', 'REJECTED', 'ARCHIVED'].map((status) => (
         <Button size="sm" key={status} disabled={busy || item.data?.status === status || (status === 'APPROVED' && item.data?.values.registryReference)} variant="secondary"
           onClick={() => void mutate('/records/' + detail, 'PATCH', { status })}>{({ APPROVED: 'Approve', NEEDS_REVIEW: 'Review', REJECTED: 'Reject', ARCHIVED: 'Archive' })[status]}</Button>
