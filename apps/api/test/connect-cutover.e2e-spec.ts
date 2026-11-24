@@ -1,0 +1,59 @@
+import { randomUUID } from 'node:crypto';
+import { Test } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import { AppModule } from '../src/app.module';
+import { configureApp } from '../src/bootstrap';
+import { AuthService } from '../src/modules/auth/auth.service';
+import { PrismaService } from '../src/prisma/prisma.service';
+
+const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WHATSAPP_CUTOVER === 'true';
+(enabled ? describe : describe.skip)('BrokerIQ Connect pilot and cutover', () => {
+  let app: INestApplication;
+  let db: PrismaService;
+  const http = () => request(app.getHttpServer());
+  const bearer = (accessToken: string) => ({ Authorization: 'Bearer ' + accessToken });
+
+  beforeAll(async () => {
+    app = (await Test.createTestingModule({ imports: [AppModule] }).compile()).createNestApplication();
+    configureApp(app);
+    await app.listen(0, '127.0.0.1');
+    db = app.get(PrismaService);
+  });
+  afterAll(async () => { await app?.close(); });
+
+  it('enforces device consent and scope, deduplicates capture and keeps existing uploads resumable', async () => {
+    const key = randomUUID();
+    const makeAccount = async (name: string) => {
+      const org = await db.organization.create({ data: { name, slug: name + '-' + key } });
+      const user = await db.user.create({ data: { name, role: 'BROKER_ADMIN', organizationId: org.id, email: name + key + '@e2e.test' }, include: { organization: true } });
+      return { user, headers: bearer((await app.get(AuthService).issue(user)).accessToken) };
+    };
+    const broker = await makeAccount('connect-owner');
+    const outsider = await makeAccount('connect-outside');
+    const group = 'b'.repeat(64);
+    const event = { kind: 'WHATSAPP', capturedAt: new Date().toISOString(), packageName: 'com.whatsapp.w4b', group, text: '2 BHK in Sector 30' };
+    const upload = { clientKey: key, fileName: 'known.zip', sourceType: 'CHAT_EXPORT', contentType: 'application/zip', target: 'AUTO', totalBytes: 400 };
+    const prior = await db.importUpload.create({ data: { ...upload, organizationId: broker.user.organizationId!, createdById: broker.user.id } });
+    await http().post('/api/imports/uploads').set(broker.headers).send({ ...upload, clientKey: randomUUID() }).expect(409);
+    await http().post('/api/imports/uploads').set(broker.headers).send(upload).expect(201).expect(({ body }) => expect(body.id).toBe(prior.id));
+    await http().post('/api/imports/uploads').set(outsider.headers).send(upload).expect(409);
+    await http().get('/api/imports').set(broker.headers).expect(200);
+
+    await http().post('/api/connect/events').set(broker.headers).send(event).expect(403);
+    const device = (await http().post('/api/connect/devices').set(broker.headers).send({
+      installId: randomUUID(), label: 'Test handset', version: 1,
+    }).expect(201)).body;
+    await http().get('/api/connect/directory').set(broker.headers).expect(403);
+    await http().patch('/api/connect/settings').set(broker.headers).send({ consent: true, whatsapp: true, groups: [group] }).expect(200);
+    await http().post('/api/connect/events').set(broker.headers).send(event).expect(403);
+    const recent = { ...event, capturedAt: new Date(Date.now() + 20).toISOString() };
+    const stored = (await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201)).body;
+    await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201).expect(({ body }) => expect(body.id).toBe(stored.id));
+    await http().get('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
+    const webHeaders = bearer((await app.get(AuthService).issue(broker.user)).accessToken);
+    await http().delete('/api/connect/devices/' + device.id).set(webHeaders).expect(200);
+    await http().get('/api/auth/me').set(broker.headers).expect(401);
+    await http().get('/api/auth/me').set(webHeaders).expect(200);
+  });
+});

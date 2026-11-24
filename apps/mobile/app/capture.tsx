@@ -17,6 +17,9 @@ import { captureText, captureFile, editableDraft, decodeDraft, saveDraft, syncDr
 import { Input, Txt, Button, Segmented, Row } from '@/ui';
 import { captureAccountContext, errorMessage, authStore } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
+import { useConfig } from '@/lib/config';
+import { useAuth } from '@/lib/auth';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useQuery } from '@tanstack/react-query';
 import { ChoiceField } from '@/launch/form';
 import { api } from '@/lib/api';
@@ -35,6 +38,8 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   const suggestedMonth = inventoryMonthSchema.safeParse(requestedMonth);
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const { c } = useTheme();
+  const cutover = useConfig().flags.connect_whatsapp_cutover === true;
+  const { user } = useAuth();
   const [registerSector, setRegisterSector] = useState<string | null>(surveySector);
   const folderDefinitions = useInventoryFolderDefinitions(scanner);
   const savedSectors = (folderDefinitions.data ?? []).filter(({ kind }) => kind === 'SECTOR').map(({ label }) => label);
@@ -178,7 +183,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
           <WorkspaceHero
             label="CAPTURE → REVIEW → SAVE"
             title="Every source. One clear workflow."
-            description="Scan a register, paste a message or import a WhatsApp chat export. Review every extracted property or requirement."
+            description={cutover ? "Scan a register or paste a message. Review every extracted property or requirement." : "Scan a register, paste a message or import a WhatsApp chat export. Review every extracted property or requirement."}
           />
           {scanner && (
             <NativeCard>
@@ -268,7 +273,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
               disabled={busy || !ready || (survey && !registerSector)}
               onPress={() => perform(gallery)}
             />
-            {!survey && (
+            {!survey && !cutover && (
               <Button
                 title="WhatsApp export · TXT / ZIP / Images"
                 variant="secondary"
@@ -276,6 +281,9 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
                 disabled={busy || !ready}
                 onPress={() => perform(files)}
               />
+            )}
+            {!survey && cutover && hasDelegatedAccess(user, 'inventory', 'view') && (
+              <Button title="Import properties from PDF" variant="secondary" onPress={() => router.push('/pdf-inventory' as never)} />
             )}
             <Txt v="caption" color="muted">
               Up to 300 MB per source, uploaded in resumable encrypted chunks. No file-selection count limit. Scanner supports multi-page crop and page cleanup.

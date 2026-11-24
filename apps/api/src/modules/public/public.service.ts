@@ -32,6 +32,8 @@ export class PublicService {
       };
       for (const [flag, module] of Object.entries(aliases)) flags[flag] = (flags[flag] ?? true) && modules[module]?.state === 'ACTIVE';
     }
+    flags.connect_enabled = env().CONNECT_ENABLED;
+    flags.connect_whatsapp_cutover = env().CONNECT_ENABLED && env().CONNECT_WHATSAPP_CUTOVER;
     return { app, flags, integrations, modules, apiVersion: '2.1.0' };
   }
 

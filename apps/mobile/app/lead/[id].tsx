@@ -1,3 +1,5 @@
+import { NativeConnectLeadActivity } from '@/launch/connect-profile';
+import { useFlag, useConfig } from '@/lib/config';
 import { goBack } from '@/lib/navigation';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
@@ -49,7 +51,6 @@ import { SourceBadge, StageBadge, TempBadge, useAssignees } from '@/components/c
 import { ListingRow } from '@/components/listing';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, Segmented, Sheet, Txt } from '@/ui';
 import { NotificationBell } from '@/components/notification-bell';
-import { useFlag, useConfig } from '@/lib/config';
 
 const compactAction = { flex: 1, minWidth: 44, paddingHorizontal: 0 };
 
@@ -345,6 +346,7 @@ export default function LeadDetail() {
           {tab === 'shortlist' && <VisitShortlist visits={l.visits} canEdit={canEdit} onChange={refresh} />}
           {tab === 'timeline' && (
             <>
+              {config.flags?.connect_enabled && hasDelegatedAccess(user, 'automation', 'view') && <NativeConnectLeadActivity leadId={l.id} enabled />}
               <Row gap={8}>
                 <Button
                   accessibilityLabel="Note"

@@ -53,7 +53,7 @@ export default function Requirements() {
               ))}
             </View>
             <Input accessibilityLabel="Search requirements" placeholder="Contact, phone or requirement notes" value={search} onChangeText={setSearch} />
-            <Button title="Scan / paste / WhatsApp export" variant="secondary" onPress={() => router.push('/capture?target=REQUIREMENT' as any)} />
+            <Button title={config.flags.connect_whatsapp_cutover ? 'Scan / paste' : 'Scan / paste / WhatsApp export'} variant="secondary" onPress={() => router.push('/capture?target=REQUIREMENT' as any)} />
             <Button title="Add requirement" onPress={() => router.push({ pathname: '/requirement-edit', params: leadId ? { leadId } : {} } as any)} />
           </View>
         }

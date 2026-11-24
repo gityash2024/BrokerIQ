@@ -11,7 +11,8 @@ import { SurveyPhotoAction } from './survey-photo-action';
 
 export function NativeInventoryEntryActions({ params, survey = false }: { params?: Record<string, string>; survey?: boolean }) {
   const { user } = useAuth();
-  const { modules } = useConfig();
+  const { modules, flags } = useConfig();
+  const cutover = flags?.connect_whatsapp_cutover === true;
   const { c, isDark } = useTheme();
   const role = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '');
   const canCreate = !!user && hasDelegatedAccess(user, 'inventory', 'create');
@@ -60,12 +61,12 @@ export function NativeInventoryEntryActions({ params, survey = false }: { params
       {survey && <SurveyPhoneAction allowed={canCreate} sector={params?.sector} customFolderId={params?.customFolderId} />}
       {!survey && (
         <Button
-          title="WhatsApp import"
+          title={cutover ? "PDF Inventory" : "WhatsApp import"}
           variant="secondary"
-          disabled={!canImport}
+          disabled={cutover ? !hasDelegatedAccess(user, 'inventory', 'view') : !canImport}
           icon={<FileArchive size={17} color={c.brand} />}
           style={{ flexGrow: 1, flexBasis: 140, minHeight: 44, borderRadius: 16, paddingHorizontal: 10 }}
-          onPress={() => router.push('/capture?target=INVENTORY')}
+          onPress={() => router.push(cutover ? '/pdf-inventory' : '/capture?target=INVENTORY')}
         />
       )}
       {!canImport && (

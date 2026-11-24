@@ -44,6 +44,11 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (path === '/inventory/:id' && method === 'DELETE') return { module: 'inventory', actions: ['view', 'delete'] };
   if (path === '/inventory/:id' && method === 'PATCH') return { module: 'inventory', actions: ['view', 'edit'] };
   if (path === '/inventory/folder-definitions' && method === 'POST') return { module: 'inventory', actions: ['view', 'create'] };
+  if (/^\/connect(?:\/|$)/.test(path)) {
+    if (['GET', 'HEAD'].includes(method)) return { module: 'automation', actions: ['view'] };
+    if (method === 'DELETE') return { module: 'automation', actions: ['view', 'delete'] };
+    return { module: 'automation', actions: ['view', 'edit'] };
+  }
   if (/^\/inventory-pdf(?:\/|$)/.test(path)) {
     if (method === 'GET' || method === 'HEAD') return { module: 'inventory', actions: ['view'] };
     if (method === 'POST') return { module: 'inventory', actions: ['view', 'create'] };

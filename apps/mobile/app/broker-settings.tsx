@@ -1,3 +1,4 @@
+import { NativeConnectProfile } from '@/launch/connect-profile';
 import { useState } from 'react';
 import { Alert, View, Linking, TouchableOpacity, Share } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -515,6 +516,7 @@ export default function BrokerSettings() {
           </View>
         )}
 
+        <NativeConnectProfile />
         {/* Logout Button */}
         <TouchableOpacity
           activeOpacity={0.8}

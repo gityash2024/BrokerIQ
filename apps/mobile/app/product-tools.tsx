@@ -13,13 +13,13 @@ import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { Input, Txt, Button, Row } from '@/ui';
 export default function ProductTools() {
   const { user } = useAuth(),
-    { modules } = useConfig(),
+    { modules, flags } = useConfig(),
     { c } = useTheme();
   const [search, setSearch] = useState('');
   const role = user?.role ?? 'PUBLIC';
   const items = catalogModules(modules, role).filter((m) => `${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase()));
   const broker = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(role);
-  const groups = brokerWorkspaceGroups(modules, role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : role, true)
+  const groups = brokerWorkspaceGroups(modules, role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : role, true, flags?.connect_whatsapp_cutover)
     .map((group) => ({
       ...group,
       links: group.links.filter((link) => link.nativeHref && (!search || `${group.label} ${link.label}`.toLowerCase().includes(search.toLowerCase()))),
@@ -111,7 +111,8 @@ export default function ProductTools() {
               <Button title="Scanner · Register pages" onPress={() => router.push('/scanner')} />
             )}
             {items.some((item) => item.key === 'inbox' && item.state === 'ACTIVE') && (
-              <Button title="WhatsApp export / paste" variant="secondary" onPress={() => router.push('/capture')} />
+              <Button title={flags.connect_whatsapp_cutover ? 'Import properties from PDF' : 'WhatsApp export / paste'} variant="secondary"
+                onPress={() => router.push(flags.connect_whatsapp_cutover ? '/pdf-inventory' : '/capture')} />
             )}
             {items.some((item) => item.key === 'inventory' && item.state === 'ACTIVE') && (
               <Button title="Public rental draft scanner" variant="ghost" onPress={() => router.push('/listing-scanner')} />

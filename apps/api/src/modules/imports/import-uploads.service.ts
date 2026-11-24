@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { JobsService } from '../../core/jobs/jobs.service';
 import { queueCaptureExtraction } from './register-context';
+import { env } from '../../config/env';
 import type { RequestUser } from '../../common/decorators';
 
 export const uploadStartSchema = z
@@ -84,9 +85,11 @@ export class ImportUploadsService {
   async start(input: z.infer<typeof uploadStartSchema>, user: RequestUser, pdf = false) {
     if (pdf !== (input.sourceType === 'PDF')) throw new BadRequestException('Choose the matching import workflow');
     const scope = this.scope(user);
-    const row = await this.prisma.importUpload
+    const where = { organizationId_createdById_clientKey: { ...scope, clientKey: input.clientKey } };
+    const cutover = env().CONNECT_ENABLED && env().CONNECT_WHATSAPP_CUTOVER && input.sourceType === 'CHAT_EXPORT';
+    const row = cutover ? await this.prisma.importUpload.findUnique({ where }) : await this.prisma.importUpload
       .upsert({
-        where: { organizationId_createdById_clientKey: { ...scope, clientKey: input.clientKey } },
+        where,
         create: { ...scope, ...input },
         update: {},
       })
@@ -95,6 +98,7 @@ export class ImportUploadsService {
           throw new ConflictException('This register page already has a saved upload. Resume it or start a new register.');
         throw error;
       });
+    if (!row) throw new ConflictException('WhatsApp ZIP/TXT imports have moved to BrokerIQ Connect. Scanner, PDF Inventory and import history are available.');
     for (const name of ['fileName', 'contentType', 'sourceType', 'totalBytes', 'target'] as const) {
       if (row[name] !== input[name]) throw new ConflictException('Upload identity changed. Keep the original and start a new upload.');
     }

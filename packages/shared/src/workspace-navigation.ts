@@ -52,7 +52,7 @@ export interface WorkspaceGroup {
 }
 
 /** Navigation is derived from authorization; it never enables a module or an action. */
-export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role: string, discover = false): WorkspaceGroup[] {
+export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role: string, discover = false, whatsappCutover = false): WorkspaceGroup[] {
   if (!['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)) return [];
   const groups: WorkspaceGroup[] = [
     { key: 'today', label: "Today's Focus", links: [{ label: "Today's Focus", href: '/broker', nativeHref: '/dashboard', module: 'today' }] },
@@ -66,7 +66,9 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
         { label: 'PDF Inventory', href: '/broker/inventory/pdf', nativeHref: '/pdf-inventory', module: 'inventory', adminOnly: true },
         { label: 'Publication Review', href: '/broker/publications', nativeHref: '/publication-reviews', module: 'inventory', adminOnly: true },
         { label: 'Publish Listing', href: '/broker/listings', nativeHref: '/inventory-listings', module: 'consumer' },
-        { label: 'Scan / WhatsApp Import', href: '/broker/imports?target=INVENTORY', nativeHref: '/capture?target=INVENTORY', module: 'inbox' },
+        ...(whatsappCutover ? [] : [
+          { label: 'Scan / WhatsApp Import', href: '/broker/imports?target=INVENTORY', nativeHref: '/capture?target=INVENTORY', module: 'inbox' },
+        ]),
       ],
     },
     {
@@ -87,7 +89,7 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
       label: 'Capture & imports',
       links: [
         { label: 'Scan property or requirement', href: '/broker/scanner?target=REQUIREMENT', nativeHref: '/scanner?target=REQUIREMENT', module: 'inventory' },
-        { label: 'WhatsApp export & paste', href: '/broker/imports?target=REQUIREMENT', nativeHref: '/capture?target=REQUIREMENT', module: 'inbox' },
+        { label: whatsappCutover ? 'Paste a requirement' : 'WhatsApp export & paste', href: '/broker/imports?target=REQUIREMENT', nativeHref: '/capture?target=REQUIREMENT', module: 'inbox' },
         { label: 'Source review', href: '/broker/imports', nativeHref: '/capture', module: 'inbox' },
         { label: 'Public listing drafts', href: '/broker/scanner/listing-drafts', nativeHref: '/listing-scanner', module: 'inventory', adminOnly: true },
       ],

@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, ClipboardPaste, FileArchive, FileImage, ScanLine, ShieldCheck, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 import { api, errorMessage, captureAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useConfig } from '@/lib/config';
 import { readPrivateDraft, writePrivateDraft, LEGACY_WEB_DRAFT_REVIEW } from '@/lib/private-drafts';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const requestedSector = survey ? (params.get('sector')?.trim() ?? '') : '';
   const composeKey = survey ? 'survey-capture:' + requestedSector : 'capture';
   const { user } = useAuth();
+  const cutover = useConfig().flags.connect_whatsapp_cutover === true;
   const owner = useRef(captureAccountContext()).current;
   const [startSeparate, setStartSeparate] = useState(false);
 
@@ -298,8 +300,8 @@ function Workspace({ scanner }: { scanner: boolean }) {
         <p className="text-xs font-bold uppercase tracking-[.2em] text-indigo-200">Capture → Review → Save</p>
         <h2 className="mt-3 max-w-xl font-display text-3xl font-bold">Every source. One clear workflow.</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100">
-          Scan register pages, import a complete WhatsApp chat or paste a message. Every extracted property and requirement stays in review until you approve
-          it.
+          {cutover ? 'Scan register pages or paste a message.' : 'Scan register pages, import a complete WhatsApp chat or paste a message.'}{' '}
+          Every extracted property and requirement stays in review until you approve it.
         </p>
       </section>
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,.75fr)]">
@@ -358,7 +360,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
               <Button variant="secondary" disabled={!ready || busy || (survey && !registerSector)} onClick={() => images.current?.click()}>
                 <FileImage className="size-4" /> Multiple page images
               </Button>
-              {!survey && (
+              {!survey && !cutover && (
                 <Button className="sm:col-span-2" variant="secondary" disabled={!ready || busy} onClick={() => files.current?.click()}>
                   <FileArchive className="size-4" /> WhatsApp export · TXT / ZIP / Images
                 </Button>
@@ -388,7 +390,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
                 e.target.value = '';
               }}
             />
-            <input
+            {!cutover && <input
               ref={files}
               aria-label="WhatsApp chat export files"
               type="file"
@@ -399,14 +401,13 @@ function Workspace({ scanner }: { scanner: boolean }) {
                 select(e.target.files);
                 e.target.value = '';
               }}
-            />
+            />}
             <p className="mt-4 text-xs leading-5 text-muted">
-              Up to 300 MB per source; no selection-count limit. Resumable encrypted uploads. Full TXT/ZIP exports retain separate messages, senders and
-              timestamps. Use the{' '}
+              Up to 300 MB per source. Resumable encrypted uploads. Use the{' '}
               <Link href="/broker/scanner/listing-drafts" className="font-semibold text-brand-600 underline">
                 public rental draft scanner
               </Link>{' '}
-              for the existing rotate / page-preview / listing-draft workflow. ZIP media stays in the private original; import images separately for OCR.
+              for page preview, rotation and listing drafts.
             </p>
           </section>
           {!survey && (
@@ -485,13 +486,15 @@ function Workspace({ scanner }: { scanner: boolean }) {
               </li>
             </ol>
           </section>
-          <section className="card p-6">
+          {cutover ? (
+            hasDelegatedAccess(user, 'inventory', 'view') && <Link href="/broker/inventory/pdf" className="card block p-6 font-bold">Import properties from PDF</Link>
+          ) : <section className="card p-6">
             <h2 className="font-bold">Export a WhatsApp chat</h2>
             <p className="mt-3 text-sm leading-6 text-muted">
               Open a chat → More → Export chat. Choose TXT or ZIP, then upload here. On Android, share directly to BrokerIQ. This imports your export; it does
               not send messages.
             </p>
-          </section>
+          </section>}
           {!!completed.length && (
             <section className="card p-5">
               <h2 className="flex items-center gap-2 font-bold">

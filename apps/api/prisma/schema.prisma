@@ -2780,6 +2780,48 @@ model OrganicRun {
   @@index([scheduleId, createdAt])
 }
 
+model ConnectDevice {
+  id             String @id @default(cuid())
+  userId         String
+  organizationId String
+  sessionId      String @unique
+  installId      String
+  label          String
+  version        Int
+  settings       Json @default("{}")
+  consentAt      DateTime?
+  lastSeenAt     DateTime @default(now())
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+  events         ConnectEvent[]
+  @@index([userId, revokedAt])
+  @@index([organizationId, revokedAt])
+}
+
+model ConnectEvent {
+  id             String @id @default(cuid())
+  deviceId       String
+  organizationId String
+  userId         String
+  fingerprint    String
+  kind           String
+  capturedAt     DateTime
+  leadId         String?
+  callId         String?
+  encryptedInput String?
+  recordingKey   String?
+  recordingType  String?
+  encryptedResult String?
+  status         String @default("PENDING")
+  lastError      String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  device         ConnectDevice @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  @@unique([organizationId, fingerprint])
+  @@index([organizationId, leadId, capturedAt])
+  @@index([userId, capturedAt])
+}
+
 
 /// Owner-reported rental information remains distinct from the firm's inventory status.
 model InventoryOwnerReport {

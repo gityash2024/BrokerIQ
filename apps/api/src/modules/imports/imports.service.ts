@@ -23,6 +23,7 @@ import { OcrService, OcrInputError } from './ocr.service';
 import { registerContext, previousRegisterPage, queueNextRegisterPage } from './register-context';
 import { imageCaptureSchema, IMAGE_COVERAGE_PROMPT, combineRegisterReads, registerImageSections } from './capture-register-images';
 import { captureFactsSchema, CAPTURE_FACTS_PROMPT, REGISTER_LAYOUT_PROMPT, registerPageSector, captureTextParts, factsToEntities } from './capture-ai';
+import { env } from '../../config/env';
 import type { RequestUser } from '../../common/decorators';
 import { z } from 'zod';
 import sharp from 'sharp';
@@ -191,6 +192,10 @@ export class ImportsService {
       where: { organizationId_sourceType_sourceHash: { organizationId: orgId, sourceType: input.sourceType, sourceHash } },
     });
     if (!batch) {
+      if (env().CONNECT_ENABLED && env().CONNECT_WHATSAPP_CUTOVER &&
+          (input.sourceType === 'CHAT_EXPORT' || contentType === 'application/zip' || contentType === 'text/plain')) {
+        throw new ConflictException('WhatsApp ZIP/TXT imports have moved to BrokerIQ Connect. Scanner, PDF Inventory and import history are available.');
+      }
       const mediaRef = bytes ? await this.storage.putSource(bytes, contentType!, orgId) : null;
       try {
         batch = await this.prisma.importBatch.create({

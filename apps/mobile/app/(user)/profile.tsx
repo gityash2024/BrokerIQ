@@ -1,3 +1,4 @@
+import { NativeConnectProfile } from '@/launch/connect-profile';
 import { Alert, Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { tr } from '@/lib/i18n';
@@ -317,6 +318,7 @@ export default function Profile() {
                 onPress={() => Linking.openURL(app.supportWhatsApp ? `https://wa.me/${app.supportWhatsApp.replace(/\D/g, '')}` : `tel:${app.supportPhone}`)}
               />
             )}
+            {user && <NativeConnectProfile />}
             {user && <Item icon={<LogOut size={20} color={c.danger} />} tint={c.danger} label="Logout" onPress={handleLogout} right={<View />} />}
           </Group>
           <Txt v="caption" color="subtle" style={{ textAlign: 'center', marginTop: 20 }}>

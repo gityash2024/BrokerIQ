@@ -82,7 +82,7 @@ function Inner({ children }: { children: React.ReactNode }) {
   };
   const groups: NavGroup[] = [
     {
-      items: brokerWorkspaceGroups(config.modules, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''), true).map((group) => ({
+      items: brokerWorkspaceGroups(config.modules, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''), true, config.flags.connect_whatsapp_cutover).map((group) => ({
         href: group.links[0].href,
         accessReason: workspaceLinkAccess(user, config.modules, group.links[0]),
         label: group.label,

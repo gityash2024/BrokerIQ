@@ -1,5 +1,6 @@
 'use client';
 import { LoadingArtwork } from '@/components/ui/request-loader';
+import { ConnectProfile } from './connect-profile';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -452,6 +453,7 @@ export function PanelShell({
         {user?.role === 'USER' && <ProductCatalog />}
       </div>
       <div className="p-3">
+        <ConnectProfile />
         <div className="flex items-center gap-3 rounded-xl p-2">
           <Avatar name={user?.name} src={user?.avatarUrl} size={36} />
           <div className="min-w-0 flex-1">

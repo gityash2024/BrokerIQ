@@ -10,7 +10,8 @@ import { SurveyPhotoAction } from './survey-photo-action';
 
 export function InventoryEntryActions({ createHref, survey = false, sector, customFolderId }: { createHref: string; survey?: boolean; sector?: string; customFolderId?: string }) {
   const { user } = useAuth();
-  const { modules } = useConfig();
+  const { modules, flags } = useConfig();
+  const cutover = flags.connect_whatsapp_cutover === true;
   const role = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '');
   const canCreate = !!user && hasDelegatedAccess(user, 'inventory', 'create');
   const canImport = canCreate && moduleAllowed(modules, 'inbox', role) && hasDelegatedAccess(user, 'inbox', 'view', 'create');
@@ -31,12 +32,12 @@ export function InventoryEntryActions({ createHref, survey = false, sector, cust
       {survey && <SurveyPhoneAction allowed={canCreate} sector={sector} customFolderId={customFolderId} />}
       {!survey && (
         <Button
-          href="/broker/imports?target=INVENTORY"
+          href={cutover ? '/broker/inventory/pdf' : '/broker/imports?target=INVENTORY'}
           variant="secondary"
-          disabled={!canImport}
+          disabled={cutover ? !hasDelegatedAccess(user, 'inventory', 'view') : !canImport}
           title={!canImport ? 'Inventory create and capture access required' : undefined}
         >
-          <FileArchive className="size-4" /> WhatsApp import
+          <FileArchive className="size-4" /> {cutover ? "PDF Inventory" : "WhatsApp import"}
         </Button>
       )}
       {!canImport && <p className="basis-full text-xs text-muted">Ask your Broker Admin for inventory create and capture access to use these actions.</p>}

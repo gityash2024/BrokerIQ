@@ -1,3 +1,4 @@
+import { NativeConnectProfile } from '@/launch/connect-profile';
 import { useRef, useState } from 'react';
 import { Redirect, router } from 'expo-router';
 import * as Crypto from 'expo-crypto';
@@ -30,7 +31,7 @@ export default function OwnerProperties() {
         back={false}
         title="My properties"
         subtitle={user.organization?.name}
-        right={<Button title="Sign out" variant="ghost" size="sm" onPress={() => void logout()} />}
+        right={<Row gap={5}><NativeConnectProfile /><Button title="Sign out" variant="ghost" size="sm" onPress={() => void logout()} /></Row>}
       />
       <Row gap={8} wrap style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
         <Button title="Add property" size="sm" onPress={() => router.push('/owner-property-edit' as never)} />

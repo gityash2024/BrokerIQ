@@ -1,5 +1,7 @@
 'use client';
+import { useFlag, useConfig } from '@/lib/config';
 import { BackLink } from '@/components/ui/back-button';
+import { ConnectLeadActivity } from '@/components/panel/connect-profile';
 import { useRouteState } from '@/lib/navigation';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
@@ -61,7 +63,6 @@ import { Dialog } from '@/components/ui/dialog';
 import { ComparisonDialog } from '@/components/broker/growth-tools';
 import { ApiErrorState, IntegrationBanner } from '@/components/ui/api-error';
 import { VideoJoin } from '@/components/site/video-join';
-import { useFlag, useConfig } from '@/lib/config';
 import { LeadRequirements } from '@/components/broker/launch/lead-requirements';
 
 const ACT_ICON: Record<string, any> = {
@@ -334,6 +335,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <div className="space-y-4">
           {allowed('assistant') && <AiCard lead={l} onChange={refresh} />}
           {allowed('legacy') && <CallsCard leadId={l.id} />}
+          {config.flags.connect_enabled && allowed('automation') && <ConnectLeadActivity leadId={l.id} enabled />}
           {allowed('deals') && <DealsCard lead={l} onChange={refresh} />}
           <div className="card space-y-3 p-5 text-sm">
             <h3 className="font-display font-bold">Details</h3>

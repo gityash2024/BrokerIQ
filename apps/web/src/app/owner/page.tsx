@@ -1,5 +1,6 @@
 'use client';
 import { hasPreviousPage, pushRouteView, useRouteState } from '@/lib/navigation';
+import { ConnectProfile } from '@/components/panel/connect-profile';
 
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -58,6 +59,7 @@ function OwnerProperties() {
               Add property
             </Button>
           )}
+          <ConnectProfile />
           <Button variant="secondary" size="sm" onClick={() => void logout()}>
             Sign out
           </Button>

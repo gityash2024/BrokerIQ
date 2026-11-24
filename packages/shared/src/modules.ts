@@ -137,8 +137,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'Portal lead sync, rules and execution history',
     '/broker/automations',
     ['/broker/automations', '/broker/connectors'],
-    ['/automations', '/broker/connectors', '/broker/portal-pack', '/broker/integrations', '/webhooks/leads', '/webhooks/meta-leads'],
-    ['automation.action', 'automation.reminder-push', 'automation.visit-reminder', 'connector.', 'organic.discovery', 'organic.delivery', 'organic.ready', 'organic.manual-transfer'],
+    ['/automations', '/broker/connectors', '/broker/portal-pack', '/broker/integrations', '/webhooks/leads', '/webhooks/meta-leads', '/connect'],
+    ['automation.action', 'automation.reminder-push', 'automation.visit-reminder', 'connector.', 'organic.discovery', 'organic.delivery', 'organic.ready', 'organic.manual-transfer', 'connect.process'],
   ),
   future(
     'deals',
@@ -259,6 +259,7 @@ export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'we
       '/auth',
       '/health',
       '/admin',
+      '/connect/profile',
       '/media',
       '/invites',
       '/broker-invites/check',

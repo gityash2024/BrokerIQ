@@ -1,0 +1,27 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <application android:name=".ConnectApplication" android:label="BrokerIQ Connect"
+        android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.NoActionBar">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+        <service android:name=".BusinessNotifications" android:label="BrokerIQ Connect authorized notification capture"
+            android:exported="true" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+        <service android:name=".BusinessCalls" android:label="BrokerIQ Connect lead caller ID"
+            android:exported="true" android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter><action android:name="android.telecom.CallScreeningService" /></intent-filter>
+        </service>
+    </application>
+</manifest>

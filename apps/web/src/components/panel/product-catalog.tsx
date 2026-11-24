@@ -10,7 +10,7 @@ import { Dialog } from '@/components/ui/dialog';
 export function ProductCatalog() {
   const [open, setOpen] = useState(false),
     [search, setSearch] = useState('');
-  const { modules } = useConfig(),
+  const { modules, flags } = useConfig(),
     role = useAuth().user?.role ?? 'PUBLIC';
   const items = catalogModules(modules, role).filter((m) => `${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase()));
   const admin: Record<string, string> = {
@@ -34,7 +34,9 @@ export function ProductCatalog() {
             href: '/broker/scanner',
             key: 'inventory',
           },
-          { name: 'WhatsApp export & Paste', description: 'Import bulk TXT/ZIP chats, screenshots or messages', href: '/broker/imports', key: 'inbox' },
+          flags.connect_whatsapp_cutover
+            ? { name: 'PDF Inventory', description: 'Import property listings from PDF', href: '/broker/inventory/pdf', key: 'inventory' }
+            : { name: 'WhatsApp export & Paste', description: 'Import bulk TXT/ZIP chats, screenshots or messages', href: '/broker/imports', key: 'inbox' },
           {
             name: 'Public rental draft scanner',
             description: 'Page preview, rotate, extraction and listing drafts',
