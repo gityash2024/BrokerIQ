@@ -12,6 +12,7 @@ import { I18nProvider } from '@/lib/i18n';
 import { installNavigationHistory } from '@/lib/navigation';
 import { installGlobalErrorHandlers } from '@/lib/report-error';
 import { captureReferral } from '@/lib/referral';
+import { WorkspaceListJump } from '@/components/ui/list-jump';
 import { RequestLoader } from '@/components/ui/request-loader';
 import { WebPushPrompt } from '@/components/site/web-push';
 
@@ -52,6 +53,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
           <I18nProvider>
             {children}
             <RequestLoader />
+            <WorkspaceListJump />
             <OptionalWidgets />
             <Toaster position="top-center" richColors closeButton />
           </I18nProvider>

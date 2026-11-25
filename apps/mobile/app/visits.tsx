@@ -1,10 +1,11 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { inventoryNavigation, googleDirections } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/request-loader';
 import { VisitItinerary } from '@/components/visit-properties';
 import { DateTimeField } from '@/components/date-time-field';
 import { LeadContactActions } from '@/components/lead-contact-actions';
 import { useState } from 'react';
-import { Alert, FlatList, Linking } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -81,7 +82,7 @@ export default function Visits() {
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
-        <FlatList
+        <JumpFlatList
           data={q.data?.pages.flatMap((page) => page.items) ?? []}
           onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
           ListFooterComponent={q.hasNextPage ? <Button title="Load more visits" loading={q.isFetchingNextPage} onPress={() => q.fetchNextPage()} /> : null}

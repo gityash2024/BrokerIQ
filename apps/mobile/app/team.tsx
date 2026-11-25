@@ -1,10 +1,11 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { DelegatedPermissions } from '@/components/delegated-permissions';
 import { firmRoleLabel } from '@brokeriq/shared';
 import { useState } from 'react';
 import { ChoiceField } from '@/launch/form';
 import { ManagementExport } from '@/components/management-export';
-import { FlatList, Share, TouchableOpacity, View } from 'react-native';
+import { Share, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Crown, Search, Send, Trophy, UserPlus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -89,7 +90,7 @@ export default function Team() {
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
-        <FlatList
+        <JumpFlatList
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={

@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { View, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView as NativeScrollView } from 'react-native';
+import { FlatList, View, type FlatListProps, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView as NativeScrollView } from 'react-native';
 import { ArrowDownToLine, ArrowUpToLine, MoveVertical } from 'lucide-react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useTheme } from '@/lib/theme';
@@ -55,5 +55,23 @@ export function QuickListScroll({ children, page = 1, totalPages = 1, onPage }: 
       onLayout={(event) => { dimensions.current.viewport = event.nativeEvent.layout.height; }}
       onScroll={measure}>{children}</ScrollView>
     {visible && <ListJumpControls onJump={jump} />}
+  </View>;
+}
+
+export function JumpFlatList<Item>({ onScroll, onContentSizeChange, onLayout, scrollEventThrottle, horizontal, ...props }: FlatListProps<Item>) {
+  const list = useRef<FlatList<Item>>(null);
+  const dimensions = useRef({ viewport: 0, height: 0 });
+  const { visible, measure } = useListJump();
+  if (horizontal) return <FlatList {...props} horizontal onScroll={onScroll}
+    onContentSizeChange={onContentSizeChange} onLayout={onLayout} scrollEventThrottle={scrollEventThrottle} />;
+  return <View style={{ flex: 1, minHeight: 0 }}>
+    <FlatList {...props} ref={list} scrollEventThrottle={scrollEventThrottle ?? 64}
+      onScroll={(event) => { measure(event); onScroll?.(event); }}
+      onLayout={(event) => { dimensions.current.viewport = event.nativeEvent.layout.height; onLayout?.(event); }}
+      onContentSizeChange={(width, height) => { dimensions.current.height = height; onContentSizeChange?.(width, height); }} />
+    {visible && <ListJumpControls onJump={(to) => {
+      const end = Math.max(0, dimensions.current.height - dimensions.current.viewport);
+      list.current?.scrollToOffset({ offset: to === 'top' ? 0 : to === 'middle' ? end / 2 : end, animated: true });
+    }} />}
   </View>;
 }

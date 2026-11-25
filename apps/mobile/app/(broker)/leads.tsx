@@ -1,7 +1,8 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { canUseBrokerChat } from '@brokeriq/shared';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Linking, View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -212,7 +213,7 @@ export default function Leads() {
   const { user } = useAuth();
   return (
     <BrokerScreen title="Leads & Requirements" subtitle={list.data ? `${list.data.pages[0].total} contacts` : 'Contacts, follow-ups and visits.'}>
-      <FlatList
+      <JumpFlatList
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={

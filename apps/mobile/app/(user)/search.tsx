@@ -1,3 +1,4 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, View } from 'react-native';
@@ -241,7 +242,7 @@ export default function SearchScreen() {
           />
         </View>
       ) : (
-        <FlatList
+        <JumpFlatList
           data={items}
           keyExtractor={(x) => x.id}
           ListHeaderComponent={header}

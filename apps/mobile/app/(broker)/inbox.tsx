@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { InlineLoader } from '@/components/request-loader';
 import { useMemo, useState } from 'react';
-import { FlatList, View, TouchableOpacity, TextInput } from 'react-native';
+import { View, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qs } from '@/lib/api';
@@ -134,7 +135,7 @@ export default function Inbox() {
         </View>
       </View>
 
-      <FlatList
+      <JumpFlatList
         data={list}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 10, paddingBottom: 30 }}

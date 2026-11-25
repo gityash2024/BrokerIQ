@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowUpToLine, MoveVertical } from 'lucide-react';
 
@@ -38,4 +39,17 @@ export function ListJump({ totalPages = 1, page = 1, onPage }: { totalPages?: nu
         <Icon className="size-4" aria-hidden />
       </button>)}
   </div>;
+}
+
+const listingRoutes = new Set([
+  '/broker/leads', '/broker/pipeline', '/broker/follow-ups', '/broker/visits', '/broker/inbox', '/broker/team',
+  '/broker/listings', '/broker/deals', '/broker/invoices', '/broker/owners', '/broker/automations',
+  '/user/search', '/user/account/saved', '/user/account/messages', '/owner',
+  '/admin/team', '/admin/business', '/admin/organic/supply', '/admin/organic/demand', '/admin/organic/delivery', '/admin/organic/sources',
+  '/blog', '/brokers', '/projects', '/localities',
+]);
+
+export function WorkspaceListJump() {
+  const pathname = usePathname();
+  return listingRoutes.has(pathname) ? <ListJump key={pathname} /> : null;
 }

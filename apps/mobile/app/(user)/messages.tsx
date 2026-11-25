@@ -1,5 +1,6 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
-import { FlatList, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -23,7 +24,7 @@ export default function Messages() {
       <Txt v="h1" style={{ padding: 16 }}>
         Chats
       </Txt>
-      <FlatList
+      <JumpFlatList
         data={q.data ?? []}
         keyExtractor={(x) => x.id}
         refreshing={q.isRefetching}

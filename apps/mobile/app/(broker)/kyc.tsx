@@ -1,8 +1,9 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { KycHistory } from '@/launch/kyc-history';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KycMedia } from '@/launch/kyc-media';
 import { useState, useEffect } from 'react';
-import { Alert, FlatList, Modal, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, TextInput, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, CheckCircle2, CreditCard, Eye, FileText, Shield, ShieldCheck, Users, X, XCircle } from 'lucide-react-native';
@@ -196,7 +197,7 @@ function BrokerAdminKycManagement({ onOpenMine }: { onOpenMine?: () => void }) {
 
       {/* Main Content */}
       {activeTab === 'team' ? (
-        <FlatList
+        <JumpFlatList<(typeof filtered)[number]>
           data={filtered}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 60 }}

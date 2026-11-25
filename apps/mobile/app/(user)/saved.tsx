@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
-import { FlatList, Share, View } from 'react-native';
+import { Share, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -78,7 +79,7 @@ export default function Saved() {
         )}
       </View>
       {tab === 'searches' ? (
-        <FlatList
+        <JumpFlatList
           data={searches.data ?? []}
           keyExtractor={(x) => x.id}
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 120 }}
@@ -115,7 +116,7 @@ export default function Saved() {
           )}
         />
       ) : (
-        <FlatList
+        <JumpFlatList
           data={rows}
           keyExtractor={(x) => x.id}
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 120 }}
