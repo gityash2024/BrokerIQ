@@ -63,6 +63,24 @@ describe('AiService', () => {
     await expect(ai.chat([{ role: 'user', content: 'Draft only' }], { feature: 'diagnostic' })).resolves.toBe('Recovered');
     expect(calls.map((call) => call.model)).toEqual(['a:free', 'a:free']);
   });
+  it('allows required reasoning even when optional reasoning is disabled and charges both attempts to the free budget', async () => {
+    const attempts: unknown[] = [];
+    respond = (_url, body) => {
+      attempts.push(body.reasoning);
+      expect(body.provider.max_price).toEqual({ prompt: 0, completion: 0, image: 0, request: 0 });
+      expect(body.provider.data_collection).toBe('deny');
+      return body.reasoning?.enabled === false ? { status: 400, json: { error: {
+        message: 'Reasoning is mandatory for this endpoint and cannot be disabled.',
+      } } } : ok('OK');
+    };
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'hosted:free', disableReasoning: true } }), prisma);
+    const query = () => ai.chat([{ role: 'user', content: 'Classify supply' }], { feature: 'organic', openRouterOnly: true });
+    await expect(query()).resolves.toBe('OK');
+    await expect(query()).resolves.toBe('OK');
+    expect(attempts).toEqual([{ enabled: false }, undefined, undefined]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(3);
+  });
+
   it('stops outbound OpenRouter attempts when its shared daily budget is consumed', async () => {
     prisma.$queryRaw.mockResolvedValue([]);
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);

@@ -93,6 +93,7 @@ export class AiService {
   private readonly cache = new Map<string, { at: number; ttl: number; text: string }>();
   private readonly openRouterRetryAt = new Map<string, number>();
   private openRouterDailyResetAt = 0;
+  private readonly openRouterMandatoryReasoning = new Set<string>();
   private localBusy = false;
   private localRetryAt = 0;
   constructor(
@@ -500,7 +501,7 @@ export class AiService {
       // Fail when no compliant endpoint exists; never relax these on fallback.
       body = {
         ...body,
-        ...(p.disableReasoning ? { reasoning: { enabled: false } } : {}),
+        ...(p.disableReasoning && !this.openRouterMandatoryReasoning.has(body.model) ? { reasoning: { enabled: false } } : {}),
         provider: {
           ...openRouterFreeRouting,
           ...((body.response_format as { type?: string } | undefined)?.type === 'json_schema' ? { require_parameters: true } : {}),
@@ -547,6 +548,14 @@ export class AiService {
     }
     const data: any = await res.json().catch(() => ({}));
     const msg = data?.error?.message ?? data?.[0]?.error?.message ?? `HTTP ${res.status}`;
+    if (p.name === 'openrouter' && [400, 422].includes(res.status) && typeof body.model === 'string' &&
+        (body.reasoning as { enabled?: boolean } | undefined)?.enabled === false &&
+        /reasoning is mandatory.*cannot be disabled/i.test(String(msg))) {
+      const { reasoning: _reasoning, ...retry } = body;
+      // The setting applies to optional reasoning. Both requests use the same free price/privacy rules and quota.
+      if (body.model !== 'openrouter/free') this.openRouterMandatoryReasoning.add(body.model);
+      return this.postRequest({ ...p, disableReasoning: false }, retry, timeoutMs);
+    }
     if (res.status === 401 || res.status === 403) throw new ProviderError(`key rejected: ${msg}`);
     if (res.status === 402) throw new ProviderError(`no credit: ${msg}`);
     if (!res.ok) throw new RetryableError(msg, res.status >= 500); // 400 (e.g. model can't do tools/json/images), 404, 429, 5xx
