@@ -580,8 +580,8 @@ export class AiService {
         const ok = String(data.choices?.[0]?.message?.content ?? '').trim();
         if (!ok) throw new RetryableError('empty diagnostic response');
         const [free, quota] = key === 'openrouter'
-          ? await Promise.all([this.freeModels(p.apiKey).catch(() => []), this.freeDailyQuota(p.apiKey).catch(() => null)])
-          : [[], null] as const;
+          ? await Promise.all([this.freeModels(p.apiKey).catch((): string[] => []), this.freeDailyQuota(p.apiKey).catch(() => null)])
+          : [new Array<string>(), null] as const;
         const missing =
           key === 'openrouter' && free.length ? [...p.textModels, ...p.visionModels].filter((m) => m !== 'openrouter/free' && !free.includes(m)) : [];
         return [
