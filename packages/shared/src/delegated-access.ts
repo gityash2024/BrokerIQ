@@ -58,7 +58,7 @@ export function roleModulePermissions(policies: ModulePolicies | undefined, role
   });
 }
 
-export function storedRolePermissions(role: string, grants: string[]) {
+export function storedRolePermissions(role: string, grants: readonly string[] = []) {
   if (!['BROKER_ADMIN', 'BROKER_AGENT'].includes(role) || !grants.includes(ROLE_PERMISSIONS_MARKER)) return undefined;
   return grants.filter((grant) => grant !== ROLE_PERMISSIONS_MARKER);
 }
