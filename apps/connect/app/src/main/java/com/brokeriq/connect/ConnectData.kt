@@ -170,23 +170,26 @@ class ConnectApplication : Application() {
         outbox = Room.databaseBuilder(this, ConnectDatabase::class.java, "connect.db").build().outbox()
     }
     fun account() = vault.json("session").optJSONObject("user")?.optional("id")
+    fun setupCompleted(): Boolean = account()?.let { it == vault.read("setupAccount") } == true
+    fun captureReady(): Boolean = setupCompleted() && vault.json("settings").optBoolean("consent") && missingSetupGrants().isEmpty()
     fun audio(id: String) = File(filesDir, "recording-$id")
     private val network = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
     fun schedule(background: Boolean = vault.json("settings").flag("backgroundSync")) {
         val manager = WorkManager.getInstance(this)
-        if (!background) { manager.cancelUniqueWork("connect-periodic"); return }
+        if (!background || !captureReady()) { manager.cancelUniqueWork("connect-periodic"); return }
         manager.enqueueUniquePeriodicWork("connect-periodic", ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<ConnectWorker>(15, TimeUnit.MINUTES).setConstraints(network).build())
         syncNow()
     }
     fun syncNow() {
+        if (!captureReady()) return
         WorkManager.getInstance(this).enqueueUniqueWork("connect-send", ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<ConnectWorker>().setConstraints(network).build())
     }
     suspend fun enqueue(kind: String, body: JSONObject, id: String, recorded: ByteArray? = null, owner: String? = account()) {
-        if (owner == null || owner != account()) return
+        if (owner == null || owner != account() || !captureReady()) return
         withContext(Dispatchers.IO) {
-            if (owner != account()) return@withContext
+            if (owner != account() || !captureReady()) return@withContext
             if (recorded != null && !audio(id).exists()) {
                 val file = AtomicFile(audio(id))
                 val stream = file.startWrite()
@@ -208,11 +211,12 @@ class ConnectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     override suspend fun doWork(): Result {
         val app = applicationContext as ConnectApplication
         val owner = app.account() ?: return Result.success()
+        if (!app.captureReady()) return Result.success()
         return app.syncGate.withLock {
             withContext(Dispatchers.IO) {
                 var retry = false
                 for (row in app.outbox.pending(owner)) {
-                    if (app.account() != owner) break
+                    if (app.account() != owner || !app.captureReady()) return@withContext Result.success()
                     try {
                         val body = JSONObject(String(app.vault.unseal(row.encrypted)))
                         val path = if (row.audio) {
@@ -231,7 +235,7 @@ class ConnectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                         if (error.status in 400..499 && error.status != 429) app.outbox.fail(row.id) else retry = true
                     } catch (_: Exception) { retry = true }
                 }
-                if (app.account() == owner && app.vault.json("settings").flag("recordings") && app.recordingFolder.autoEnabled()) {
+                if (app.account() == owner && app.captureReady() && app.vault.json("settings").flag("recordings") && app.recordingFolder.autoEnabled()) {
                     try {
                         val calls = app.api.call("connect/calls").optJSONArray("items")?.objects().orEmpty()
                         retry = app.recordingFolder.queueUnambiguous(owner, calls) > 0 || retry

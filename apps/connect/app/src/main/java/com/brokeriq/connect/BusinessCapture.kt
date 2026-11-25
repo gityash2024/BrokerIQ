@@ -39,7 +39,7 @@ class BusinessNotifications : NotificationListenerService() {
         val owner = app.account() ?: return
         val whatsapp = item.packageName in applications
         val flag = if (whatsapp) "whatsapp" else "smsNotifications"
-        if (!app.vault.json("settings").flag(flag)) return
+        if (!app.captureReady() || !app.vault.json("settings").flag(flag)) return
         if (!whatsapp && item.packageName != Telephony.Sms.getDefaultSmsPackage(this)) return
         val extras = item.notification.extras ?: return
         val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(item.notification)
@@ -50,7 +50,7 @@ class BusinessNotifications : NotificationListenerService() {
         val identity = hash(item.packageName + ":" + shortcut)
         serviceScope.launch {
             notifications.withLock {
-                if (owner != app.account()) return@withLock
+                if (owner != app.account() || !app.captureReady()) return@withLock
                 val settings = app.vault.json("settings")
                 if (!settings.flag(flag)) return@withLock
                 val all = app.vault.json("channelApprovals")
@@ -93,7 +93,7 @@ class BusinessNotifications : NotificationListenerService() {
 internal suspend fun capturePhoneCall(
     app: ConnectApplication, owner: String, address: String?, at: Long, direction: String, outcome: String, duration: Long? = null, simLabel: String? = null,
 ): Lead? {
-    if (owner != app.account()) return null
+    if (owner != app.account() || !app.captureReady()) return null
     val settings = app.vault.json("settings")
     if (!settings.flag("calls")) return null
     val normalized = mobile(address)

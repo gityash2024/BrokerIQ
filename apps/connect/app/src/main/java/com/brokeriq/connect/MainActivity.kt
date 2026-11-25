@@ -3,9 +3,7 @@ package com.brokeriq.connect
 import android.Manifest
 import android.app.Application
 import android.content.ActivityNotFoundException
-import android.app.NotificationManager
 import android.app.role.RoleManager
-import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -59,6 +57,7 @@ private val controls = listOf(
 class ConnectViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as ConnectApplication
     val account = MutableStateFlow(app.account())
+    val setupCompleted = MutableStateFlow(app.setupCompleted())
     val settings = MutableStateFlow(app.vault.json("settings"))
     val directory = MutableStateFlow(app.vault.directory())
     val events = MutableStateFlow<List<JSONObject>>(emptyList())
@@ -85,7 +84,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val updateUrl = MutableStateFlow<String?>(null)
     private var observe: kotlinx.coroutines.Job? = null
 
-    init { if (account.value != null) { observeQueue(); showCallReviews(); refresh() } }
+    init { if (account.value != null) { observeQueue(); if (app.captureReady()) refresh() } }
 
     private fun run(action: suspend () -> Unit) {
         if (busy.value) return
@@ -220,8 +219,9 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         settings.value = device.getJSONObject("settings")
         app.vault.write("settings", settings.value.toString())
         account.value = app.account()
+        setupCompleted.value = app.setupCompleted()
         observeQueue()
-        readActivity()
+        if (app.captureReady()) readActivity()
     }
     private fun observeQueue() {
         observe?.cancel()
@@ -289,12 +289,37 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         approved.value = app.vault.json("approvedAt")
         lastSync.value = app.vault.read("lastSync")
     }
-    fun refresh() = run { readActivity() }
+    fun refresh() = run { if (app.captureReady()) readActivity() }
+    fun activateCapture() = run {
+        val owner = account.value ?: return@run
+        require(app.missingSetupGrants().isEmpty()) { "Finish the Android permission steps first." }
+        val proposed = JSONObject(settings.value.toString())
+        for (flag in listOf("consent", "calls", "unmatchedCalls", "recordings", "whatsapp",
+            "allWhatsapp", "smsNotifications", "analysis", "backgroundSync")) proposed.put(flag, true)
+        saveCaptureSettings(proposed)
+        app.vault.write("setupAccount", owner)
+        setupCompleted.value = true
+        app.schedule()
+        readActivity()
+    }
+    fun reconcilePermissions() {
+        if (app.captureReady()) { app.schedule(); refresh() }
+        else app.schedule(false)
+    }
     fun showConversations() { conversations.value = app.vault.json("conversations") }
     fun toggle(key: String, value: Boolean) = run {
         val proposed = JSONObject(settings.value.toString()).put(key, value)
         if (key == "calls" && !value) proposed.put("unmatchedCalls", false)
         if (key == "whatsapp" && !value) proposed.put("allWhatsapp", false)
+        saveCaptureSettings(proposed)
+        if (!settings.value.optBoolean("consent")) {
+            app.vault.write("setupAccount", null)
+            setupCompleted.value = false
+        }
+        app.schedule()
+        if (app.captureReady()) readActivity()
+    }
+    private suspend fun saveCaptureSettings(proposed: JSONObject) {
         val result = app.api.call("connect/settings", "PATCH", proposed)
         val approvals = app.vault.json("channelApprovals")
         for (category in expandedCapture) {
@@ -324,8 +349,6 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             folderGranted.value = false
             folderDocuments.value = emptyList()
         }
-        app.schedule()
-        readActivity()
     }
     fun allow(id: String, allow: Boolean) = run {
         val choices = JSONObject(approved.value.toString())
@@ -393,9 +416,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         app.recordingFolder.remove()
         account.value?.let { app.outbox.clear(it) }
         withContext(Dispatchers.IO) { app.filesDir.listFiles()?.filter { it.name.startsWith("recording-") }?.forEach { it.delete() } }
-        listOf("session", "device", "settings", "directory", "conversations", "approvedAt", "channelApprovals", "lastSync", "ambiguousCalls").forEach { app.vault.write(it, null) }
+        listOf("session", "device", "settings", "directory", "conversations", "approvedAt", "channelApprovals", "lastSync", "ambiguousCalls", "setupAccount").forEach { app.vault.write(it, null) }
         app.schedule(false)
         account.value = null
+        setupCompleted.value = false
         settings.value = JSONObject()
         directory.value = emptyList()
         events.value = emptyList()
@@ -440,6 +464,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         accessRevision++
+        model.reconcilePermissions()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -457,6 +482,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestSetupGrant(grant: SetupGrant) {
+        when (grant) {
+            SetupGrant.PHONE -> getSystemService(RoleManager::class.java)?.let { roles ->
+                requestRole.launch(roles.createRequestRoleIntent(RoleManager.ROLE_DIALER))
+            }
+            SetupGrant.CALLS -> askCallLog.launch(Manifest.permission.READ_CALL_LOG)
+            SetupGrant.CONTACTS -> askContacts.launch(Manifest.permission.READ_CONTACTS)
+            SetupGrant.ALERTS -> if (Build.VERSION.SDK_INT >= 33) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            SetupGrant.FULL_SCREEN -> if (Build.VERSION.SDK_INT >= 34) {
+                startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName")))
+            }
+            SetupGrant.MESSAGES -> startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        }
+    }
+
     @Composable
     private fun ConnectScreen(model: ConnectViewModel) {
         val account by model.account.collectAsState()
@@ -465,13 +505,22 @@ class MainActivity : ComponentActivity() {
             return
         }
         val settings by model.settings.collectAsState()
+        val completed by model.setupCompleted.collectAsState()
+        val grants = remember(accessRevision) { missingSetupGrants() }
+        val feedback by model.feedback.collectAsState()
+        val busy by model.busy.collectAsState()
+        if (!completed || grants.isNotEmpty() || !settings.optBoolean("consent")) {
+            var consentChecked by rememberSaveable(account) { mutableStateOf(false) }
+            ConnectSetupScreen(grants, consentChecked, { consentChecked = it }, busy, feedback, ::requestSetupGrant,
+                { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) },
+                model::activateCapture, model::logout)
+            return
+        }
         val leads by model.directory.collectAsState()
         val events by model.events.collectAsState()
         val outbox by model.pending.collectAsState()
         val groups by model.conversations.collectAsState()
         val approved by model.approved.collectAsState()
-        val feedback by model.feedback.collectAsState()
-        val busy by model.busy.collectAsState()
         val recording by model.audio.collectAsState()
         val calls by model.recentCalls.collectAsState()
         val callReviews by model.callReviews.collectAsState()
@@ -483,7 +532,8 @@ class MainActivity : ComponentActivity() {
         val update by model.updateUrl.collectAsState()
         var tab by rememberSaveable(account) { mutableStateOf(ConnectTab.OVERVIEW) }
         var search by rememberSaveable(account) { mutableStateOf("") }
-        var number by rememberSaveable(account) { mutableStateOf("") }
+        var missedOnly by rememberSaveable(account) { mutableStateOf(false) }
+        var advanced by rememberSaveable(account) { mutableStateOf(false) }
         var consentToRecording by remember(recording) { mutableStateOf(false) }
         val scroll = ConnectTab.entries.associateWith { rememberScrollState() }
         BackHandler(tab != ConnectTab.OVERVIEW) { tab = ConnectTab.OVERVIEW }
@@ -496,15 +546,28 @@ class MainActivity : ComponentActivity() {
                 ConnectWorkspaceHeader(tab.label, settings.optBoolean("consent"))
                 SessionFeedback(feedback, busy)
                 when (tab) {
-                    ConnectTab.OVERVIEW -> ConnectCard("Workspace activity") {
-                        Text(if (settings.optBoolean("consent")) "Connected" else "Connected · permissions required")
-                        Text("Calls " + events.count { it.optString("kind") == "CALL" })
-                        Text("Recordings " + events.count { it.optString("kind") == "RECORDING" })
-                        Text("WhatsApp messages " + events.count { it.optString("kind") == "WHATSAPP" })
-                        Text("Pending sync " + outbox.count { it.state == "PENDING" } + " · Failed " + outbox.count { it.state == "FAILED" })
-                        Text("Last synchronization " + (lastSync ?: "Pending"))
-                        Button(onClick = model::sync, enabled = !busy) { Text("Sync now") }
-                        update?.let { url -> Button(onClick = { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }) { Text("Update available") } }
+                    ConnectTab.OVERVIEW -> {
+                        ConnectCard("Connected") {
+                            Text(if (settings.flag("backgroundSync")) "Business capture syncs automatically." else "Background sync is paused.")
+                            Text("Last sync " + (lastSync?.let {
+                                runCatching { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+                                    .withZone(ZoneId.systemDefault()).format(Instant.parse(it)) }.getOrDefault(it)
+                            } ?: "pending"))
+                            if (outbox.isNotEmpty()) {
+                                Text("${outbox.count { it.state == "PENDING" }} pending · ${outbox.count { it.state == "FAILED" }} need retry")
+                            }
+                            Button(onClick = {
+                                startActivity(Intent(Intent.ACTION_DIAL).setClass(this@MainActivity, ConnectPhoneActivity::class.java))
+                            }, modifier = Modifier.fillMaxWidth()) { Text("Open keypad") }
+                            OutlinedButton(onClick = { tab = ConnectTab.SYNC }, modifier = Modifier.fillMaxWidth()) { Text("View activity") }
+                            update?.let { url -> TextButton(onClick = { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }) {
+                                Text("Update available")
+                            } }
+                        }
+                        if (settings.flag("recordings") && !hasFolder) ConnectCard("Sync call recordings") {
+                            Text("Connect can match new recordings in a folder created by your phone. Availability depends on your device.")
+                            OutlinedButton(onClick = { openRecordingFolder.launch(null) }, enabled = !busy) { Text("Choose recording folder") }
+                        }
                     }
                     ConnectTab.CALLS -> {
                         val localCallLogAccess = remember(accessRevision) {
@@ -517,17 +580,22 @@ class MainActivity : ComponentActivity() {
                         Button(onClick = {
                             startActivity(Intent(Intent.ACTION_DIAL).setClass(this@MainActivity, ConnectPhoneActivity::class.java))
                         }) { Text("Open keypad") }
-                        OutlinedTextField(number, { number = it.take(25) }, label = { Text("SIM dial pad number") }, singleLine = true)
-                        Button(enabled = mobile(number) != null, onClick = { dial(number) }) { Text("Call number") }
-                        OutlinedTextField(search, { search = it }, label = { Text("Search authorized leads") }, singleLine = true)
-                        leads.filter { it.name.contains(search, true) || it.phone.contains(search) }.take(30).forEach { lead ->
+                        OutlinedTextField(search, { search = it.take(80) }, label = { Text("Search calls or leads") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        if (search.isNotBlank()) leads.filter { it.name.contains(search, true) || it.phone.contains(search) }.take(15).forEach { lead ->
                             TextButton(onClick = { dial(lead.phone) }) { Text(lead.name + " · " + lead.phone) }
                         }
                         if (localCallLogAccess) {
                             ConnectCard("Recent phone calls") {
-                                if (handsetCalls.isEmpty()) Text("No recent calls on this phone.")
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilterChip(selected = !missedOnly, onClick = { missedOnly = false }, label = { Text("All") })
+                                    FilterChip(selected = missedOnly, onClick = { missedOnly = true }, label = { Text("Missed") })
+                                }
+                                val matching = handsetCalls.filter { (!missedOnly || it.kind == "Missed") &&
+                                    (search.isBlank() || it.name?.contains(search, true) == true || it.number?.contains(search) == true) }
+                                if (matching.isEmpty()) Text("No matching recent calls.")
                                 val formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault())
-                                handsetCalls.forEach { call ->
+                                matching.forEach { call ->
                                     Column(Modifier.fillMaxWidth()) {
                                         Text(call.name ?: call.number ?: "Unknown caller", style = MaterialTheme.typography.titleSmall)
                                         Text(listOf(call.kind, formatter.format(Instant.ofEpochMilli(call.time)), "${call.duration} s").joinToString(" · "),
@@ -538,7 +606,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        if (settings.flag("recordings")) {
+                        if (settings.flag("recordings")) ConnectCard("Recordings") {
                             Button(onClick = { openRecording.launch(arrayOf("audio/*")) }) { Text("Choose recording") }
                             OutlinedButton(onClick = { openRecordingFolder.launch(null) }) { Text("Choose recording folder") }
                             if (hasFolder) {
@@ -563,11 +631,6 @@ class MainActivity : ComponentActivity() {
                                 TextButton(onClick = { model.dismissCall(id) }) { Text("Dismiss unmatched call") }
                             }
                         }
-                        calls.take(25).forEach { row ->
-                            Text(listOfNotNull(row.optional("leadName"), row.optional("direction")?.replaceFirstChar(Char::uppercase),
-                                row.optional("startedAt"), row.optional("simLabel"), row.optional("status"),
-                                if (row.isNull("durationSec")) null else row.getInt("durationSec").toString() + " s", row.optional("processingStatus")).joinToString(" · "))
-                        }
                     }
                     ConnectTab.INBOX -> {
                         ConnectCard("Message capture") {
@@ -588,62 +651,49 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     ConnectTab.SYNC -> {
-                        Button(onClick = model::sync, enabled = !busy) { Text("Retry and synchronize") }
-                        outbox.forEach { Text(it.kind + " · " + it.state) }
-                        events.forEach {
-                            Text(it.optString("kind") + " · " + it.optString("status") + " · " + it.optString("capturedAt"))
-                            it.optional("lastError")?.let { message -> Text(message, style = MaterialTheme.typography.bodySmall) }
+                        ConnectCard("Synchronization") {
+                            if (outbox.isEmpty()) Text("No pending uploads.")
+                            else outbox.forEach { Text(it.kind + " · " + it.state) }
+                            OutlinedButton(onClick = model::sync, enabled = !busy) { Text("Sync now") }
+                        }
+                        if (calls.isNotEmpty()) ConnectCard("Matched calls") {
+                            calls.take(25).forEach { row ->
+                                Text(listOfNotNull(row.optional("leadName"), row.optional("direction")?.replaceFirstChar(Char::uppercase),
+                                    row.optional("simLabel"), row.optional("status"), row.optional("processingStatus")).joinToString(" · "))
+                            }
+                        }
+                        ConnectCard("Recent captures") {
+                            if (events.isEmpty()) Text("New captures will appear here.")
+                            events.forEach {
+                                Text(it.optString("kind") + " · " + it.optString("status"))
+                                it.optional("lastError")?.let { message -> Text(message, style = MaterialTheme.typography.bodySmall) }
+                            }
                         }
                     }
                     ConnectTab.SETUP -> {
-                        ConnectCard("Device permissions") {
-                            val roles = getSystemService(RoleManager::class.java)
-                            val notifications = getSystemService(NotificationManager::class.java)
-                            val dialerActive = remember(accessRevision) { isConnectDialer() }
-                            Text(if (dialerActive) "Connect is your default Phone app" else "1. Choose Connect as your default Phone app")
-                            Text("Optional. Switching the Phone app can change access to the manufacturer’s built-in call recording.")
-                            OutlinedButton(onClick = {
-                                if (roles?.isRoleAvailable(RoleManager.ROLE_DIALER) == true)
-                                    requestRole.launch(roles.createRequestRoleIntent(RoleManager.ROLE_DIALER))
-                            }, enabled = !dialerActive) { Text("Choose default Phone app") }
-                            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                                Text("2. Allow incoming call notifications")
-                                OutlinedButton(onClick = { askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS) }) {
-                                    Text("Allow phone notifications")
-                                }
-                            }
-                            if (Build.VERSION.SDK_INT >= 34 && notifications?.canUseFullScreenIntent() == false) {
-                                Text("3. Allow the incoming call screen on the lock screen")
-                                OutlinedButton(onClick = {
-                                    startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName")))
-                                }) { Text("Open full-screen call settings") }
-                            }
-                            if (dialerActive && checkSelfPermission(Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
-                                Text("Show the phone’s recent call history locally in Calls.")
-                                OutlinedButton(onClick = { askCallLog.launch(Manifest.permission.READ_CALL_LOG) }) { Text("Allow recent calls") }
-                            }
-                            Text("Call identification role " + if (roles?.isRoleHeld(RoleManager.ROLE_CALL_SCREENING) == true) "active" else "requires Android approval")
-                            Text("Notification access " + if (notifications?.isNotificationListenerAccessGranted(ComponentName(this@MainActivity, BusinessNotifications::class.java)) == true) "granted" else "not granted")
-                            val contactsAllowed = remember(accessRevision) { checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED }
-                            Text("Detect authorized lead numbers saved in phone contacts " + if (contactsAllowed) "granted" else "requires Android approval")
-                            OutlinedButton(enabled = settings.flag("calls") && !contactsAllowed, onClick = { askContacts.launch(Manifest.permission.READ_CONTACTS) }) {
-                                Text("Allow caller ID for saved phone numbers")
-                        }
-                        Text("The system dialer keeps SIM selection and recording. Some devices do not expose SIM slot or final call status to Connect.")
-                        OutlinedButton(onClick = {
-                            if (roles?.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING) == true) requestRole.launch(roles.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
-                        }) { Text("Enable lead caller ID") }
-                        if (Build.VERSION.SDK_INT >= 33) OutlinedButton(onClick = { askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text("Allow caller ID notifications") }
-                        Text("Call details, native recordings and background delivery vary by handset. Enabling battery restrictions may delay synchronization.")
+                        ConnectCard("This device") {
+                            Text("Android permissions are ready.")
+                            if (settings.flag("recordings") && !hasFolder) Text("Choose a recording folder to sync audio.")
+                            TextButton(onClick = {
+                                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                            }) { Text("Android permissions") }
+                            Text("Version " + BuildConfig.VERSION_NAME, style = MaterialTheme.typography.bodySmall)
                         }
                         ConnectCard("Capture preferences") {
-                            Text("Authorize only business communications you have permission to process. Keep recordings private and obtain appropriate consent.")
-                            Toggle("I authorize business capture", settings.optBoolean("consent"), !busy) { model.toggle("consent", it) }
-                            controls.forEach { (key, label) -> Toggle(label, settings.optBoolean(key), !busy && settings.optBoolean("consent")) { model.toggle(key, it) } }
-                            Toggle("Keep new unmatched calls in Connect activity", settings.flag("unmatchedCalls"),
-                                !busy && settings.flag("calls")) { model.toggle("unmatchedCalls", it) }
+                            Toggle("Enable business capture", settings.optBoolean("consent"), !busy) { model.toggle("consent", it) }
                             Toggle("Wi-Fi only for audio uploads", wifi, true, model::wifi)
-                            Text("Version " + BuildConfig.VERSION_NAME)
+                            TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Hide advanced settings" else "Advanced settings") }
+                            if (advanced) {
+                                controls.forEach { (key, label) -> Toggle(label, settings.optBoolean(key), !busy) { model.toggle(key, it) } }
+                                Toggle("Keep new unmatched calls in Connect activity", settings.flag("unmatchedCalls"),
+                                    !busy && settings.flag("calls")) { model.toggle("unmatchedCalls", it) }
+                                val roles = getSystemService(RoleManager::class.java)
+                                if (!isConnectDialer() && roles?.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING) == true) {
+                                    OutlinedButton(onClick = { requestRole.launch(roles.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING)) }) {
+                                        Text("Enable lead caller ID")
+                                    }
+                                }
+                            }
                             OutlinedButton(enabled = !busy, onClick = model::logout) { Text("Revoke this device and sign out") }
                         }
                     }

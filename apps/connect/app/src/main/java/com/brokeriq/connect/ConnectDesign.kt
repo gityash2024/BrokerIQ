@@ -202,7 +202,7 @@ internal fun SessionFeedback(message: String, busy: Boolean) {
     }
 }
 
-internal enum class ConnectTab(val label: String) { OVERVIEW("Home"), CALLS("Calls"), INBOX("Inbox"), SYNC("Sync"), SETUP("Setup") }
+internal enum class ConnectTab(val label: String) { OVERVIEW("Home"), CALLS("Calls"), INBOX("Messages"), SYNC("Activity"), SETUP("Settings") }
 
 @Composable
 internal fun ConnectNavigation(selected: ConnectTab, select: (ConnectTab) -> Unit) {
