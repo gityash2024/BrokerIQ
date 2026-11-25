@@ -71,6 +71,7 @@ test('admin module toggle blocks direct route and restores navigation', async ({
   await expect(page.getByRole('heading', { name: 'A clearer view of BrokerIQ.' })).toBeVisible();
   const auth = await page.evaluate(() => JSON.parse(localStorage.getItem('biq.auth')!));
   const headers = { Authorization: `Bearer ${auth.accessToken}` };
+  const config = await (await request.get(`${API}/public/config`)).json();
   try {
     expect(
       (await request.patch(`${API}/admin/modules/inventory`, { headers, data: { state: 'COMING_SOON', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] } })).ok(),
@@ -78,7 +79,8 @@ test('admin module toggle blocks direct route and restores navigation', async ({
     const broker = await request.post(`${API}/auth/login`, { data: { email: brokerEmail, password: 'FixtureBroker123' } });
     expect((await request.get(`${API}/inventory`, { headers: { Authorization: `Bearer ${(await broker.json()).accessToken}` } })).status()).toBe(403);
   } finally {
-    await request.patch(`${API}/admin/modules/inventory`, { headers, data: { state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] } });
+    const restored = await request.patch(`${API}/admin/modules/inventory`, { headers, data: config.modules.inventory });
+    expect(restored.ok()).toBe(true);
   }
   await page.goto('/admin/settings');
   await expect(page).toHaveURL(/\/admin\/settings\/integrations/);

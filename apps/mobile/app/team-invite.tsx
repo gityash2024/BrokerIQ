@@ -22,7 +22,8 @@ export default function TeamInvite() {
     () =>
       post<{ link: string; emailed: boolean }>('/broker/team/invite', {
         ...form,
-        ...(form.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : form.role === 'PROPERTY_OWNER' ? {} : { rolePermissions: permissions }),
+        ...(form.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}),
+        ...(['BROKER_ADMIN', 'BROKER_AGENT'].includes(form.role) && selection !== null ? { rolePermissions: selection } : {}),
       }),
     {
       invalidate: [['team']],

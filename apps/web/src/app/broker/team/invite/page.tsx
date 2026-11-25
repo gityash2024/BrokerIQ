@@ -26,7 +26,8 @@ export default function InvitePage() {
     () =>
       post<{ link: string; emailed: boolean }>('/broker/team/invite', {
         ...f,
-        ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : f.role === 'PROPERTY_OWNER' ? {} : { rolePermissions: permissions }),
+        ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}),
+        ...(['BROKER_ADMIN', 'BROKER_AGENT'].includes(f.role) && selection !== null ? { rolePermissions: selection } : {}),
       }),
     {
       invalidate: [['team']],

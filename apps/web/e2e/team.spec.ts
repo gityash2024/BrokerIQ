@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { API, createBrokerFixture } from './fixtures';
+import { API, browserAdminSession, createBrokerFixture } from './fixtures';
 
 test('team renders real stats after assignee screens, creates and lists an invite', async ({ page, request }) => {
   const broker = await createBrokerFixture(request);
@@ -24,7 +24,25 @@ test('team renders real stats after assignee screens, creates and lists an invit
   await inviteForm.getByLabel('नाम').fill('UI invite regression');
   const invitedEmail = `ui.agent.${Date.now()}@e2e.test`;
   await inviteForm.getByLabel('Email').fill(invitedEmail);
-  await inviteForm.getByRole('button', { name: 'Send invite', exact: true }).click();
+  await expect(inviteForm.getByRole('group', { name: /Inbox/ }).getByRole('checkbox', { name: 'view', exact: true })).toBeChecked();
+  const policyUrl = API + '/admin/modules/inventory';
+  const adminSession = browserAdminSession();
+  const headers = { Authorization: 'Bearer ' + adminSession.accessToken };
+  const config = await (await request.get(API + '/public/config')).json();
+  const policy = config.modules.inventory;
+  try {
+    await expect(inviteForm.getByRole('group', { name: /Inventory/ }).getByRole('checkbox', { name: 'view', exact: true })).toBeChecked();
+    const changed = await request.patch(policyUrl, { headers, data: { ...policy, roles: policy.roles.filter((role: string) => role !== 'BROKER_AGENT') } });
+    expect(changed.ok()).toBe(true);
+    const created = page.waitForResponse((res) => res.url().endsWith('/broker/team/invite') && res.request().method() === 'POST');
+    await inviteForm.getByRole('button', { name: 'Send invite', exact: true }).click();
+    const invite = await created;
+    expect(invite.status()).toBe(201);
+    expect(invite.request().postDataJSON()).not.toHaveProperty('rolePermissions');
+  } finally {
+    const restored = await request.patch(policyUrl, { headers, data: policy });
+    expect(restored.ok()).toBe(true);
+  }
   await expect(inviteForm.getByText('Invite link', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to team', exact: true }).click();
   await expect(page.getByText(invitedEmail, { exact: false })).toBeVisible();
