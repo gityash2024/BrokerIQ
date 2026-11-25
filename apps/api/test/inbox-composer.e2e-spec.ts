@@ -111,6 +111,17 @@ describe('Internal lead composer and conversation ownership', () => {
     expect(result.body.integration.settingsPath).toContain('/broker/connectors');
     expect(await db.conversation.count({ where: { leadId: peerLead } })).toBe(0);
   });
+  it('makes a WhatsApp draft available without API credentials while keeping assignment and firm scope', async () => {
+    const calls = creds.mock.calls.length;
+    const manual = { leadId: lead, allowManualDraft: true };
+    await req().post('/api/whatsapp/resolve-lead').set(h(peer)).send(manual).expect(404);
+    await req().post('/api/whatsapp/resolve-lead').set(h(outsider)).send(manual).expect(404);
+    const resolved = await req().post('/api/whatsapp/resolve-lead').set(h()).send(manual).expect(201);
+    expect(resolved.body.conversationId).toBe(conversationId);
+    expect(creds).toHaveBeenCalledTimes(calls);
+    const thread = await req().get(`/api/whatsapp/conversations/${conversationId}/messages`).set(h()).expect(200);
+    expect(thread.body).toMatchObject({ connected: false, windowOpen: false, items: [] });
+  });
   it('keeps unlinked historical conversations admin-reviewed and does not rebind another lead', async () => {
     const old = await db.conversation.create({ data: { organizationId: org, channel: 'WHATSAPP', contactKey: '919700000202', contactPhone: '+919700000202' } });
     await req().post('/api/whatsapp/resolve-lead').set(h(peer)).send({ leadId: peerLead }).expect(403);
@@ -152,6 +163,19 @@ describe('Internal lead composer and conversation ownership', () => {
       expect(property).toContain(url);
     } finally {
       outbound.mockRestore();
+    }
+  });
+  it('returns a machine-readable recovery code when Meta closes the window after the composer loads', async () => {
+    const provider = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      error: { code: 131047, message: 'Re-engagement message' },
+    }), { status: 400 }));
+    try {
+      const result = await req().post('/api/whatsapp/send').set(h()).send({ conversationId, text: 'Draft after window closure' }).expect(502);
+      expect(result.body.code).toBe('WHATSAPP_WINDOW_CLOSED');
+      expect(provider).toHaveBeenCalledTimes(1);
+      expect(await db.message.count({ where: { conversationId, status: 'FAILED', body: 'Draft after window closure' } })).toBe(1);
+    } finally {
+      provider.mockRestore();
     }
   });
   describe('free-only WhatsApp', () => {

@@ -3,6 +3,7 @@ import { InboxPropertyShare } from '@/components/inbox-property-share';
 import { LinkedMessage } from '@/components/linked-message';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as Crypto from 'expo-crypto';
+import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { Alert, FlatList, Linking, TextInput, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,11 +11,11 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Building2, AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
-import { renderTemplate, whatsappLink, type WaTemplate } from '@brokeriq/shared';
+import { renderTemplate, whatsappComposerMode, whatsappLink, type WaTemplate } from '@brokeriq/shared';
 import { readInboxDraft, saveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
-import { ApiError, authStore, api, post, captureAccountContext, assertAccountContext } from '@/lib/api';
+import { ApiError, api, post, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
@@ -26,7 +27,7 @@ export default function WaThread() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { c } = useTheme();
   const { user } = useAuth();
-  const canSend = hasDelegatedAccess(user, 'inbox', 'send');
+  const canSend = !!user && hasDelegatedAccess(user, 'inbox', 'view', 'send');
   const canRead = hasDelegatedAccess(user, 'inbox', 'edit');
   const owner = useRef(captureAccountContext()).current;
   const qc = useQueryClient();
@@ -49,6 +50,7 @@ export default function WaThread() {
     let cancelled = false;
     edited.current = false;
     setText('');
+    setDraftInbound(undefined);
     readInboxDraft(id, owner)
       .then((draft) => {
         if (!cancelled && !edited.current) {
@@ -64,6 +66,8 @@ export default function WaThread() {
   const attempt = useRef<{ text: string; requestId: string; subject?: string; replyToId?: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [tpl, setTpl] = useState(false);
+  const [draftInbound, setDraftInbound] = useState<string | null>();
+  const lastInbound = thread?.conversation?.lastInboundAt ?? null;
   const [propertyOpen, setPropertyOpen] = useState(false);
   const list = useRef<FlatList>(null);
   useRealtime<any>('wa:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
@@ -76,7 +80,7 @@ export default function WaThread() {
     setTimeout(() => list.current?.scrollToEnd({ animated: true }), 120);
   }, [thread, id, qc, canRead]);
   const send = async (body: Record<string, unknown>) => {
-    if (!canSend || sending) return false;
+    if (!canSend || sending || (thread?.conversation?.channel === 'WHATSAPP' && thread.conversation.blockedAt)) return false;
     setSending(true);
     try {
       if (['SMS', 'EMAIL'].includes(thread?.conversation?.channel)) {
@@ -124,6 +128,12 @@ export default function WaThread() {
       q.refetch();
       return true;
     } catch (e) {
+      if (e instanceof ApiError && thread?.conversation?.channel === 'WHATSAPP' && typeof body.text === 'string' &&
+          ['MESSAGING_FREE_ONLY', 'WHATSAPP_WINDOW_CLOSED', 'INTEGRATION_NOT_CONFIGURED'].includes(e.body.code)) {
+        setDraftInbound(lastInbound);
+        toast.info('Your draft is ready to open in WhatsApp.');
+        return false;
+      }
       const { draftUrl } = e instanceof ApiError && e.body.code === 'MESSAGING_FREE_ONLY'
         ? (e.body.details ?? {}) as { draftUrl?: string }
         : {};
@@ -148,9 +158,40 @@ export default function WaThread() {
   const conv = thread!.conversation;
   const email = conv.channel === 'EMAIL';
   const sms = conv.channel === 'SMS';
-  const windowOpen = sms || email || thread!.windowOpen;
-  const manualDraft = !windowOpen && thread!.freeOnly && !!conv.contactPhone;
-  const canCompose = windowOpen || manualDraft;
+  const mode = whatsappComposerMode({
+    canSend, blocked: !!conv.blockedAt, phone: conv.contactPhone, leadPhone: conv.lead?.phone,
+    connected: thread!.connected ?? true, windowOpen: !!thread!.windowOpen, preferDraft: draftInbound === lastInbound,
+  });
+  const manualDraft = !sms && !email && mode === 'draft';
+  const canCompose = sms || email || mode === 'send' || manualDraft;
+  const canTemplate = !sms && !email && canCompose && (thread!.connected ?? true) && !thread!.freeOnly;
+  async function openDraft() {
+    if (!manualDraft || sending) return;
+    try {
+      assertAccountContext(owner);
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    try {
+      await Linking.openURL(whatsappLink(conv.contactPhone, text.trim()));
+    } catch {
+      Alert.alert('Could not open WhatsApp', 'Open WhatsApp Business or WhatsApp on your device. Your draft is still here.', [
+        { text: 'Close', style: 'cancel' },
+        ...(text.trim() ? [{
+          text: 'Copy draft',
+          onPress: () => {
+            try {
+              assertAccountContext(owner);
+              void Clipboard.setStringAsync(text).then(() => toast.success('Draft copied')).catch(showError);
+            } catch (error) {
+              showError(error);
+            }
+          },
+        }] : []),
+      ]);
+    }
+  }
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Header
@@ -193,6 +234,9 @@ export default function WaThread() {
           data={thread!.items}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 14, gap: 6 }}
+          ListEmptyComponent={!email && !sms ? (
+            <Txt v="small" color="muted" style={{ textAlign: 'center', paddingVertical: 24 }}>No messages yet</Txt>
+          ) : undefined}
           renderItem={({ item: m }) => {
             const out = m.direction === 'OUTBOUND';
             const Tick =
@@ -260,28 +304,17 @@ export default function WaThread() {
             SMS business SIM से जाएगा। Queue में पहुँचना delivery नहीं है; अनिश्चित स्थिति में फिर न भेजें।
           </Txt>
         )}
-        {canSend && manualDraft && <Txt v="caption" color="muted" style={{ paddingHorizontal: 14 }}>24-hour window closed. Open this draft in WhatsApp Business.</Txt>}
-        {canSend && !windowOpen && !manualDraft && (
-          <PressableScale
-            onPress={() => setTpl(true)}
-            style={{
-              marginHorizontal: 12,
-              marginBottom: 8,
-              padding: 10,
-              borderRadius: 14,
-              backgroundColor: `${c.warning}1f`,
-              flexDirection: 'row',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <Clock size={16} color={c.warning} />
-            <Txt v="caption" style={{ flex: 1 }}>
-              24-घंटे की window बंद है — सिर्फ़ approved template भेज सकते हैं। Tap करें।
+        {!sms && !email && mode !== 'send' && (
+          <Row style={{ gap: 8, paddingHorizontal: 14, paddingVertical: 6 }}>
+            <Txt v="caption" color="muted" style={{ flex: 1 }}>
+              {manualDraft ? 'Write here or continue in WhatsApp. Your draft stays in BrokerIQ.' :
+                conv.blockedAt ? 'This conversation is blocked.' :
+                mode === 'read-only' ? 'You can view this conversation.' : 'Review the contact’s phone number to continue in WhatsApp.'}
             </Txt>
-          </PressableScale>
+            {manualDraft && <Button title="Open WhatsApp" size="sm" variant="whatsapp" disabled={sending} onPress={() => void openDraft()} />}
+          </Row>
         )}
-        {windowOpen && !sms && !email && (
+        {canSend && canCompose && !sms && !email && (
           <ScrollView
             horizontal
             style={{ flexGrow: 0, maxHeight: 48 }}
@@ -307,11 +340,11 @@ export default function WaThread() {
           </ScrollView>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
-          <IconBtn accessibilityLabel="Share property" disabled={!canSend} onPress={() => setPropertyOpen(true)}>
+          <IconBtn accessibilityLabel="Share property" disabled={!canSend || !canCompose} onPress={() => setPropertyOpen(true)}>
             <Building2 size={21} color={c.muted} />
           </IconBtn>
           {!sms && !email && (
-            <IconBtn onPress={() => setTpl(true)}>
+            <IconBtn accessibilityLabel="Templates" disabled={!canTemplate} onPress={() => setTpl(true)}>
               <FileText size={21} color={c.muted} />
             </IconBtn>
           )}
@@ -328,7 +361,7 @@ export default function WaThread() {
               saveInboxDraft(id, value, owner).catch(showError);
             }}
             editable={canSend && canCompose && !sending}
-            placeholder={tr(manualDraft ? 'WhatsApp Business draft…' : windowOpen ? 'Message…' : 'Template भेजें')}
+            placeholder={tr(canCompose ? 'Message…' : canTemplate ? 'Choose an approved template' : 'Message unavailable')}
             placeholderTextColor={c.subtle}
             maxLength={sms ? 1600 : email ? 20_000 : undefined}
             multiline
@@ -348,13 +381,13 @@ export default function WaThread() {
           <IconBtn
             accessibilityLabel={manualDraft ? 'Open WhatsApp draft' : 'Send'}
             disabled={!canSend || !canCompose || sending || !text.trim()}
-            onPress={() => manualDraft ? void Linking.openURL(whatsappLink(conv.contactPhone, text.trim())).catch(showError) : void send({ text })}
+            onPress={() => manualDraft ? void openDraft() : void send({ text })}
             style={{ backgroundColor: '#25D366', width: 46, height: 46, borderRadius: 23, opacity: !canCompose || sending || !text.trim() ? 0.5 : 1 }}
           >
             <Send size={19} color="#fff" />
           </IconBtn>
         </View>
-        <Sheet open={propertyOpen} onClose={() => setPropertyOpen(false)} title="Share property">
+        <Sheet open={propertyOpen && canSend && canCompose} onClose={() => setPropertyOpen(false)} title="Share property">
           {propertyOpen && (
             <InboxPropertyShare
               onDraft={(draft) => {
@@ -368,7 +401,7 @@ export default function WaThread() {
         </Sheet>
       </KeyboardAvoidingView>
       <TemplateSheet
-        open={tpl}
+        open={tpl && canTemplate}
         onClose={() => setTpl(false)}
         name={conv.contactName}
         onSend={async (b) => (await send(b)) && (setTpl(false), toast.success('Template भेजा गया'))}

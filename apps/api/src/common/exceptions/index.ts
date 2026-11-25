@@ -34,15 +34,15 @@ export class IntegrationNotConfiguredException extends HttpException {
 }
 
 export class IntegrationFailedException extends AppException {
-  constructor(key: string, message: string) {
-    super(HttpStatus.BAD_GATEWAY, ErrorCode.INTEGRATION_FAILED, `${getIntegration(key)?.name ?? key}: ${message}`);
+  constructor(key: string, message: string, code: ErrorCode = ErrorCode.INTEGRATION_FAILED) {
+    super(HttpStatus.BAD_GATEWAY, code, `${getIntegration(key)?.name ?? key}: ${message}`);
   }
 }
 
 /** Meta refused a free-form message because the 24-hour customer-service window is closed. */
 export class WhatsAppWindowClosedException extends IntegrationFailedException {
   constructor() {
-    super('whatsapp', '24 घंटे की window बंद है — lead ने पिछले 24 घंटे में message नहीं किया। Approved template भेजें।');
+    super('whatsapp', '24 घंटे की window बंद है — lead ने पिछले 24 घंटे में message नहीं किया। Approved template भेजें।', ErrorCode.WHATSAPP_WINDOW_CLOSED);
   }
 }
 

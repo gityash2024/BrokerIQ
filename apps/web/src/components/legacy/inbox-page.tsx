@@ -1,6 +1,6 @@
 'use client';
 import { hasPreviousPage, useRouteState } from '@/lib/navigation';
-import { whatsappLink } from '@brokeriq/shared';
+import { whatsappComposerMode, whatsappLink } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { SmsThread } from '@/components/broker/sms-thread';
 import Link from 'next/link';
@@ -98,7 +98,7 @@ function InboxInner() {
         ownerContext: owner,
         body: {
           leadId: leadTarget,
-          ...(['SMS', 'EMAIL'].includes(channel) ? { channel } : {}),
+          ...(['SMS', 'EMAIL'].includes(channel) ? { channel } : { allowManualDraft: true }),
         },
       }),
   });
@@ -622,6 +622,15 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   const [tplOpen, setTplOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [notConfigured, setNotConfigured] = useState<ApiError | null>(null);
+  const [draftInbound, setDraftInbound] = useState<string | null>();
+  const conversation = q.data?.conversation;
+  const lastInbound = conversation?.lastInboundAt ?? null;
+  const connectionReady = q.data?.connected ?? connected;
+  const canSend = !!user && hasDelegatedAccess(user, 'inbox', 'view', 'send');
+  const mode = whatsappComposerMode({
+    canSend, blocked: !!conversation?.blockedAt, phone: conversation?.contactPhone, leadPhone: conversation?.lead?.phone,
+    connected: connectionReady, windowOpen: !!q.data?.windowOpen, preferDraft: draftInbound === lastInbound,
+  });
   const end = useRef<HTMLDivElement>(null);
   const onReadRef = useRef(onRead);
   onReadRef.current = onRead;
@@ -634,7 +643,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   }, [q.data?.items?.length]);
 
   const send = async (body: Record<string, unknown>) => {
-    if (!ready || sendLock.current) return false;
+    if (!ready || !canSend || conversation?.blockedAt || sendLock.current) return false;
     sendLock.current = true;
     setSending(true);
     setNotConfigured(null);
@@ -651,13 +660,18 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       onReadRef.current();
       return true;
     } catch (e) {
-      if (e instanceof ApiError && e.body.code === 'MESSAGING_FREE_ONLY') {
-        const { draftUrl } = (e.body.details ?? {}) as { draftUrl?: string };
+      if (e instanceof ApiError) {
+        if (e.isNotConfigured) setNotConfigured(e);
+        if (typeof body.text === 'string' && ['MESSAGING_FREE_ONLY', 'WHATSAPP_WINDOW_CLOSED', 'INTEGRATION_NOT_CONFIGURED'].includes(e.body.code)) {
+          setDraftInbound(lastInbound);
+          toast.info('Your draft is ready to open in WhatsApp.');
+          return false;
+        }
+        const { draftUrl } = e.body.code === 'MESSAGING_FREE_ONLY' ? (e.body.details ?? {}) as { draftUrl?: string } : {};
         if (draftUrl?.startsWith('https://wa.me/')) {
           toast.error(errorMessage(e), { action: { label: 'Open WhatsApp', onClick: () => window.open(draftUrl, '_blank', 'noopener,noreferrer') } });
-        } else toast.error(errorMessage(e));
-      } else if (e instanceof ApiError && e.isNotConfigured) setNotConfigured(e);
-      else toast.error(errorMessage(e));
+        } else if (!e.isNotConfigured) toast.error(errorMessage(e));
+      } else toast.error(errorMessage(e));
       return false;
     } finally {
       sendLock.current = false;
@@ -689,14 +703,30 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
     );
   }
 
-  const windowOpen = q.data?.windowOpen;
-  const manualPhone = q.data?.freeOnly ? q.data?.conversation?.contactPhone : null;
-  const manualDraft = !windowOpen && manualPhone;
-  const canCompose = windowOpen || manualDraft;
+  const manualDraft = mode === 'draft';
+  const draftUrl = manualDraft ? whatsappLink(conversation.contactPhone, text.trim()) : undefined;
+  const canCompose = mode === 'send' || manualDraft;
+  const canTemplate = canCompose && connectionReady && !q.data?.freeOnly;
+  function checkDraftAccount(event: { preventDefault(): void }) {
+    try {
+      assertAccountContext(owner);
+    } catch (error) {
+      event.preventDefault();
+      toast.error(errorMessage(error));
+    }
+  }
   function submitText() {
-    if (!ready || !text.trim()) return;
-    if (manualDraft) window.open(whatsappLink(manualPhone, text.trim()), '_blank', 'noopener,noreferrer');
-    else void send({ text });
+    if (!ready || !canCompose || !text.trim()) return;
+    if (!draftUrl) {
+      void send({ text });
+      return;
+    }
+    try {
+      assertAccountContext(owner);
+      window.open(draftUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
   }
 
   return (
@@ -767,17 +797,18 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           </div>
         )}
 
-        {/* 24-Hour Window Alert */}
-        {!windowOpen && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
-            <Clock className="size-3.5 text-amber-600" />
-            <span className="flex-1 leading-normal">{manualDraft ? '24-hour window closed. Open the draft in WhatsApp Business.' : '24-घंटे की window बंद है — WhatsApp नियम के अनुसार केवल approved template भेज सकते हैं।'}</span>
-            {!manualDraft && <Button size="xs" variant="secondary" onClick={() => setTplOpen(true)}>Template भेजें</Button>}
+        {mode !== 'send' && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 px-3.5 py-2 text-xs text-muted">
+            <span className="flex-1 leading-normal">
+              {manualDraft ? 'Write here or continue in WhatsApp. Your draft stays in BrokerIQ.' :
+                conversation?.blockedAt ? 'This conversation is blocked.' :
+                mode === 'read-only' ? 'You can view this conversation.' : 'Review the contact’s phone number to continue in WhatsApp.'}
+            </span>
+            {draftUrl && <Button size="xs" variant="whatsapp" href={draftUrl} external disabled={!ready || sending} onClick={checkDraftAccount}>Open WhatsApp</Button>}
           </div>
         )}
 
-        {/* Canned Quick Replies with Beautiful Horizontal Scroll */}
-        {windowOpen && connected && (
+        {canCompose && (
           <div data-no-i18n translate="no" className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <span className="flex items-center gap-1 text-[11px] font-semibold text-subtle shrink-0 mr-1">
               <Sparkles className="size-3 text-emerald-600" />
@@ -810,6 +841,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               variant="ghost"
               size="icon"
               onClick={() => setShareOpen(true)}
+              disabled={!canCompose}
               aria-label="Share property"
               title="प्रॉपर्टी शेयर करें"
               className="size-8 rounded-xl text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
@@ -821,6 +853,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               variant="ghost"
               size="icon"
               onClick={() => setTplOpen(true)}
+              disabled={!canTemplate}
               aria-label="Templates"
               title="WhatsApp Templates"
               className="size-8 rounded-xl text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
@@ -834,7 +867,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           <Textarea
             rows={1}
             value={text}
-            disabled={!ready || !canCompose || (!connected && !manualDraft) || sending}
+            disabled={!ready || !canCompose || sending}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -843,13 +876,9 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               }
             }}
             placeholder={
-              manualDraft
-                ? 'Write a WhatsApp Business draft…'
-                : !connected
-                ? 'WhatsApp is not connected'
-                : windowOpen
-                  ? 'Write a message… (Enter to send, Shift+Enter for a new line)'
-                  : 'Window closed — send a template'
+              manualDraft ? 'Write a message…' :
+                canCompose ? 'Write a message… (Enter to send, Shift+Enter for a new line)' :
+                canTemplate ? 'Choose an approved template' : 'Message unavailable'
             }
             className="border-0 bg-transparent py-2 text-sm text-fg placeholder:text-muted focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal min-w-0 flex-1"
           />
@@ -868,13 +897,13 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       </div>
 
       <TemplateDialog
-        open={tplOpen}
+        open={tplOpen && canTemplate}
         onOpenChange={setTplOpen}
         name={q.data?.conversation?.contactName || q.data?.conversation?.lead?.name}
         onSend={async (b) => (await send(b)) && setTplOpen(false)}
       />
       <Dialog
-        open={shareOpen}
+        open={shareOpen && canCompose}
         onOpenChange={setShareOpen}
         title="Share property"
         description="Choose inventory to add its details and photo gallery to your message."
@@ -888,7 +917,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
         />
         <details className="mt-4 rounded-xl border border-line p-3">
           <summary className="cursor-pointer text-sm">Share a published listing</summary>
-          <ShareListing disabled={!windowOpen} onSend={async (listingId) => (await send({ listingId })) && setShareOpen(false)} />
+          <ShareListing disabled={mode !== 'send'} onSend={async (listingId) => (await send({ listingId })) && setShareOpen(false)} />
         </details>
       </Dialog>
     </>
@@ -900,7 +929,7 @@ function ShareListing({ onSend, disabled }: { onSend: (id: string) => void; disa
   return (
     <div className="space-y-3">
       <ListingPicker value={id} onChange={setId} placeholder="प्रॉपर्टी चुनें" />
-      {disabled && <p className="text-xs text-amber-600">24-घंटे की window बंद है — पहले approved template भेजें।</p>}
+      {disabled && <p className="text-xs text-amber-600">Use the property draft above to share through WhatsApp.</p>}
       <Button className="w-full" variant="whatsapp" disabled={!id || disabled} onClick={() => onSend(id)}>
         <ImageIcon className="size-4" /> शेयर करें
       </Button>

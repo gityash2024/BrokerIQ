@@ -21,7 +21,7 @@ export default function ComposeLead() {
         ownerContext: owner,
         body: {
           leadId,
-          ...(channel !== 'WHATSAPP' ? { channel } : {}),
+          ...(channel !== 'WHATSAPP' ? { channel } : { allowManualDraft: true }),
         },
       }),
     enabled: !!user && !!leadId,

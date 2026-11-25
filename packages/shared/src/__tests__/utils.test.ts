@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatINR, formatPriceShort, normalizeIndianPhone, phoneForWhatsApp, slugify, renderTemplate, calculateEmi, whatsappLink } from '../utils';
+import { formatINR, formatPriceShort, normalizeIndianPhone, phoneForWhatsApp, slugify, renderTemplate, calculateEmi, whatsappLink, whatsappComposerMode } from '../utils';
 import { INTEGRATIONS } from '../integrations/registry';
 import { DEFAULT_APP_CONFIG } from '../app-config';
 
@@ -35,4 +35,16 @@ test('phoneForWhatsApp adds the country code to local numbers', () => {
   assert.equal(phoneForWhatsApp('+91 98111-00077'), '919811100077');
   assert.equal(phoneForWhatsApp('+14155550100'), '14155550100');
   assert.equal(whatsappLink('9811100077', 'hi'), 'https://wa.me/919811100077?text=hi');
+});
+
+test('WhatsApp composer routes eligible replies to the API or a manual draft', () => {
+  const active = { canSend: true, connected: true, windowOpen: true, phone: '+919811100077' };
+  assert.equal(whatsappComposerMode(active), 'send');
+  assert.equal(whatsappComposerMode({ ...active, windowOpen: false }), 'draft');
+  assert.equal(whatsappComposerMode({ ...active, connected: false }), 'draft');
+  assert.equal(whatsappComposerMode({ ...active, preferDraft: true }), 'draft');
+  assert.equal(whatsappComposerMode({ ...active, blocked: true }), 'read-only');
+  assert.equal(whatsappComposerMode({ ...active, canSend: false }), 'read-only');
+  assert.equal(whatsappComposerMode({ ...active, phone: '000' }), 'unavailable');
+  assert.equal(whatsappComposerMode({ ...active, leadPhone: '+919811100088' }), 'unavailable');
 });

@@ -106,13 +106,15 @@ export class WhatsAppController {
   /** Resolve an internal composer without sending a message or broadening the Housing inbox list. */
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('whatsapp/resolve-lead')
-  async resolveLead(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ leadId: z.string().min(1) }))) body: { leadId: string }) {
+  async resolveLead(@CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ leadId: z.string().min(1), allowManualDraft: z.boolean().optional() }))) body: { leadId: string; allowManualDraft?: boolean },
+  ) {
     const orgId = requireOrg(user);
     const scope = { id: body.leadId, organizationId: orgId, deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) };
     const lead = await this.prisma.lead.findFirst({ where: scope });
     if (!lead) throw new NotFoundException('Lead not found');
     if (!normalizeIndianPhone(lead.phone)) throw new BadRequestException('Lead needs a valid phone number');
-    await this.wa.requireCreds(orgId);
+    if (!body.allowManualDraft) await this.wa.requireCreds(orgId);
     return this.prisma.$transaction(async (tx) => {
       const contactKey = phoneForWhatsApp(lead.phone);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`wa-composer:${orgId}:${contactKey}`}))`;
@@ -173,8 +175,10 @@ export class WhatsAppController {
       include: { sender: { select: { id: true, name: true } } },
     });
     const windowOpen = !!c.lastInboundAt && Date.now() - c.lastInboundAt.getTime() < 24 * 3600_000;
-    const freeOnly = c.channel === 'WHATSAPP' && (await this.workflows.get(c.organizationId)).freeOnly;
-    return { conversation: c, windowOpen, freeOnly, nextCursor: items.length > 60 ? items[59].id : null, items: items.slice(0, 60).reverse() };
+    const [workflow, credentials] = c.channel === 'WHATSAPP'
+      ? await Promise.all([this.workflows.get(c.organizationId), this.wa.creds(c.organizationId)])
+      : [null, null];
+    return { conversation: c, windowOpen, freeOnly: workflow?.freeOnly ?? false, connected: !!credentials, nextCursor: items.length > 60 ? items[59].id : null, items: items.slice(0, 60).reverse() };
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')

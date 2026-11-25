@@ -74,6 +74,22 @@ export function whatsappLink(phone: string, text?: string): string {
   return `https://wa.me/${phoneForWhatsApp(phone)}${q}`;
 }
 
+/** Use the normal composer for API sends and WhatsApp's Click to Chat for manual delivery. */
+export function whatsappComposerMode(input: {
+  canSend: boolean;
+  blocked?: boolean;
+  phone?: string | null;
+  leadPhone?: string | null;
+  connected: boolean;
+  windowOpen: boolean;
+  preferDraft?: boolean;
+}) {
+  if (!input.canSend || input.blocked) return 'read-only';
+  const phone = input.phone ? phoneForWhatsApp(input.phone) : '';
+  if (!/^[1-9]\d{9,14}$/.test(phone) || (input.leadPhone && phoneForWhatsApp(input.leadPhone) !== phone)) return 'unavailable';
+  return input.connected && input.windowOpen && !input.preferDraft ? 'send' : 'draft';
+}
+
 export function maskPhone(phone: string | null | undefined): string {
   if (!phone) return '';
   const d = phone.replace(/[^\d]/g, '');
