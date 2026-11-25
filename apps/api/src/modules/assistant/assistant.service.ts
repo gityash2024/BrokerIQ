@@ -99,7 +99,7 @@ export class AssistantService {
 
   private availableTools(user: RequestUser) {
     const tools = toolsFor(user.role).filter((tool) => (!user.delegatedActor || !/broadcast/.test(tool.name)) && (user.agentChatEnabled !== false || tool.name !== 'send_whatsapp') &&
-      (user.role !== 'PROPERTY_OWNER' || ['owner_properties', 'search_properties', 'search_rentals', 'get_listing', 'list_localities', 'rent_budget', 'move_in_cost'].includes(tool.name)));
+      (user.role !== 'PROPERTY_OWNER' || ['my_workspace', 'owner_properties', 'report_owner_availability', 'search_properties', 'search_rentals', 'get_listing', 'list_localities', 'rent_budget', 'move_in_cost'].includes(tool.name)));
     const grants = user.delegatedActor ? user.delegatedPermissions ?? [] : user.rolePermissions;
     if (!grants) return tools;
     const requirements: Record<string, string[]> = {
@@ -135,7 +135,7 @@ export class AssistantService {
       assign_lead: ['leads:assign'],
       team_members: ['team:view'],
     };
-    return tools.filter((tool) => requirements[tool.name]?.every((grant) => grants.includes(grant)) && (!tool.write || grants.includes('assistant:edit')));
+    return tools.filter((tool) => (tool.grants ?? requirements[tool.name])?.every((grant) => grants.includes(grant)) && (!tool.write || grants.includes('assistant:edit')));
   }
 
   async chat(

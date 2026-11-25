@@ -1,4 +1,5 @@
 import type { Role } from '@prisma/client';
+import { workspaceTools } from './workspace-actions';
 import { formatPriceShort, moveInCost, rentAffordability, inventoryInputSchema, BROADCAST_API, broadcastContactInput, broadcastGroupInput, broadcastDraftInput, parseBroadcastContacts, type BroadcastWorkspace } from '@brokeriq/shared';
 
 /**
@@ -18,6 +19,7 @@ export interface Tool {
   description: string;
   roles: Role[];
   write?: boolean;
+  grants?: string[];
   parameters: Record<string, unknown>;
   /** Short human summary shown on the confirmation card. */
   summary?: (a: any) => string;
@@ -27,7 +29,10 @@ export interface Tool {
 const ALL: Role[] = ['USER', 'PROPERTY_OWNER', 'BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT'];
 const BROKERS: Role[] = ['BROKER_ADMIN', 'BROKER_AGENT'];
 const LISTERS: Role[] = ['USER', 'BROKER_ADMIN', 'BROKER_AGENT'];
-const id = (v: unknown) => encodeURIComponent(String(v ?? '').slice(0, 80));
+const id = (value: unknown) => {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(value)) throw new Error('Provide a valid record ID or listing slug.');
+  return value;
+};
 const qs = (o: Record<string, unknown>) => {
   const p = Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== '');
   return p.length ? `?${p.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')}` : '';
@@ -99,6 +104,7 @@ const slimInventory = (r: any) => ({
 });
 
 export const TOOLS: Tool[] = [
+  ...workspaceTools,
   {
     name: 'search_inventory',
     description: 'Search inventory the signed-in broker account can view. Returns record IDs, current availability and prices.',
@@ -670,7 +676,7 @@ export const TOOLS: Tool[] = [
         call({ method: 'GET', path: `/visits${qs({ from: start.toISOString(), to: end.toISOString() })}` }),
       ]);
       return {
-        followUps: (f as any[]).slice(0, 15).map((x) => ({ id: x.id, lead: x.lead?.name, leadId: x.lead?.id, dueAt: x.dueAt, type: x.type, note: x.note })),
+        followUps: (f as any[]).slice(0, 15).map((x) => ({ id: x.id, lead: x.lead?.name, leadId: x.lead?.id, dueAt: x.dueAt, updatedAt: x.updatedAt, type: x.type, note: x.note })),
         visits: (v as any[]).slice(0, 15).map((x) => ({ id: x.id, lead: x.lead?.name, at: x.scheduledAt, listing: x.listing?.title, status: x.status })),
       };
     },

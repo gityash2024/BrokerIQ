@@ -172,7 +172,12 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     ['/broker/analytics', '/broker/reports', '/broker/weekly-report', '/broker/rank'],
   ),
   future('owners', 'Owners & leases', ['/broker/owners', '/owners'], ['/owners', '/leases', '/broker/owners', '/broker/tenancies', '/broker/rent-payments']),
-  future('assistant', 'AI assistant', ['/assistant'], ['/assistant', '/ai']),
+  {
+    ...future('assistant', 'AI assistant', ['/assistant'], ['/assistant']),
+    description: 'Role-scoped workspace search and confirmed actions',
+    defaultState: 'ACTIVE',
+  },
+  future('legacy_ai', 'Legacy AI tools', [], ['/ai', '/listings/ai']),
   future(
     'marketplace',
     'Future marketplace extensions',
@@ -217,10 +222,11 @@ export const defaultModulePolicies = (): ModulePolicies =>
         roles: [
           'SUPER_ADMIN',
           'BROKER_ADMIN',
-          ...(['consumer', 'today', 'leads', 'inbox', 'inventory', 'kyc', 'tenant_requirements', 'slot_booking', 'time_logging'].includes(m.key)
+          ...(['assistant', 'consumer', 'today', 'leads', 'inbox', 'inventory', 'kyc', 'tenant_requirements', 'slot_booking', 'time_logging'].includes(m.key)
             ? ['BROKER_AGENT' as const]
             : []),
-          ...(['consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
+          ...(['assistant', 'consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
+          ...(m.key === 'assistant' ? ['MODERATOR' as const, 'SUPPORT' as const] : []),
         ] as ModulePolicy['roles'],
       },
     ]),
@@ -289,7 +295,7 @@ export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'we
   if (surface === 'api' && (clean === '/chat' || clean.startsWith('/chat/'))) return 'consumer';
   // Core customer requirements must precede the legacy marketplace catch-all.
   if (surface === 'api' && (clean === '/requirements' || clean.startsWith('/requirements/'))) return 'tenant_requirements';
-  if (surface === 'api' && clean.startsWith('/listings/ai/')) return 'assistant';
+  if (surface === 'api' && prefixMatches(clean, '/listings/ai')) return 'legacy_ai';
   if (surface === 'api' && (clean === '/listings' || clean.startsWith('/listings/'))) return 'consumer';
   if (surface === 'web' && (clean === '/user' || clean.startsWith('/user/'))) return 'consumer';
   const field = surface === 'api' ? 'api' : surface === 'job' ? 'jobs' : 'routes';
@@ -306,7 +312,7 @@ export function moduleAllowed(policies: ModulePolicies | undefined, key: string,
 /** Presentation only: upcoming roadmap items are visible to every role, never authorized by this list. */
 export function catalogModules(policies: ModulePolicies | undefined, role: string) {
   const defaults = defaultModulePolicies();
-  return PLATFORM_MODULES.filter((module) => module.key !== 'legacy' && module.key !== 'directory').flatMap<
+  return PLATFORM_MODULES.filter((module) => module.key !== 'legacy' && module.key !== 'legacy_ai' && module.key !== 'directory').flatMap<
     PlatformModule & { state: 'COMING_SOON' | 'ACTIVE' }
   >((module) => {
     const policy = policies?.[module.key] ?? defaults[module.key];

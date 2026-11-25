@@ -33,6 +33,7 @@ describe('AI assistant (e2e)', () => {
   let user: string;
   let other: string;
   let broker: string;
+  let otherBroker: string;
   let localityId: string;
   const toolsSeen: string[][] = [];
   const assistantInputs: string[] = [];
@@ -74,14 +75,15 @@ describe('AI assistant (e2e)', () => {
       ).body.accessToken;
     user = await reg('user');
     other = await reg('other');
-    const b = await reg('broker', { accountType: 'BROKER', firmName: 'Assist Realty' });
-    broker = (
-      await http
-        .post('/api/broker/onboarding')
-        .set({ Authorization: `Bearer ${b}` })
-        .send({ firmName: 'Assist Realty', phone: '9876500999', localityIds: [localityId] })
-        .expect(201)
-    ).body.accessToken;
+    const onboard = async (key: string, firmName: string) => {
+      const token = await reg(key, { accountType: 'BROKER', firmName });
+      const response = await http.post('/api/broker/onboarding')
+        .set({ Authorization: `Bearer ${token}` })
+        .send({ firmName, phone: '9876500999', localityIds: [localityId] }).expect(201);
+      return response.body.accessToken as string;
+    };
+    broker = await onboard('broker', 'Assist Realty');
+    otherBroker = await onboard('otherbroker', 'Other Assist Realty');
   });
   afterAll(async () => {
     delete process.env.INTERNAL_API_URL;
@@ -153,6 +155,28 @@ describe('AI assistant (e2e)', () => {
       .send({ messages: [{ role: 'user', content: 'show lead' }], lang: 'hi' })
       .expect(201);
     expect(g.body.reply).toBe('नहीं मिली');
+  });
+
+  it('confirms contact edits only for leads the acting firm can access', async () => {
+    const lead = (await http.post('/api/leads').set(auth(broker))
+      .send({ name: 'Contact to edit', phone: '9811100557' }).expect(201)).body;
+    const proposal = async (token: string, id: string) => {
+      script.push(toolCall('edit_lead_contact', { id, name: 'Updated contact' }));
+      return (await http.post('/api/assistant/chat').set(auth(token))
+        .send({ messages: [{ role: 'user', content: 'Update the contact' }], lang: 'en' })
+        .expect(201)).body;
+    };
+    expect((await proposal(broker, '..')).pending).toBeUndefined();
+    const external = await proposal(otherBroker, lead.id);
+    const rejected = await http.post('/api/assistant/confirm').set(auth(otherBroker))
+      .send({ token: external.pending.token }).expect(201);
+    expect(rejected.body.used).toEqual([]);
+    const allowed = await proposal(broker, lead.id);
+    expect((await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } })).name).toBe('Contact to edit');
+    const updated = await http.post('/api/assistant/confirm').set(auth(broker))
+      .send({ token: allowed.pending.token }).expect(201);
+    expect(updated.body.receipt.name).toBe('Updated contact');
+    expect((await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } })).name).toBe('Updated contact');
   });
 
   it('persists an inventory proposal and consumes it only once under the confirmed account', async () => {

@@ -7,7 +7,12 @@ test('nested routes and workers resolve to the same core module', () => {
   assert.equal(moduleForPath('/inventory/123', 'api'), 'inventory');
   assert.equal(moduleForPath('import.pdf', 'job'), 'inventory');
   assert.equal(moduleForPath('/ai/scan/import', 'api'), 'inventory');
-  assert.equal(moduleForPath('/ai/other', 'api'), 'assistant');
+  assert.equal(moduleForPath('/assistant/chat', 'api'), 'assistant');
+  assert.equal(moduleForPath('/ai/other', 'api'), 'legacy_ai');
+  assert.equal(moduleForPath('/listings/ai/description', 'api'), 'legacy_ai');
+  assert.equal(moduleAllowed(undefined, 'assistant', 'BROKER_AGENT'), true);
+  assert.equal(moduleAllowed(undefined, 'assistant', 'SUPPORT'), true);
+  assert.equal(moduleAllowed(undefined, 'legacy_ai', 'BROKER_ADMIN'), false);
   assert.equal(moduleForPath('connector.housing.poll', 'job'), 'automation');
   assert.equal(moduleForPath('/public/config', 'api'), null);
   assert.equal(moduleForPath('/public/listings', 'api'), 'marketplace');
