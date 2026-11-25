@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
@@ -96,7 +97,7 @@ export default function AdminScreen() {
       {query.isError ? (
         <ErrorView error={query.error} />
       ) : (
-        <FlatList
+        <JumpFlatList
           data={(data ?? []) as any[]}
           keyExtractor={(x) => x.id}
           refreshing={query.isRefetching}

@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
-import { Alert, FlatList, Linking, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { hasDelegatedAccess, followUpCurrentMonth, followUpMonthRange, followUpDateBoundary, followUpTomorrowAtTen } from '@brokeriq/shared';
@@ -102,7 +103,7 @@ export default function FollowUps() {
       ) : q.isError && !q.data ? (
         <ErrorView error={q.error} />
       ) : (
-        <FlatList
+        <JumpFlatList
           data={rows}
           keyExtractor={(x) => x.id}
           refreshing={q.isRefetching}

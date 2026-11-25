@@ -1,5 +1,6 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { useState } from 'react';
-import { Dimensions, FlatList, View } from 'react-native';
+import { Dimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
@@ -42,7 +43,7 @@ export default function Pipeline() {
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
-        <FlatList
+        <JumpFlatList
           horizontal
           pagingEnabled
           snapToInterval={W * 0.82 + 12}
@@ -64,7 +65,7 @@ export default function Pipeline() {
                     {col.count}
                   </Txt>
                 </Row>
-                <FlatList
+                <JumpFlatList<(typeof col.items)[number]>
                   data={col.items}
                   keyExtractor={(x) => x.id}
                   contentContainerStyle={{ gap: 8, paddingBottom: 12 }}

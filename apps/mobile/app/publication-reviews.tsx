@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { NativeInventoryTabs } from '@/launch/inventory-tabs';
 import { InlineLoader } from '@/components/request-loader';
-import { FlatList, View } from 'react-native';
+import { View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { LedgerItem } from '@brokeriq/shared';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -28,7 +29,7 @@ export default function PublicationQueue() {
       {!allowed ? (
         <Txt>Broker Admin review access required.</Txt>
       ) : (
-        <FlatList
+        <JumpFlatList
           data={query.data?.pages.flatMap((p) => p.items) ?? []}
           keyExtractor={(item) => item.id + item.updatedAt}
           contentContainerStyle={{ padding: 20, gap: 16 }}

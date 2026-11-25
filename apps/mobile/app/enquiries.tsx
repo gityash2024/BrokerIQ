@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
-import { FlatList, Linking, View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -34,7 +35,7 @@ export default function Enquiries() {
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
-        <FlatList
+        <JumpFlatList
           data={q.data ?? []}
           keyExtractor={(x) => x.id}
           refreshing={q.isRefetching}

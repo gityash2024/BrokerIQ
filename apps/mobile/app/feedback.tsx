@@ -1,7 +1,8 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useState } from 'react';
-import { FlatList, Platform, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import Constants from 'expo-constants';
 import * as ImagePicker from '@/lib/image-picker';
@@ -84,7 +85,7 @@ export default function Feedback() {
           ]}
         />
         {tab === 'board' && (
-          <FlatList
+          <JumpFlatList
             horizontal
             showsHorizontalScrollIndicator={false}
             data={['', 'PLANNED', 'IN_PROGRESS', 'DONE', 'UNDER_REVIEW']}
@@ -110,7 +111,7 @@ export default function Feedback() {
       {tab === 'new' ? (
         <NewFeedback onDone={() => (setTab(user ? 'mine' : 'board'), qc.invalidateQueries({ queryKey: ['feedback-mine'] }))} />
       ) : (
-        <FlatList
+        <JumpFlatList<(typeof list)[number]>
           data={list}
           keyExtractor={(x) => x.id}
           refreshing={board.isRefetching}

@@ -1,5 +1,6 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { localDrafts, getLocalDraft, queueDraft, decodeDraft, syncDrafts, preservedDraftCounts, claimGuestCaptures, holdFailedTask } from '@/launch/drafts';
@@ -96,7 +97,7 @@ export default function Drafts() {
           }}
         />
       </View>
-      <FlatList
+      <JumpFlatList
         data={list.data?.pages.flat() ?? []}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();

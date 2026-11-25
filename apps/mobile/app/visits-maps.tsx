@@ -1,5 +1,6 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { useState } from 'react';
-import { FlatList, Linking, View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { GURUGRAM_SECTOR_MAPS_URL, googleDirections, gurugramSectorMaps, type MappedVisit } from '@brokeriq/shared';
 import { VisitItinerary } from '@/components/visit-properties';
@@ -30,7 +31,7 @@ export default function PropertyMaps() {
   const visits = query.data?.pages.flatMap((page) => page.items) ?? [];
   return (
     <BrokerScreen title="Property Maps" subtitle="Directions for upcoming site visits" back>
-      <FlatList
+      <JumpFlatList
         data={visits}
         keyExtractor={(visit) => visit.id}
         refreshing={query.isRefetching}

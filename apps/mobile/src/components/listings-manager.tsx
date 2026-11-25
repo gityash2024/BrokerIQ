@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
-import { FlatList, Linking, Share, View } from 'react-native';
+import { Linking, Share, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -104,7 +105,7 @@ export function ListingsManager({ header, activeOnly = false }: { header: React.
     <Screen scroll={false} padded={false}>
       {header}
       {!activeOnly && (
-        <FlatList
+        <JumpFlatList
           horizontal
           showsHorizontalScrollIndicator={false}
           data={['', 'ACTIVE', 'PENDING_REVIEW', 'DRAFT', 'REJECTED', 'SOLD', 'RENTED', 'EXPIRED']}
@@ -123,7 +124,7 @@ export function ListingsManager({ header, activeOnly = false }: { header: React.
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
-        <FlatList
+        <JumpFlatList<NonNullable<typeof q.data>["items"][number]>
           data={q.data?.items ?? []}
           ListFooterComponent={
             activeOnly && (q.data?.totalPages ?? 0) > 1 ? (

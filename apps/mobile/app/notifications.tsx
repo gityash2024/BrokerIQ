@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Linking, Platform, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { registerPush, usePushRegistration } from '@/lib/push';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
@@ -121,7 +122,7 @@ export default function Notifications() {
       ) : q.isError ? (
         <ErrorView error={q.error} />
       ) : (
-        <FlatList
+        <JumpFlatList
           data={q.data?.pages.flatMap((p) => p.items) ?? []}
           keyExtractor={(n) => n.id}
           refreshing={q.isRefetching}

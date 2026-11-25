@@ -1,6 +1,7 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
-import { FlatList, View, Linking, Alert } from 'react-native';
+import { View, Linking, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { formatINR, hasDelegatedAccess, readableValue, moduleAllowed } from '@brokeriq/shared';
@@ -39,7 +40,7 @@ export default function Requirements() {
   });
   return (
     <BrokerScreen title="Requirements" subtitle="Separate needs, clear matching reasons." back>
-      <FlatList
+      <JumpFlatList
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={

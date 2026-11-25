@@ -1,8 +1,9 @@
+import { JumpFlatList } from '@/components/list-jump';
 import { NativeConnectProfile } from '@/launch/connect-profile';
 import { useRef, useState } from 'react';
 import { Redirect, router } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { FlatList, View } from 'react-native';
+import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { ownerReportInputSchema, readableValue, type OwnerProperty } from '@brokeriq/shared';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
@@ -45,7 +46,7 @@ export default function OwnerProperties() {
       ) : list.isPending ? (
         <Loader />
       ) : (
-        <FlatList
+        <JumpFlatList
           data={list.data.items}
           keyExtractor={(property) => property.id}
           contentContainerStyle={{ padding: 16, gap: 10 }}
