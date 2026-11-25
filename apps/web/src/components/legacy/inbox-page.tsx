@@ -1,6 +1,6 @@
 'use client';
 import { hasPreviousPage, useRouteState } from '@/lib/navigation';
-import { whatsappComposerMode, whatsappLink } from '@brokeriq/shared';
+import { broadcastMediaType, whatsappComposerMode, whatsappLink, privateMediaPath } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { SmsThread } from '@/components/broker/sms-thread';
 import Link from 'next/link';
@@ -22,6 +22,7 @@ import {
   MessageCircle,
   MessagesSquare,
   MessageSquare,
+  Paperclip,
   Phone,
   Plug,
   RefreshCw,
@@ -35,12 +36,12 @@ import { leadInboxDraftTarget, renderTemplate, timeAgo, type WaTemplate, type In
 import { ApiErrorState } from '@/components/ui/api-error';
 import { moveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { useInboxDraft } from '@/lib/use-inbox-draft';
-import { ApiError, api, errorMessage, captureAccountContext, assertAccountContext } from '@/lib/api';
+import { ApiError, api, apiBlob, uploadFile, errorMessage, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { post, useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
-import { cn, formatDate, qs } from '@/lib/utils';
+import { API_URL, cn, formatDate, qs } from '@/lib/utils';
 import { StageBadge } from '@/components/broker/bits';
 import { InboxPropertyShare } from '@/components/broker/inbox-property-share';
 import { LinkedMessage } from '@/components/broker/linked-message';
@@ -255,6 +256,9 @@ function InboxInner() {
               )}
             </div>
             <div className="flex items-center gap-1.5">
+              {channel === 'WHATSAPP' && user?.role === 'BROKER_ADMIN' && hasDelegatedAccess(user, 'inbox', 'view') && (
+                <Link href="/broker/whatsapp-broadcast" className="text-xs font-semibold text-primary">Broadcast</Link>
+              )}
               <Button size="icon" variant="ghost" className="size-8 text-muted hover:text-fg" onClick={refreshAll} title="रिफ्रेश करें">
                 <RefreshCw className="size-3.5" />
               </Button>
@@ -618,6 +622,11 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   const draft = useInboxDraft(id);
   const { text, setText, ready, legacy, owner } = draft;
   const sendLock = useRef(false);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [mediaPreview, setMediaPreview] = useState<{ url: string; mime: string } | null>(null);
+  useEffect(() => () => { if (mediaPreview) URL.revokeObjectURL(mediaPreview.url); }, [mediaPreview]);
+  useEffect(() => { setAttachment(null); setMediaPreview(null); }, [id]);
   const [sending, setSending] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -662,7 +671,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.isNotConfigured) setNotConfigured(e);
-        if (typeof body.text === 'string' && ['MESSAGING_FREE_ONLY', 'WHATSAPP_WINDOW_CLOSED', 'INTEGRATION_NOT_CONFIGURED'].includes(e.body.code)) {
+        if (!body.mediaType && typeof body.text === 'string' && ['MESSAGING_FREE_ONLY', 'WHATSAPP_WINDOW_CLOSED', 'INTEGRATION_NOT_CONFIGURED'].includes(e.body.code)) {
           setDraftInbound(lastInbound);
           toast.info('Your draft is ready to open in WhatsApp.');
           return false;
@@ -715,8 +724,35 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       toast.error(errorMessage(error));
     }
   }
+  async function openMedia(url: string) {
+    try {
+      assertAccountContext(owner);
+      const path = privateMediaPath(url, API_URL);
+      if (path && /^\/media\/f\/(chat|whatsappattachment)\//.test(path)) {
+        const blob = await apiBlob(path);
+        assertAccountContext(owner);
+        setMediaPreview({ url: URL.createObjectURL(blob), mime: blob.type });
+      } else if (/^https:\/\//.test(url)) window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }
+  async function sendAttachment() {
+    if (!attachment || attachmentBusy || mode !== 'send') return;
+    setAttachmentBusy(true);
+    try {
+      const uploaded = await uploadFile(attachment, 'whatsappattachment');
+      assertAccountContext(owner);
+      if (await send({ mediaUrl: uploaded.url, mediaType: broadcastMediaType(attachment.type), text: text.trim() || undefined })) setAttachment(null);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setAttachmentBusy(false);
+    }
+  }
   function submitText() {
-    if (!ready || !canCompose || !text.trim()) return;
+    if (!ready || !canCompose || attachmentBusy || (!attachment && !text.trim())) return;
+    if (attachment && mode === 'send') { void sendAttachment(); return; }
     if (!draftUrl) {
       void send({ text });
       return;
@@ -758,7 +794,10 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                           : 'rounded-tl-xs bg-surface border border-line text-fg shadow-2xs',
                       )}
                     >
-                      {m.mediaUrl && m.type === 'IMAGE' && <img src={m.mediaUrl} alt="Media" className="mb-2 max-h-72 rounded-xl object-cover shadow-2xs" />}
+                      {m.mediaUrl && (m.type === 'IMAGE' && !/\/media\/f\/(chat|whatsappattachment)\//.test(m.mediaUrl) ?
+                        <img src={m.mediaUrl} alt="Attachment" className="mb-2 max-h-72 rounded-xl object-cover shadow-2xs" /> :
+                        <button type="button" className="mb-1 inline-flex items-center gap-1 text-sm underline"
+                          onClick={() => void openMedia(m.mediaUrl)}><Paperclip className="size-4" /> Open attachment</button>)}
                       {m.templateName && (
                         <p
                           className={cn(
@@ -827,6 +866,10 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           </div>
         )}
 
+        {attachment && <div className="mb-2 flex items-center gap-2 text-sm text-muted">
+          <span className="min-w-0 truncate">{attachment.name}</span>
+          <button type="button" className="text-primary" onClick={() => setAttachment(null)} disabled={attachmentBusy}>Remove</button>
+        </div>}
         {/* Modern Rounded Input Box */}
         <form
           onSubmit={(e) => {
@@ -836,6 +879,12 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           className="flex items-end gap-2 bg-surface-2 border border-line rounded-2xl p-1.5 focus-within:bg-surface focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition shadow-inner"
         >
           <div className="flex items-center gap-0.5 pb-1 pl-1">
+            {mode === 'send' && <label className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface">
+              <Paperclip aria-hidden className="size-4" />
+              <input type="file" className="sr-only" aria-label="Attach file" disabled={!canSend || attachmentBusy || sending}
+                accept="image/*,video/mp4,audio/*,.pdf,.txt,.docx,.xlsx,.pptx"
+                onChange={(event) => { setAttachment(event.target.files?.[0] ?? null); event.target.value = ''; }} />
+            </label>}
             <Button
               type="button"
               variant="ghost"
@@ -886,8 +935,8 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             type="submit"
             size="icon"
             variant="whatsapp"
-            loading={sending}
-            disabled={!ready || !canCompose || !text.trim() || sending}
+            loading={sending || attachmentBusy}
+            disabled={!ready || !canCompose || (!text.trim() && !(attachment && mode === 'send')) || sending || attachmentBusy}
             aria-label={manualDraft ? 'Open WhatsApp draft' : 'Send'}
             className="size-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-md active:scale-95 shrink-0"
           >
@@ -902,6 +951,12 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
         name={q.data?.conversation?.contactName || q.data?.conversation?.lead?.name}
         onSend={async (b) => (await send(b)) && setTplOpen(false)}
       />
+      <Dialog open={!!mediaPreview} title="WhatsApp attachment" onOpenChange={(open) => { if (!open) setMediaPreview(null); }}>
+        {mediaPreview && (mediaPreview.mime.startsWith('image/') ? <img src={mediaPreview.url} alt="WhatsApp attachment" className="max-h-[65dvh] w-full object-contain" />
+          : mediaPreview.mime.startsWith('audio/') ? <audio src={mediaPreview.url} controls className="w-full" />
+          : mediaPreview.mime.startsWith('video/') ? <video src={mediaPreview.url} controls className="max-h-[65dvh] w-full" />
+          : <a href={mediaPreview.url} download="whatsapp-attachment" className="text-sm font-semibold text-primary">Download attachment</a>)}
+      </Dialog>
       <Dialog
         open={shareOpen && canCompose}
         onOpenChange={setShareOpen}

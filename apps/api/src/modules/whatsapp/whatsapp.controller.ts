@@ -303,7 +303,7 @@ export class WhatsAppController {
         { type: 'template', name: body.templateName, language: body.templateLanguage, params: body.templateParams },
         { leadId, userId: user.id, contactName: name },
       );
-    if (body.mediaUrl) return this.wa.send(orgId, phone, { type: 'image', url: body.mediaUrl, caption: text }, { leadId, userId: user.id, contactName: name });
+    if (body.mediaUrl) return this.wa.send(orgId, phone, { type: body.mediaType ?? 'image', url: body.mediaUrl, caption: text }, { leadId, userId: user.id, contactName: name });
     if (!text) throw new BadRequestException('Message खाली है');
     return this.wa.send(orgId, phone, { type: 'text', text: renderTemplate(text, { lead: { name } }) }, { leadId, userId: user.id, contactName: name });
   }

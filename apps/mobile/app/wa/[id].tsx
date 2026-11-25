@@ -2,6 +2,9 @@ import { ScrollView } from '@/components/keyboard-scroll-view';
 import { InboxPropertyShare } from '@/components/inbox-property-share';
 import { LinkedMessage } from '@/components/linked-message';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState, useMemo } from 'react';
@@ -10,12 +13,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Building2, AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
-import { renderTemplate, whatsappComposerMode, whatsappLink, type WaTemplate } from '@brokeriq/shared';
+import { Building2, AlertTriangle, Check, CheckCheck, Clock, FileText, Paperclip, Send, UserRound } from 'lucide-react-native';
+import { privateMediaPath, broadcastMediaType, renderTemplate, whatsappComposerMode, whatsappLink, type WaTemplate } from '@brokeriq/shared';
 import { readInboxDraft, saveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
-import { ApiError, api, post, captureAccountContext, assertAccountContext } from '@/lib/api';
+import { ApiError, api, API_URL, post, uploadUri, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
@@ -65,6 +68,11 @@ export default function WaThread() {
   }, [id, user?.id]);
   const attempt = useRef<{ text: string; requestId: string; subject?: string; replyToId?: string } | null>(null);
   const [sending, setSending] = useState(false);
+  const [attachment, setAttachment] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const attachmentLock = useRef(false);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  useEffect(() => setAttachment(null), [id]);
+
   const [tpl, setTpl] = useState(false);
   const [draftInbound, setDraftInbound] = useState<string | null>();
   const lastInbound = thread?.conversation?.lastInboundAt ?? null;
@@ -128,7 +136,7 @@ export default function WaThread() {
       q.refetch();
       return true;
     } catch (e) {
-      if (e instanceof ApiError && thread?.conversation?.channel === 'WHATSAPP' && typeof body.text === 'string' &&
+      if (e instanceof ApiError && thread?.conversation?.channel === 'WHATSAPP' && !body.mediaType && typeof body.text === 'string' &&
           ['MESSAGING_FREE_ONLY', 'WHATSAPP_WINDOW_CLOSED', 'INTEGRATION_NOT_CONFIGURED'].includes(e.body.code)) {
         setDraftInbound(lastInbound);
         toast.info('Your draft is ready to open in WhatsApp.');
@@ -165,6 +173,52 @@ export default function WaThread() {
   const manualDraft = !sms && !email && mode === 'draft';
   const canCompose = sms || email || mode === 'send' || manualDraft;
   const canTemplate = !sms && !email && canCompose && (thread!.connected ?? true) && !thread!.freeOnly;
+  async function chooseAttachment() {
+    const files = await DocumentPicker.getDocumentAsync({ type: ['image/*', 'audio/*', 'video/mp4', 'application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.*'] });
+    if (!files.canceled) setAttachment(files.assets[0]);
+  }
+  async function sendAttachment() {
+    if (!attachment || attachmentLock.current || mode !== 'send') return;
+    attachmentLock.current = true;
+    setAttachmentBusy(true);
+    try {
+      if (!attachment.mimeType) throw new Error('Choose a supported file type');
+      const upload = await uploadUri(attachment.uri, 'whatsappattachment', attachment.mimeType);
+      assertAccountContext(owner);
+      if (await send({ text: text.trim() || undefined, mediaUrl: upload.url, mediaType: broadcastMediaType(attachment.mimeType) })) setAttachment(null);
+    } catch (error) {
+      showError(error);
+    } finally {
+      attachmentLock.current = false;
+      setAttachmentBusy(false);
+    }
+  }
+  async function openAttachment(uri: string) {
+    const path = privateMediaPath(uri, API_URL);
+    if (!path || !/^\/media\/f\/(chat|whatsappattachment)\//.test(path)) {
+      if (/^https:\/\//.test(uri)) await Linking.openURL(uri);
+      return;
+    }
+    const { bytes, contentType } = await api<{ bytes: Uint8Array; contentType: string }>(path, { responseType: 'file', ownerContext: owner });
+    if (!(await Sharing.isAvailableAsync())) throw new Error('This device could not open attachments');
+    assertAccountContext(owner);
+    const extensions: Record<string, string> = {
+      'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'video/mp4': 'mp4', 'video/3gpp': '3gp',
+      'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/amr': 'amr',
+      'application/pdf': 'pdf', 'text/plain': 'txt',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    };
+    const extension = extensions[contentType] ?? 'bin';
+    const file = new File(Paths.cache, 'whatsapp-' + Crypto.randomUUID() + '.' + extension);
+    try {
+      file.write(bytes);
+      await Sharing.shareAsync(file.uri, { mimeType: contentType || 'application/octet-stream' });
+    } finally {
+      if (file.exists) file.delete();
+    }
+  }
   async function openDraft() {
     if (!manualDraft || sending) return;
     try {
@@ -264,6 +318,8 @@ export default function WaThread() {
                     borderColor: c.line,
                   }}
                 >
+                  {!sms && !email && m.mediaUrl && <Button title="Open attachment" size="sm" variant="secondary"
+                    onPress={() => void openAttachment(m.mediaUrl).catch(showError)} />}
                   {!!m.templateName && (
                     <Txt v="caption" color={out ? 'rgba(255,255,255,0.7)' : 'subtle'}>
                       📄 {m.templateName}
@@ -339,10 +395,18 @@ export default function WaThread() {
             )}
           </ScrollView>
         )}
+        {attachment && <Row style={{ paddingHorizontal: 14, justifyContent: 'space-between' }}>
+          <Txt numberOfLines={1} style={{ flex: 1 }}>{attachment.name}</Txt>
+          <Button title="Remove" size="sm" variant="ghost" disabled={attachmentBusy} onPress={() => setAttachment(null)} />
+        </Row>}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
           <IconBtn accessibilityLabel="Share property" disabled={!canSend || !canCompose} onPress={() => setPropertyOpen(true)}>
             <Building2 size={21} color={c.muted} />
           </IconBtn>
+          {!sms && !email && mode === 'send' && <IconBtn accessibilityLabel="Attach file" disabled={!canSend || attachmentBusy || sending}
+            onPress={() => void chooseAttachment().catch(showError)}>
+            <Paperclip size={21} color={c.muted} />
+          </IconBtn>}
           {!sms && !email && (
             <IconBtn accessibilityLabel="Templates" disabled={!canTemplate} onPress={() => setTpl(true)}>
               <FileText size={21} color={c.muted} />
@@ -380,8 +444,8 @@ export default function WaThread() {
           />
           <IconBtn
             accessibilityLabel={manualDraft ? 'Open WhatsApp draft' : 'Send'}
-            disabled={!canSend || !canCompose || sending || !text.trim()}
-            onPress={() => manualDraft ? void openDraft() : void send({ text })}
+            disabled={!canSend || !canCompose || sending || attachmentBusy || (!text.trim() && !(attachment && mode === 'send'))}
+            onPress={() => manualDraft ? void openDraft() : attachment ? void sendAttachment() : void send({ text })}
             style={{ backgroundColor: '#25D366', width: 46, height: 46, borderRadius: 23, opacity: !canCompose || sending || !text.trim() ? 0.5 : 1 }}
           >
             <Send size={19} color="#fff" />

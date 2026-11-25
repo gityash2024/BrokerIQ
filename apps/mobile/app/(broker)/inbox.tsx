@@ -6,7 +6,8 @@ import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qs } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
-import type { InboxPage } from '@brokeriq/shared';
+import { hasDelegatedAccess, type InboxPage } from '@brokeriq/shared';
+import { useAuth } from '@/lib/auth';
 import { useRealtime } from '@/lib/realtime';
 import { MessagesSquare, MessageCircle, Globe, Search, CheckCheck, Check, User, Clock, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
@@ -16,6 +17,7 @@ import { Txt, Button, ErrorView, Segmented } from '@/ui';
 type Channel = 'WHATSAPP' | 'CHAT' | 'SMS' | 'EMAIL';
 
 export default function Inbox() {
+  const { user } = useAuth();
   const { c, isDark } = useTheme();
   const qc = useQueryClient();
   const [channel, setChannel] = useState<Channel>('WHATSAPP');
@@ -79,6 +81,8 @@ export default function Inbox() {
           ]}
         />
 
+        {channel === 'WHATSAPP' && user?.role === 'BROKER_ADMIN' && hasDelegatedAccess(user, 'inbox', 'view') &&
+          <Button title="WhatsApp Broadcast" variant="secondary" size="sm" onPress={() => router.push('/whatsapp-broadcast')} />}
         {/* Search & Status Bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View

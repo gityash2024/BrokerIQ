@@ -1,3 +1,5 @@
+import { canUseBrokerChat, hasDelegatedAccess } from '@brokeriq/shared';
+import { env } from '../../config/env';
 import {
   Controller,
   Get,
@@ -104,7 +106,19 @@ export class MediaController {
     if (isPrivate) {
       const user = (req as any).user;
       if (!user) throw new UnauthorizedException('Private media requires login');
+      if (p.kind === 'whatsappattachment' && user.role !== 'SUPER_ADMIN') {
+        const actor = user.role === 'SUB_BROKER_ADMIN' ? { ...user, delegatedPermissions: (req as Request & { delegatedPermissions?: string[] }).delegatedPermissions } : user;
+        if (!canUseBrokerChat(actor) || !hasDelegatedAccess(actor, 'inbox', 'view')) throw new NotFoundException();
+      }
       if (p.kind === 'kyc') kycDoc = await this.kyc.authorizeRaw(key, user);
+      else if (p.kind === 'whatsappattachment' && user.id !== p.owner && user.role !== 'SUPER_ADMIN') {
+        const url = env().PUBLIC_API_URL.replace(/\/$/, '') + '/api/media/f/' + key;
+        const attachment = user.orgId && await this.prisma.message.findFirst({ where: { mediaUrl: url, conversation: {
+          organizationId: user.orgId, channel: 'WHATSAPP',
+          ...(user.role === 'BROKER_AGENT' ? { lead: { assignedToId: user.id, deletedAt: null } } : {}),
+        } }, select: { id: true } });
+        if (!attachment) throw new NotFoundException();
+      }
       else if (user.role !== 'SUPER_ADMIN' && user.id !== p.owner && user.orgId !== p.owner) {
         const owner = await this.prisma.user.findUnique({ where: { id: p.owner }, select: { organizationId: true } });
         if (!user.orgId || owner?.organizationId !== user.orgId) throw new ForbiddenException('Private media belongs to another firm');

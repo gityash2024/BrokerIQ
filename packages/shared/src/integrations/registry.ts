@@ -432,7 +432,7 @@ export const INTEGRATIONS: IntegrationDef[] = [
     category: 'messaging',
     scope: 'platform',
     description: 'BrokerIQ का अपना WhatsApp number — जिन brokers ने अपना number नहीं जोड़ा उनके लिए fallback और platform alerts.',
-    freeTier: 'User के message के 24 घंटे के अंदर replies free; template messages Meta के rate से',
+    freeTier: 'User के message के 24 घंटे के अंदर service replies. Meta की उपलब्ध free allowance और current rates लागू होते हैं',
     docsUrl: 'https://developers.facebook.com/docs/whatsapp/cloud-api/get-started',
     steps: [
       'https://developers.facebook.com → "My Apps" → "Create App" → use case "Other" → type "Business"।',
@@ -462,7 +462,7 @@ export const INTEGRATIONS: IntegrationDef[] = [
     category: 'messaging',
     scope: 'organization',
     description: 'आपके अपने WhatsApp Business number से leads को automatic messages, team inbox और templates.',
-    freeTier: 'User के message के 24 घंटे के अंदर replies free; template messages Meta के rate से',
+    freeTier: 'User के message के 24 घंटे के अंदर service replies. Meta की उपलब्ध free allowance और current rates लागू होते हैं',
     docsUrl: 'https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users',
     steps: [
       'अगर नंबर अभी WhatsApp Business app में चलता है, तो उसे app में चालू रखें। Existing app के लिए Meta का supported Coexistence onboarding चाहिए; इसकी eligibility और provider requirements पहले जाँचें।',

@@ -7,7 +7,7 @@ import { IntegrationNotConfiguredException } from '../../common/exceptions';
 import { shortCode } from '../../common/utils';
 import { LocalStorageService } from './local-storage.service';
 
-export type UploadKind = 'listing' | 'avatar' | 'logo' | 'kyc' | 'project' | 'cms' | 'scan' | 'chat' | 'inspection' | 'propertyvideo';
+export type UploadKind = 'listing' | 'avatar' | 'logo' | 'kyc' | 'project' | 'cms' | 'scan' | 'chat' | 'inspection' | 'propertyvideo' | 'whatsappattachment';
 
 const NOT_CONFIGURED = 'File upload configured नहीं है। Super Admin → Settings → Integrations में Cloudinary (या S3/R2) जोड़ें।';
 
@@ -24,6 +24,12 @@ export class MediaService {
   ) {}
 
   async sign(kind: UploadKind, contentType = 'image/jpeg', ownerId = 'anon') {
+    if (kind === 'whatsappattachment') {
+      if (!/^(?:image\/(?:jpeg|png|webp|heic|avif)|audio\/(?:mpeg|mp4|aac|ogg|amr)|video\/(?:mp4|3gpp)|application\/(?:pdf|vnd\.openxmlformats-officedocument\.(?:wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text\/plain)$/.test(contentType))
+        throw new BadRequestException('Choose a supported WhatsApp attachment');
+      if (!this.local.enabled) throw new IntegrationNotConfiguredException('private_storage');
+      return this.local.presign(kind, contentType, ownerId);
+    }
     if (kind === 'kyc') {
       if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(contentType))
         throw new BadRequestException('KYC supports JPEG, PNG, WebP or PDF only');

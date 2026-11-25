@@ -136,7 +136,7 @@ type Opts = {
   headers?: Record<string, string>;
   ownerId?: string;
   ownerContext?: AccountContext;
-  responseType?: 'bytes';
+  responseType?: 'bytes' | 'file';
 };
 
 export function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
@@ -176,12 +176,12 @@ async function request<T>(path: string, opts: Opts): Promise<T> {
   assertOwner();
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
   assertOwner();
-  if (res.ok && opts.responseType === 'bytes') {
+  if (res.ok && (opts.responseType === 'bytes' || opts.responseType === 'file')) {
     if (Number(res.headers.get('Content-Length')) > 20_000_000) throw new Error('Report is too large. Narrow the filters.');
     const bytes = new Uint8Array(await res.arrayBuffer());
     assertOwner();
     if (bytes.byteLength > 20_000_000) throw new Error('Report is too large. Narrow the filters.');
-    return bytes as T;
+    return (opts.responseType === 'file' ? { bytes, contentType: res.headers.get('content-type')?.split(';')[0] ?? '' } : bytes) as T;
   }
   const text = await res.text();
   assertOwner();

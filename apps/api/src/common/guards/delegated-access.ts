@@ -80,6 +80,13 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
     return { module: 'owners', actions: Object.keys(body).some((key) => key !== 'status') ? ['view', 'edit', 'delete'] : ['view', 'delete'] };
   if (path === '/broker/invoices/:id' && method === 'PATCH' && body?.status === 'CANCELLED')
     return { module: 'deals', actions: Object.keys(body).some((key) => key !== 'status') ? ['view', 'edit', 'delete'] : ['view', 'delete'] };
+  if (path.startsWith('/whatsapp/broadcast')) {
+    if (method === 'GET') return { module: 'inbox', actions: ['view'] };
+    if (path.endsWith('/preview') || path.endsWith('/queue') || path.endsWith('/retry-billing')) return { module: 'inbox', actions: ['view', 'send'] };
+    if (method === 'DELETE') return { module: 'inbox', actions: ['view', 'delete'] };
+    if (method === 'PATCH') return { module: 'inbox', actions: ['view', 'edit'] };
+    return { module: 'inbox', actions: ['view', 'create'] };
+  }
   if (path === '/whatsapp/status' && method === 'GET') return { module: 'inbox', actions: ['view'] };
 
   let actions: DelegatedAction[];

@@ -18,7 +18,7 @@ const FLAG_BROTLI = 1;
 const MB = 1024 * 1024;
 
 /** Kinds whose files must never be cached by browsers / Cloudflare. */
-export const PRIVATE_KINDS: readonly UploadKind[] = ['scan', 'chat', 'inspection', 'kyc', 'propertyvideo'];
+export const PRIVATE_KINDS: readonly UploadKind[] = ['scan', 'chat', 'inspection', 'kyc', 'propertyvideo', 'whatsappattachment'];
 /** Widths the API resizes to on `?w=` — a fixed set keeps the CDN cache small. */
 export const RESIZE_WIDTHS = [320, 480, 800, 1200] as const;
 
@@ -55,7 +55,7 @@ export class LocalStorageService {
   /** Same contract as the S3 branch of MediaService.sign: client PUTs the bytes, then uses publicUrl. */
   presign(kind: UploadKind, contentType: string, ownerId: string) {
     const key = this.newKey(kind, ownerId);
-    const claims: UploadClaims = { key, ct: contentType, max: maxBytesFor(contentType), exp: Date.now() + 10 * 60_000 };
+    const claims: UploadClaims = { key, ct: contentType, max: kind === 'whatsappattachment' ? (contentType.startsWith('image/') ? 5 : 16) * MB : maxBytesFor(contentType), exp: Date.now() + 10 * 60_000 };
     const api = apiBase();
     return {
       provider: 'local' as const,
@@ -119,7 +119,7 @@ export class LocalStorageService {
     await fs.mkdir(dirname(path), { recursive: true });
     const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
     await fs.writeFile(tmp, out, { mode: 0o600 });
-    if (key.startsWith('kyc/') || key.startsWith('propertyvideo/')) {
+    if (key.startsWith('kyc/') || key.startsWith('propertyvideo/') || key.startsWith('whatsappattachment/')) {
       // A still-valid signed PUT must not replace a document already under review.
       try {
         await fs.link(tmp, path);

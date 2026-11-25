@@ -27,7 +27,7 @@ export function nativeModuleKey(path: string) {
   if (/^\/(inventory(?:-edit|-ledger|-survey)?|publish-rental|publication-reviews|scanner|listing-scanner)(\/|$)/.test(path)) return 'inventory';
   if (/^\/(lead|leads|add-lead|lead-share-photos|schedule-visit|pipeline|follow-ups|visits|visits-maps|requirements|requirement-edit)(\/|$)/.test(path))
     return 'leads';
-  if (/^\/(inbox|capture|import-review|wa)(\/|$)/.test(path)) return 'inbox';
+  if (/^\/(inbox|capture|import-review|wa|whatsapp-broadcast)(\/|$)/.test(path)) return 'inbox';
   if (/^\/(automations|connectors)(\/|$)/.test(path)) return 'automation';
   return path === '/dashboard' ? 'today' : (moduleForPath(path, 'web') ?? 'legacy');
 }

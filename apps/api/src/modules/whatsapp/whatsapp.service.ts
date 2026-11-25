@@ -15,6 +15,7 @@ import { sha256 } from '../../common/utils';
 import { JobsService } from '../../core/jobs/jobs.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { env } from '../../config/env';
+import sharp from 'sharp';
 import { GRAPH } from '../integrations/integration-tester.service';
 
 /** Message a person sends the firm to get a confirmation OTP on WhatsApp (see rentals/otp.ts otpRequestCode). */
@@ -36,12 +37,19 @@ function hasPropertyGalleryLink(text: string, publicWebUrl: string): boolean {
   });
 }
 
+const isWhatsAppOptOut = (message: string) => ['stop', 'unsubscribe', 'stop all', 'band', 'बंद', 'बंद करो']
+  .includes(message.trim().toLowerCase().replace(/[.!]+$/, ''));
+
+export class WhatsAppBillingException extends IntegrationFailedException {
+  constructor() { super('whatsapp', 'Meta needs an active payment method or funds. Review your firm’s Meta Billing workspace.'); }
+}
 class UnmatchedWhatsAppReceiptError extends Error {}
 class OversizedWhatsAppMediaError extends Error {}
 
 const DAY_MS = 24 * 60 * 60_000;
 // Count account-wide usage and local attempts conservatively because Meta reports by day.
 const SERVICE_SEND_LIMIT = 900;
+const META_FREE_SERVICE_LIMIT = 1000;
 
 const NOT_CONNECTED =
   'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। Integration configure होने तक draft सुरक्षित रखें; message भेजा नहीं गया है।';
@@ -49,6 +57,7 @@ const NOT_CONNECTED =
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
+  private readonly uploadedMedia = new Map<string, { reuseUntil: number; id: Promise<string> }>();
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
@@ -112,12 +121,15 @@ export class WhatsAppService {
   private async graphSend(values: IntegrationValues, payload: Record<string, unknown>) {
     const res = await fetch(`${GRAPH}/${values.phoneNumberId}/messages`, {
       method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(30_000),
       headers: { Authorization: `Bearer ${values.accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', ...payload }),
     });
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       const code = data?.error?.code;
+      if (code === 131042) throw new WhatsAppBillingException();
       if (code === 131047) throw new WhatsAppWindowClosedException();
       throw new IntegrationFailedException('whatsapp', data?.error?.error_data?.details ?? data?.error?.message ?? `Meta API ${res.status}`);
     }
@@ -163,14 +175,77 @@ export class WhatsAppService {
     }
   }
 
+  private async attachment(values: IntegrationValues, url: string, userId: string | null | undefined, kind: string) {
+    const prefix = env().PUBLIC_API_URL.replace(/\/$/, '') + '/api/media/f/whatsappattachment/';
+    if (!url.startsWith(prefix)) return { link: url };
+    const suffix = url.slice(prefix.length);
+    if (!userId || !suffix.startsWith(userId + '/') || !/^[A-Za-z0-9_-]+\/\d{6}\/[A-Za-z0-9]{20}$/.test(suffix))
+      throw new ForbiddenException('Only the signed-in user’s upload can be attached');
+    const cacheKey = String(values.phoneNumberId) + ':' + suffix;
+    const prior = this.uploadedMedia.get(cacheKey);
+    if (prior && prior.reuseUntil > Date.now()) return { id: await prior.id };
+    const promise = this.uploadAttachment(values, 'whatsappattachment/' + suffix, kind);
+    if (this.uploadedMedia.size >= 128) {
+      const first = this.uploadedMedia.keys().next().value;
+      if (first) this.uploadedMedia.delete(first);
+    }
+    this.uploadedMedia.set(cacheKey, { reuseUntil: Date.now() + 60 * 60_000, id: promise });
+    try { return { id: await promise }; }
+    catch (error) {
+      if (this.uploadedMedia.get(cacheKey)?.id === promise) this.uploadedMedia.delete(cacheKey);
+      throw error;
+    }
+  }
+
+  private async uploadAttachment(values: IntegrationValues, key: string, kind: string) {
+    let { body, contentType } = await this.storage.read(key);
+    if (kind === 'image' && /^image\/(?:webp|jpeg|png|heic|avif)$/.test(contentType)) {
+      body = await sharp(body, { limitInputPixels: 24_000_000 }).rotate().resize({ width: 2000, withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
+      contentType = 'image/jpeg';
+    }
+    const types: Record<string, Record<string, string>> = {
+      image: { 'image/jpeg': 'jpg' }, document: { 'application/pdf': 'pdf', 'text/plain': 'txt',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx' },
+      audio: { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/amr': 'amr' },
+      video: { 'video/mp4': 'mp4', 'video/3gpp': '3gp' },
+    };
+    const extension = types[kind]?.[contentType];
+    if (!extension || body.length > (kind === 'document' ? 25 : kind === 'image' ? 5 : 16) * 1024 * 1024)
+      throw new BadRequestException('Unsupported attachment type or size for WhatsApp');
+    const data = new FormData();
+    data.append('messaging_product', 'whatsapp');
+    data.append('file', new Blob([new Uint8Array(body)], { type: contentType }), 'attachment.' + extension);
+    const response = await fetch(`${GRAPH}/${values.phoneNumberId}/media`, {
+      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30_000),
+      headers: { Authorization: 'Bearer ' + values.accessToken }, body: data,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || typeof result.id !== 'string') throw new IntegrationFailedException('whatsapp', 'Meta rejected the attachment');
+    return result.id as string;
+  }
+
+  async broadcastFreeCapacity(orgId: string, values: IntegrationValues) {
+    const allowance = await this.freeServiceAllowance(values, new Date());
+    if (!allowance) return null;
+    if (allowance === 'exempt') return Number.MAX_SAFE_INTEGER;
+    const attempts = await this.prisma.message.count({ where: {
+      direction: 'OUTBOUND', type: { in: ['TEXT', 'IMAGE', 'DOCUMENT', 'VIDEO', 'AUDIO'] },
+      createdAt: { gte: allowance.since }, conversation: { channel: 'WHATSAPP' },
+      OR: [{ conversation: { organizationId: orgId } }, { meta: { path: ['waAccountId'], equals: String(values.businessAccountId) } }],
+    } });
+    return Math.max(0, META_FREE_SERVICE_LIMIT - allowance.providerUsage - attempts);
+  }
+
   /** Core send used by inbox, automations and share buttons. Stores the message and emits realtime updates. */
   async send(
     orgId: string | null,
     to: string,
     msg:
       | { type: 'text'; text: string }
-      | { type: 'template'; name: string; language: string; params: string[] }
-      | { type: 'image' | 'document'; url: string; caption?: string },
+      | { type: 'template'; name: string; language: string; params: string[]; header?: { type: 'image' | 'document' | 'video'; url: string } }
+      | { type: 'image' | 'document' | 'video' | 'audio'; url: string; caption?: string },
     opts: {
       leadId?: string | null;
       userId?: string | null;
@@ -180,13 +255,19 @@ export class WhatsAppService {
       ownNumberOnly?: boolean;
       /** What the firm's inbox shows instead of the real text (OTPs must not be readable by the broker) */
       storedBody?: string;
+      broadcast?: { accountId: string; phoneNumberId: string; allowMetaCharges: boolean };
     } = {},
   ) {
     const phone = normalizeIndianPhone(to) ?? to;
-    const creds = await this.requireCreds(orgId);
+    const own = opts.broadcast && orgId ? await this.settings.resolveOrganizationOnly('whatsapp', orgId) : null;
+    if (opts.broadcast && (!own || String(own.businessAccountId) !== opts.broadcast.accountId || String(own.phoneNumberId) !== opts.broadcast.phoneNumberId))
+      throw new IntegrationNotConfiguredException('whatsapp', NOT_CONNECTED);
+    const creds = own ? { scope: 'organization' as const, values: own } : await this.requireCreds(orgId);
     if (opts.ownNumberOnly && creds.scope !== 'organization') throw new IntegrationNotConfiguredException('whatsapp', NOT_CONNECTED);
     const conv = await this.conversationFor(orgId, phone, { leadId: opts.leadId, name: opts.contactName });
-    const freeOnly = (await this.workflows.get(orgId)).freeOnly;
+    const freeOnly = opts.broadcast ? !opts.broadcast.allowMetaCharges : (await this.workflows.get(orgId)).freeOnly;
+    if (opts.broadcast && msg.type !== 'template' && (!conv.lastInboundAt || conv.lastInboundAt > new Date() ||
+      Date.now() - conv.lastInboundAt.valueOf() >= DAY_MS)) throw new WhatsAppWindowClosedException();
     const freeOnlyError = () => {
       const draft = opts.storedBody || msg.type === 'template' ? undefined : msg.type === 'text' ? msg.text : [msg.caption, msg.url].filter(Boolean).join('\n');
       return new AppException(HttpStatus.FORBIDDEN, ErrorCode.MESSAGING_FREE_ONLY,
@@ -201,6 +282,8 @@ export class WhatsAppService {
       allowance = await this.freeServiceAllowance(creds.values, now);
       if (!allowance) throw freeOnlyError();
     }
+    const media = 'url' in msg ? await this.attachment(creds.values, msg.url, opts.userId, msg.type)
+      : msg.type === 'template' && msg.header ? await this.attachment(creds.values, msg.header.url, opts.userId, msg.header.type) : null;
     const body =
       opts.storedBody ??
       (msg.type === 'text'
@@ -208,13 +291,13 @@ export class WhatsAppService {
         : msg.type === 'template'
           ? `[Template] ${msg.name}${msg.params.length ? `: ${msg.params.join(' | ')}` : ''}`
           : (msg.caption ?? ''));
-    const type: MessageType = msg.type === 'text' ? 'TEXT' : msg.type === 'template' ? 'TEMPLATE' : msg.type === 'image' ? 'IMAGE' : 'DOCUMENT';
+    const type: MessageType = msg.type === 'text' ? 'TEXT' : msg.type === 'template' ? 'TEMPLATE' : msg.type === 'image' ? 'IMAGE' : msg.type === 'video' ? 'VIDEO' : msg.type === 'audio' ? 'AUDIO' : 'DOCUMENT';
     const messageData: Prisma.MessageUncheckedCreateInput = {
       conversationId: conv.id,
       direction: 'OUTBOUND',
       type,
       body,
-      mediaUrl: 'url' in msg ? msg.url : null,
+      mediaUrl: 'url' in msg ? msg.url : msg.type === 'template' ? msg.header?.url : null,
       templateName: msg.type === 'template' ? msg.name : null,
       senderUserId: opts.userId ?? null,
       status: 'QUEUED',
@@ -227,7 +310,7 @@ export class WhatsAppService {
           const attempts = await tx.message.count({
             where: {
               direction: 'OUTBOUND',
-              type: { in: ['TEXT', 'IMAGE', 'DOCUMENT'] },
+              type: { in: ['TEXT', 'IMAGE', 'DOCUMENT', 'VIDEO', 'AUDIO'] },
               createdAt: { gte: allowance.since },
               conversation: { channel: 'WHATSAPP' },
               OR: [
@@ -236,7 +319,7 @@ export class WhatsAppService {
               ],
             },
           });
-          if (allowance.providerUsage + attempts >= SERVICE_SEND_LIMIT) throw freeOnlyError();
+          if (allowance.providerUsage + attempts >= (opts.broadcast ? META_FREE_SERVICE_LIMIT : SERVICE_SEND_LIMIT)) throw freeOnlyError();
           return tx.message.create({ data: messageData });
         })
       : await this.prisma.message.create({ data: messageData });
@@ -249,13 +332,16 @@ export class WhatsAppService {
         template: {
           name: msg.name,
           language: { code: msg.language },
-          ...(msg.params.length ? { components: [{ type: 'body', parameters: msg.params.map((p) => ({ type: 'text', text: p })) }] } : {}),
+          components: [
+            ...(msg.header ? [{ type: 'header', parameters: [{ type: msg.header.type, [msg.header.type]: media }] }] : []),
+            ...(msg.params.length ? [{ type: 'body', parameters: msg.params.map((p) => ({ type: 'text', text: p })) }] : []),
+          ],
         },
       });
     else {
       const isRendition = msg.type === 'image' && msg.url.startsWith(env().PUBLIC_API_URL.replace(/\/$/, '') + '/api/media/property-photo/');
       const url = isRendition ? msg.url + (msg.url.includes('?') ? '&' : '?') + 'format=jpeg' : msg.url;
-      Object.assign(payload, { type: msg.type, [msg.type]: { link: url, ...(msg.caption ? { caption: msg.caption } : {}) } });
+      Object.assign(payload, { type: msg.type, [msg.type]: { ...(isRendition ? { link: url } : media), ...(msg.type !== 'audio' && msg.caption ? { caption: msg.caption } : {}) } });
     }
 
     try {
@@ -528,6 +614,9 @@ export class WhatsAppService {
     this.emit(orgId, 'wa:message', { conversationId: conv.id, message: saved });
     this.events.emit('message.inbound', { conversationId: conv.id, orgId, leadId });
     if (orgId && otpAsk) this.events.emit('whatsapp.otp_request', { orgId, phone, code: otpAsk[1].toUpperCase() });
+    if (orgId && isWhatsAppOptOut(text)) {
+      await this.prisma.whatsAppBroadcastContact.updateMany({ where: { organizationId: orgId, phone: phoneForWhatsApp(phone), optedOutAt: null }, data: { optedOutAt: new Date() } });
+    }
     if (orgId && leadId) await this.handleOptOut(orgId, leadId, phone, text).catch((e) => this.logger.warn(`opt-out: ${(e as Error).message}`));
   }
 
@@ -537,7 +626,7 @@ export class WhatsAppService {
       .trim()
       .toLowerCase()
       .replace(/[.!]+$/, '');
-    const stop = ['stop', 'unsubscribe', 'stop all', 'band', 'बंद', 'बंद करो'].includes(word);
+    const stop = isWhatsAppOptOut(word);
     const start = ['start', 'शुरू', 'shuru'].includes(word);
     if (!stop && !start) return;
     await this.prisma.lead.update({ where: { id: leadId }, data: { optedOutAt: stop ? new Date() : null } });

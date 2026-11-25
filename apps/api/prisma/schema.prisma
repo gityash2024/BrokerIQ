@@ -3152,3 +3152,53 @@ model OrganicWebSearchQuery {
   @@id([runId, label])
   @@index([startedAt])
 }
+
+model WhatsAppBroadcastContact {
+  id             String    @id @default(cuid())
+  organizationId String
+  phone          String
+  name           String
+  consentEvidence String?
+  consentAt      DateTime?
+  optedOutAt     DateTime?
+  archivedAt     DateTime?
+  @@unique([organizationId, phone])
+  @@index([organizationId, archivedAt])
+}
+
+model WhatsAppBroadcastGroup {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  contactIds     String[]
+  @@unique([organizationId, name])
+}
+
+model WhatsAppBroadcast {
+  id             String    @id @default(cuid())
+  organizationId String
+  createdById    String
+  accountId      String
+  phoneNumberId  String
+  name           String
+  message        Json
+  allowMetaCharges Boolean
+  quote          Json
+  expiresAt      DateTime
+  queuedAt       DateTime?
+  createdAt      DateTime @default(now())
+  recipients     WhatsAppBroadcastRecipient[]
+  @@index([organizationId, createdAt])
+}
+
+model WhatsAppBroadcastRecipient {
+  id             String   @id @default(cuid())
+  broadcastId    String
+  contactId      String
+  status         String   @default("PENDING")
+  messageId      String?
+  error          String?
+  broadcast      WhatsAppBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  @@unique([broadcastId, contactId])
+  @@index([broadcastId, status])
+}

@@ -419,6 +419,7 @@ export const whatsappSendSchema = z.object({
   templateLanguage: z.string().default('en'),
   templateParams: z.array(z.string()).default([]),
   mediaUrl: z.string().url().optional(),
+  mediaType: z.enum(['image', 'document', 'video', 'audio']).optional(),
   listingId: z.string().optional(),
 });
 

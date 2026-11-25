@@ -1,3 +1,4 @@
+import { canUseBrokerChat, hasDelegatedAccess } from '@brokeriq/shared';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { normalizeIndianPhone, pushTokenSchema, savedSearchSchema, updateProfileSchema } from '@brokeriq/shared';
@@ -103,6 +104,12 @@ export class MeController {
   /** Signed direct upload (Cloudinary / S3). */
   @Post('uploads/sign')
   sign(@CurrentUser() user: RequestUser, @Body() body: { kind?: UploadKind; contentType?: string }) {
+    if (body?.kind === 'whatsappattachment') {
+      if (!user.orgId || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) || !canUseBrokerChat(user) ||
+        !hasDelegatedAccess(user.delegatedActor ? { ...user, role: 'SUB_BROKER_ADMIN' } : user, 'inbox', 'view', 'send'))
+        throw new BadRequestException('WhatsApp attachment permission is required');
+      return this.media.sign('whatsappattachment', body.contentType ?? '', user.id);
+    }
     const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat', 'inspection'] as const).includes(body?.kind as any)
       ? body.kind!
       : 'listing';
