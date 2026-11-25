@@ -43,6 +43,16 @@ test('a firm admin can remove and restore Chat on an active broker agent session
     await page.getByRole('button', { name: 'Allow Chat access' }).click();
     await expect(nav.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
 
+    await page.getByRole('link', { name: 'Edit module permissions', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Edit module permissions', exact: true })).toBeVisible();
+    const leadsView = page.getByRole('group', { name: /Leads & Requirements/ }).getByRole('checkbox', { name: 'view', exact: true });
+    await expect(leadsView).toBeChecked();
+    await leadsView.uncheck();
+    await page.getByRole('button', { name: 'Save permissions', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp('/broker/team/' + agent.user.id + '$'));
+    await expect(nav.getByRole('link', { name: 'Leads', exact: true })).toHaveCount(0);
+    expect((await request.get(API + '/leads', { headers: { Authorization: 'Bearer ' + agent.accessToken } })).status()).toBe(403);
+
     await page.goto('/broker/team');
     const roles = page.locator('select').filter({ has: page.locator('option[value="BROKER_AGENT"]') });
     const search = page.getByPlaceholder('मेंबर खोजें — नाम, ईमेल, फ़ोन...');
