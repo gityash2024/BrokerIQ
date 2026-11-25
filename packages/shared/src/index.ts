@@ -63,3 +63,4 @@ export function futureConnectDate(value?: string | null): Date | null {
 }
 
 export * from './whatsapp-broadcast';
+export * from './assistant-presentation';

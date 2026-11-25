@@ -553,6 +553,7 @@ export const feedbackAdminSchema = z.object({
 
 // ------------------------------------------------------------------ AI assistant
 export const assistantChatSchema = z.object({
+  requestId: z.uuid().optional(),
   messages: z
     .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(4000) }))
     .min(1)
@@ -561,7 +562,7 @@ export const assistantChatSchema = z.object({
   /** Where the user is (route) — helps the agent understand "this property" / "this lead". */
   context: z.object({ path: z.string().max(200).optional(), entityId: z.string().max(60).optional() }).optional(),
 });
-export const assistantConfirmSchema = z.object({ token: z.string().min(10).max(100), lang: z.string().max(5).default('en') });
+export const assistantConfirmSchema = z.object({ token: z.string().min(10).max(100), lang: z.string().max(5).default('en'), requestId: z.uuid().optional() });
 export const transcribeSchema = z.object({
   audio: z.string().min(100).max(11_000_000),
   mime: z.string().max(60).default('audio/m4a'),

@@ -69,9 +69,16 @@ describe('AiService', () => {
       attempts.push(body.reasoning);
       expect(body.provider.max_price).toEqual({ prompt: 0, completion: 0, image: 0, request: 0 });
       expect(body.provider.data_collection).toBe('deny');
-      return body.reasoning?.enabled === false ? { status: 400, json: { error: {
-        message: 'Reasoning is mandatory for this endpoint and cannot be disabled.',
-      } } } : ok('OK');
+      return body.reasoning?.enabled === false
+        ? {
+            status: 400,
+            json: {
+              error: {
+                message: 'Reasoning is mandatory for this endpoint and cannot be disabled.',
+              },
+            },
+          }
+        : ok('OK');
     };
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'hosted:free', disableReasoning: true } }), prisma);
     const query = () => ai.chat([{ role: 'user', content: 'Classify supply' }], { feature: 'organic', openRouterOnly: true });
@@ -79,6 +86,19 @@ describe('AiService', () => {
     await expect(query()).resolves.toBe('OK');
     expect(attempts).toEqual([{ enabled: false }, undefined, undefined]);
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses another free model within the interactive deadline and stops when the budget expires', async () => {
+    respond = (_url, body) => (body.model === 'a:free' ? { status: 503, json: {} } : ok('Recovered'));
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
+    const messages = [{ role: 'user', content: 'Find my records' }];
+    const onFallback = jest.fn();
+    const opts = { feature: 'assistant', openRouterOnly: true, deadlineAt: Date.now() + 32_000, onFallback };
+    await expect(ai.chatWithTools(messages, [], opts)).resolves.toMatchObject({ content: 'Recovered' });
+    expect(onFallback).toHaveBeenCalledTimes(1);
+    expect(calls.map(({ model }) => model)).toEqual(['a:free', 'b:free']);
+    await expect(ai.chatWithTools(messages, [], { ...opts, deadlineAt: Date.now() - 1 })).rejects.toThrow();
+    expect(calls).toHaveLength(2);
   });
 
   it('stops outbound OpenRouter attempts when its shared daily budget is consumed', async () => {
@@ -102,9 +122,14 @@ describe('AiService', () => {
   it('does not spend more inference attempts while an OpenRouter account daily limit is in effect', async () => {
     const reset = new Date();
     reset.setUTCHours(24, 0, 0, 0);
-    respond = () => ({ status: 429, json: {}, headers: new Headers({
-      'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(reset.getTime()),
-    }) });
+    respond = () => ({
+      status: 429,
+      json: {},
+      headers: new Headers({
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': String(reset.getTime()),
+      }),
+    });
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
     const options = { feature: 'organic', openRouterOnly: true, deferWhenRateLimited: true };
     const query = () => ai.chat([{ role: 'user', content: 'Classify supply' }], options);

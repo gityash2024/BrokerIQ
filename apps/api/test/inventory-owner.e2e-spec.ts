@@ -85,6 +85,7 @@ describe('Property Owner workspace', () => {
   it('limits owners to their own drafts and leaves broker inventory and assignment private', async () => {
     await api().get('/api/inventory').set(auth(owner)).expect(403);
     await api().get('/api/broker/team').set(auth(owner)).expect(403);
+    await api().post('/api/assistant/chat').set(auth(owner)).send({ messages: [] }).expect(400);
     await api().get(properties).set(auth(admin)).expect(403);
     await api()
       .post(properties)

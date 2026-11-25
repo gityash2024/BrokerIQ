@@ -51,6 +51,7 @@ function LoginInner() {
           /^\/brokers\/[a-z0-9-]+(?:\?via=qr)?$/i.test(next) ||
           next.startsWith('/invite/') ||
           (r.user.role === 'SUPER_ADMIN' && next.startsWith('/admin')) ||
+          (r.user.role === 'MODERATOR' && /^\/admin\/moderation(?:\?listing=[a-zA-Z0-9_-]{1,100})?$/.test(next)) ||
           (['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(r.user.role) && next.startsWith('/broker')))
         ? next
         : homeFor(r.user),

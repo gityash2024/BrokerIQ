@@ -464,7 +464,11 @@ export const TOOLS: Tool[] = [
     description: 'Listings the user has saved (shortlist).',
     roles: ['USER'],
     parameters: obj({}),
-    run: async (_a, { call }) => ((await call({ method: 'GET', path: '/listings/saved' })) as any[]).slice(0, 12).map((s: any) => slimListing(s.listing ?? s)),
+    run: async (_a, { call }) =>
+      ((await call({ method: 'GET', path: '/listings/saved' })) as any[]).slice(0, 12).map((s: any) => {
+        const listing = slimListing(s.listing ?? s);
+        return { ...listing, url: '/user/account/saved' };
+      }),
   },
   {
     name: 'save_listing',
@@ -517,12 +521,17 @@ export const TOOLS: Tool[] = [
     description: "The user's / firm's own listings with status (DRAFT, PENDING_REVIEW, ACTIVE, REJECTED …).",
     roles: LISTERS,
     parameters: obj({ status: str('optional status filter'), search: str('optional text') }),
-    run: async (a, { call }) => {
+    run: async (a, { call, me }) => {
       const r = await call({ method: 'GET', path: `/listings/mine${qs({ status: a.status, search: a.search, pageSize: 15 })}` });
+      const base = (await me()).role === 'USER' ? '/user/account/listings' : '/broker/listings';
       return {
         total: r.total,
         statusCounts: r.statusCounts,
-        listings: (r.items ?? []).map((l: any) => ({ ...slimListing(l), rejectionReason: l.rejectionReason })),
+        listings: (r.items ?? []).map((l: any) => ({
+          ...slimListing(l),
+          url: base + '/' + id(l.id) + '/edit',
+          rejectionReason: l.rejectionReason,
+        })),
       };
     },
   },
@@ -801,14 +810,19 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'moderation_queue',
-    description: 'Listings waiting for approval.',
+    description: 'Listings waiting for approval. The total is the full queue count, separate from the limited preview.',
     roles: ['SUPER_ADMIN', 'MODERATOR'],
     parameters: obj({}),
     run: async (_a, { call }) => {
       const r = await call({ method: 'GET', path: '/admin/moderation/listings' });
-      return (r.items ?? r ?? [])
-        .slice(0, 15)
-        .map((l: any) => ({ ...slimListing(l), flags: l.moderationFlags, postedBy: l.postedBy?.name ?? l.organization?.name }));
+      return {
+        total: r.total,
+        listings: (r.items ?? []).slice(0, 8).map((l: any) => ({
+          ...slimListing(l),
+          url: '/admin/moderation?listing=' + id(l.id),
+          flags: l.moderationFlags,
+        })),
+      };
     },
   },
   {

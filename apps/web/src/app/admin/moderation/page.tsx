@@ -2,7 +2,8 @@
 import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, BadgeCheck, Check, ExternalLink, ImageOff, ListChecks, MapPin, Star, X } from 'lucide-react';
@@ -35,11 +36,22 @@ const REASONS = [
 ];
 
 export default function ModerationPage() {
-  const [status, setStatus] = useRouteState<'PENDING_REVIEW' | 'REJECTED'>('moderation.status', 'PENDING_REVIEW');
+  return (
+    <Suspense fallback={<LoadingArtwork className="h-64 rounded-2xl" />}>
+      <ModerationQueue />
+    </Suspense>
+  );
+}
+
+function ModerationQueue() {
+  const listing = useSearchParams().get('listing');
+  const listingId = listing && /^[a-zA-Z0-9_-]{1,100}$/.test(listing) ? listing : undefined;
+  const [savedStatus, setStatus] = useRouteState<'PENDING_REVIEW' | 'REJECTED'>('moderation.status', 'PENDING_REVIEW');
+  const status = listingId ? 'PENDING_REVIEW' : savedStatus;
   const [flagged, setFlagged] = useState(false);
   const q = useQuery({
-    queryKey: ['moderation', status, flagged],
-    queryFn: () => api<any>(`/admin/moderation/listings${qs({ status, flagged: flagged ? 'true' : '' })}`),
+    queryKey: ['moderation', status, flagged, listingId],
+    queryFn: () => api<any>(`/admin/moderation/listings${qs({ status, flagged: !listingId && flagged ? 'true' : '', listing: listingId })}`),
   });
   const [reject, setReject] = useState<any>(null);
   const [reason, setReason] = useState('');
@@ -55,24 +67,36 @@ export default function ModerationPage() {
     <>
       <PageHeader title="Moderation queue" subtitle={q.data ? `${q.data.total} listings — हर approve/reject पर owner को notification + email जाता है` : ' '} />
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Segmented
-          value={status}
-          onChange={setStatus}
-          options={[
-            { value: 'PENDING_REVIEW', label: 'Pending' },
-            { value: 'REJECTED', label: 'Rejected' },
-          ]}
-        />
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} /> सिर्फ़ auto-flagged
-        </label>
+        {listingId ? (
+          <Link href="/admin/moderation" className="text-sm font-semibold text-brand-600 underline">
+            View full moderation queue
+          </Link>
+        ) : (
+          <>
+            <Segmented
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: 'PENDING_REVIEW', label: 'Pending' },
+                { value: 'REJECTED', label: 'Rejected' },
+              ]}
+            />
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} /> सिर्फ़ auto-flagged
+            </label>
+          </>
+        )}
       </div>
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
         <div className="space-y-4">{<LoadingArtwork className="col-span-full h-64 rounded-2xl" />}</div>
       ) : !items.length ? (
-        <Empty icon={<ListChecks className="size-7" />} title="Queue खाली है 🎉" text="नई listings आते ही यहाँ दिखेंगी।" />
+        <Empty
+          icon={<ListChecks className="size-7" />}
+          title={listingId ? 'This listing is no longer pending' : 'Queue खाली है 🎉'}
+          text={listingId ? 'Open the full moderation queue to see current listings.' : 'नई listings आते ही यहाँ दिखेंगी।'}
+        />
       ) : (
         <div className="space-y-4">
           <AnimatePresence initial={false}>

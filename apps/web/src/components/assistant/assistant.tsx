@@ -1,11 +1,12 @@
 'use client';
-import { InlineLoader } from '@/components/ui/request-loader';
+import { AssistantActivity, AssistantText } from './presentation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, X } from 'lucide-react';
-import { languageOf } from '@brokeriq/shared';
+import { assistantDestination, languageOf, type AssistantPhase, type AssistantProgress } from '@brokeriq/shared';
+import { useRealtime } from '@/lib/realtime';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -20,7 +21,7 @@ type Msg = {
   content: string;
   cards?: { type: 'listings' | 'leads'; items: any[] };
   pending?: { token: string; summary: string };
-  resolved?: 'done' | 'cancelled';
+  resolved?: 'done' | 'cancelled' | 'failed';
 };
 const HIDDEN = ['/login', '/signup', '/forgot'];
 
@@ -50,6 +51,12 @@ const blobToBase64 = (b: Blob) =>
   });
 
 export function AssistantWidget() {
+  const { user } = useAuth();
+  const scope = JSON.stringify([user?.id, user?.organizationId, user?.role, user?.rolePermissions, user?.agentChatEnabled]);
+  return <AssistantSession key={scope} />;
+}
+
+function AssistantSession() {
   const pathname = usePathname();
   const { user, ready } = useAuth();
   const lang = useLang();
@@ -57,14 +64,44 @@ export function AssistantWidget() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [phases, setPhases] = useState<AssistantPhase[]>([]);
+  const request = useRef<string | undefined>(undefined);
+  useRealtime<AssistantProgress>('assistant.progress', ({ requestId, phase }) => {
+    if (request.current === requestId) setPhases((previous) => (previous.at(-1) === phase ? previous : [...previous.slice(-3), phase]));
+  });
+  const start = (phase: AssistantPhase) => {
+    const requestId = globalThis.crypto?.randomUUID?.();
+    request.current = requestId;
+    setPhases([phase]);
+    setBusy(true);
+    return requestId;
+  };
+  const finish = () => {
+    request.current = undefined;
+    setPhases([]);
+    setBusy(false);
+  };
   const [recording, setRecording] = useState(false);
   const [speak, setSpeak] = useState(false);
   const recRef = useRef<MediaRecorder | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  useEffect(
+    () => () => {
+      const recorder = recRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.onstop = null;
+        recorder.stop();
+        recorder.stream.getTracks().forEach((track) => track.stop());
+      }
+      window.speechSynthesis?.cancel();
+    },
+    [],
+  );
+
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [msgs]);
+    endRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }, [msgs, phases, open]);
   if (!ready || HIDDEN.includes(pathname)) return null;
 
   const say = (content: string) => {
@@ -75,21 +112,21 @@ export function AssistantWidget() {
     window.speechSynthesis.speak(u);
   };
   const context = () => {
-    const m = pathname.match(/^\/(property|broker\/leads|broker\/listings)\/([^/]+)/);
+    const m = pathname.match(/^\/((?:user\/)?property|broker\/leads|broker\/listings)\/([^/]+)/);
     return { path: pathname, entityId: m?.[2] };
   };
 
   const send = async (content: string) => {
-    const q = content.trim();
+    const q = content.trim().slice(0, 4000);
     if (!q || busy) return;
     const history: Msg[] = [...msgs, { role: 'user', content: q }];
     setMsgs(history);
     setText('');
-    setBusy(true);
+    const requestId = start('understanding');
     try {
       const r = await api<any>('/assistant/chat', {
         method: 'POST',
-        body: { messages: history.map(({ role, content }) => ({ role, content })), lang, context: context() },
+        body: { requestId, messages: history.slice(-16).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })), lang, context: context() },
       });
       setMsgs((m) => [...m, { role: 'assistant', content: r.reply, cards: r.cards, pending: r.pending }]);
       say(r.reply);
@@ -100,20 +137,23 @@ export function AssistantWidget() {
         { role: 'assistant', content: notConfigured ? 'AI assistant के लिए Admin → Settings → Integrations में OpenRouter जाँचें।' : `⚠️ ${errorMessage(e)}` },
       ]);
     } finally {
-      setBusy(false);
+      finish();
     }
   };
 
   const resolve = async (i: number, ok: boolean) => {
     const p = msgs[i].pending!;
-    setMsgs((m) => m.map((x, k) => (k === i ? { ...x, resolved: ok ? 'done' : 'cancelled' } : x)));
+    const resolveAs = (resolved: Msg['resolved']) => setMsgs((m) => m.map((x, k) => (k === i ? { ...x, resolved } : x)));
+    if (busy) return;
     if (!ok) {
+      resolveAs('cancelled');
       api('/assistant/cancel', { method: 'POST', body: { token: p.token } }).catch(() => undefined);
       return;
     }
-    setBusy(true);
+    const requestId = start('applying');
     try {
-      const r = await api<any>('/assistant/confirm', { method: 'POST', body: { token: p.token, lang } });
+      const r = await api<any>('/assistant/confirm', { method: 'POST', body: { token: p.token, lang, requestId } });
+      resolveAs(r.actionSucceeded === false ? 'failed' : 'done');
       const receipt = r.receipt
         ? Object.entries(r.receipt)
             .map(([label, value]) => label + ' ' + value)
@@ -122,9 +162,10 @@ export function AssistantWidget() {
       setMsgs((m) => [...m, { role: 'assistant', content: [r.reply, receipt].filter(Boolean).join('\n'), cards: r.cards }]);
       say(r.reply);
     } catch (e) {
+      resolveAs('failed');
       setMsgs((m) => [...m, { role: 'assistant', content: `⚠️ ${errorMessage(e)}` }]);
     } finally {
-      setBusy(false);
+      finish();
     }
   };
 
@@ -140,13 +181,13 @@ export function AssistantWidget() {
         setRecording(false);
         const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
         if (blob.size < 800) return;
-        setBusy(true);
+        start('transcribing');
         try {
           const r = await api<{ text: string }>('/assistant/transcribe', { method: 'POST', body: { audio: await blobToBase64(blob), mime: blob.type, lang } });
-          setBusy(false);
+          finish();
           if (r.text) await send(r.text);
         } catch (e) {
-          setBusy(false);
+          finish();
           setMsgs((m) => [...m, { role: 'assistant', content: `⚠️ ${errorMessage(e)}` }]);
         }
       };
@@ -160,14 +201,16 @@ export function AssistantWidget() {
   };
 
   if (user?.role === 'SUB_BROKER_ADMIN' && !user.delegatedPermissions?.includes('assistant:view')) return null;
-  const onProperty = pathname.startsWith('/property/');
+  const onProperty = /^\/(?:user\/)?property\//.test(pathname);
   const hints = !user
     ? []
-    : user.role === 'SUPER_ADMIN'
+    : user.role === 'SUPER_ADMIN' || user.role === 'MODERATOR'
       ? ['Approval के लिए कितनी listings pending हैं?', 'आज का platform overview']
-      : user.role === 'USER'
-        ? ['Sector 65 में 3 BHK furnished, 60k तक', '40k rent पर move-in cost कितना होगा?', 'मेरी enquiries दिखाओ']
-        : ['आज का agenda बताओ', 'Hot leads दिखाओ', 'नई lead जोड़ो: Rahul 98xxxxxxx'];
+      : user.role === 'PROPERTY_OWNER'
+        ? ['मेरी properties दिखाओ', 'मेरी properties की availability बताओ']
+        : user.role === 'USER'
+          ? ['Sector 65 में 3 BHK furnished, 60k तक', '40k rent पर move-in cost कितना होगा?', 'मेरी enquiries दिखाओ']
+          : ['आज का agenda बताओ', 'Hot leads दिखाओ', 'नई lead जोड़ो: Rahul 98xxxxxxx'];
 
   return (
     <>
@@ -241,45 +284,60 @@ export function AssistantWidget() {
                           m.role === 'user' ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-surface-2',
                         )}
                       >
-                        {m.content}
+                        {m.role === 'assistant' ? (
+                          <AssistantText
+                            content={m.content}
+                            cardUrls={m.cards?.items.map((item) => item.url) ?? []}
+                            staff={user?.role === 'SUPER_ADMIN' || user?.role === 'MODERATOR'}
+                            onNavigate={() => setOpen(false)}
+                          />
+                        ) : (
+                          m.content
+                        )}
                       </div>
                       {m.cards?.type === 'listings' && (
                         <div className="w-full space-y-1.5">
-                          {m.cards.items.map((l) => (
-                            <Link
-                              key={l.id}
-                              href={l.url}
-                              onClick={() => setOpen(false)}
-                              className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400"
-                            >
-                              <p className="truncate font-semibold">{l.title}</p>
-                              <p className="text-xs text-muted">
-                                {[l.purpose, l.priceText ?? l.rentText, l.locality, l.bedrooms ? `${l.bedrooms} BHK` : null].filter(Boolean).join(' · ')}
-                              </p>
-                            </Link>
-                          ))}
+                          {m.cards.items
+                            .filter((item) => assistantDestination(item.url))
+                            .map((l) => (
+                              <Link
+                                key={l.id}
+                                href={assistantDestination(l.url)!}
+                                onClick={() => setOpen(false)}
+                                className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400"
+                              >
+                                <p className="truncate font-semibold">{l.title}</p>
+                                <p className="text-xs text-muted">
+                                  {[l.purpose, l.priceText ?? l.rentText, l.locality, l.bedrooms ? `${l.bedrooms} BHK` : null].filter(Boolean).join(' · ')}
+                                </p>
+                              </Link>
+                            ))}
                         </div>
                       )}
                       {m.cards?.type === 'leads' && (
                         <div className="w-full space-y-1.5">
-                          {m.cards.items.map((l) => (
-                            <Link
-                              key={l.id}
-                              href={l.url}
-                              onClick={() => setOpen(false)}
-                              className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400"
-                            >
-                              <p className="font-semibold">{l.name}</p>
-                              <p className="text-xs text-muted">{[l.phone, l.stage, l.temperature].filter(Boolean).join(' · ')}</p>
-                            </Link>
-                          ))}
+                          {m.cards.items
+                            .filter((item) => assistantDestination(item.url))
+                            .map((l) => (
+                              <Link
+                                key={l.id}
+                                href={assistantDestination(l.url)!}
+                                onClick={() => setOpen(false)}
+                                className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400"
+                              >
+                                <p className="font-semibold">{l.name}</p>
+                                <p className="text-xs text-muted">{[l.phone, l.stage, l.temperature].filter(Boolean).join(' · ')}</p>
+                              </Link>
+                            ))}
                         </div>
                       )}
                       {m.pending && (
                         <div className="w-full rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-500/40 dark:bg-amber-500/10">
                           <p className="font-semibold">{m.pending.summary}</p>
                           {m.resolved ? (
-                            <p className="mt-1 text-xs text-muted">{m.resolved === 'done' ? '✅ Confirmed' : 'रद्द किया'}</p>
+                            <p className="mt-1 text-xs text-muted">
+                              {m.resolved === 'done' ? '✅ Confirmed' : m.resolved === 'failed' ? 'Could not confirm' : 'रद्द किया'}
+                            </p>
                           ) : (
                             <div className="mt-2 flex gap-2">
                               <Button size="sm" onClick={() => resolve(i, true)} disabled={busy}>
@@ -294,11 +352,7 @@ export function AssistantWidget() {
                       )}
                     </div>
                   ))}
-                  {busy && (
-                    <div className="flex items-center gap-2 text-sm text-muted">
-                      <InlineLoader className="size-4" /> सोच रहा हूँ…
-                    </div>
-                  )}
+                  {busy && phases.length > 0 && <AssistantActivity phases={phases} lang={lang} />}
                   <div ref={endRef} />
                 </>
               )}
@@ -326,6 +380,7 @@ export function AssistantWidget() {
                 </button>
                 <input
                   value={text}
+                  maxLength={4000}
                   onChange={(e) => setText(e.target.value)}
                   placeholder={recording ? 'सुन रहा हूँ… (रोकने के लिए ■)' : 'लिखें या mic दबाकर बोलें…'}
                   className="h-10 min-w-0 flex-1 rounded-full border border-line bg-surface px-4 text-sm focus:border-brand-500 focus:outline-none"

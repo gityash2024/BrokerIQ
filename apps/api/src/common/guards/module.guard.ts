@@ -119,6 +119,10 @@ export class ModuleGuard implements CanActivate {
     if (user?.role === 'PROPERTY_OWNER') {
       const path = requestPath.replace(/\/+$/, '');
       if (!user.orgId) throw new ForbiddenException('Firm membership required');
+      if (req.method === 'POST' && /^\/assistant\/(?:chat|confirm|cancel|transcribe)$/.test(path)) {
+        await this.modules.assertPath(path, 'USER');
+        return true;
+      }
       if (
         this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]) ||
         /^\/auth(?:\/|$)/.test(path) ||

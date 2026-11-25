@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import type { Prisma, Role } from '@prisma/client';
-import { languageOf } from '@brokeriq/shared';
+import { assistantDestination, languageOf, type AssistantPhase } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from '../../core/settings/crypto.service';
 import { sha256 } from '../../common/utils';
@@ -19,10 +19,24 @@ export interface AssistantReply {
   /** Structured results for rich UI cards (listings, leads). */
   cards?: { type: 'listings' | 'leads'; items: any[] };
   used?: string[];
+  actionSucceeded?: boolean;
   receipt?: Record<string, string | number | boolean | null>;
 }
 
 const MAX_ROUNDS = 5;
+const TURN_BUDGET_MS = 32_000;
+type ReportProgress = (phase: AssistantPhase) => void;
+
+function asksForModerationCount(message: string) {
+  const question = message
+    .trim()
+    .toLowerCase()
+    .replace(/[?.!।]+$/, '')
+    .trim();
+  return /^(how many (?:listings (?:are )?pending(?: (?:review|approval))?|pending (?:review |approval )?listings)(?: (?:are there|do (?:i|we) have))?|(?:approval|review) के लिए कितनी listings pending (?:हैं|है)|कितनी listings (?:approval के लिए )?pending (?:हैं|है)|approval ke liye kitni listings pending (?:hain|hai))$/u.test(
+    question,
+  );
+}
 const PENDING_TTL = 5 * 60_000;
 
 /**
@@ -44,12 +58,14 @@ export class AssistantService {
   }
 
   /** Loopback call as the user (same guards/validation as the app). */
-  private ctx(auth: string, ip?: string): ToolCtx {
+  private ctx(auth: string, ip?: string, deadlineAt = Infinity): ToolCtx {
     const call = async (c: Call) => {
+      const timeLeft = Math.min(15_000, deadlineAt - Date.now());
+      if (timeLeft < 1) throw new Error('Assistant request timed out');
       const res = await fetch(this.base() + c.path, {
         method: c.method,
         redirect: 'error',
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(timeLeft),
         headers: {
           Authorization: auth,
           'Content-Type': 'application/json',
@@ -159,16 +175,64 @@ export class AssistantService {
     auth: string,
     body: { messages: { role: 'user' | 'assistant'; content: string }[]; lang: string; context?: { path?: string; entityId?: string } },
     ip?: string,
+    progress?: ReportProgress,
   ): Promise<AssistantReply> {
+    const deadlineAt = Date.now() + TURN_BUDGET_MS;
+    progress?.('understanding');
     const allowed = this.availableTools(user);
-    const ctx = this.ctx(auth, ip);
+    const ctx = this.ctx(auth, ip, deadlineAt);
+    const latest = body.messages.at(-1);
+    const moderation = allowed.find((tool) => tool.name === 'moderation_queue');
+    if (moderation && latest?.role === 'user' && asksForModerationCount(latest.content)) {
+      progress?.('retrieving');
+      const queue = (await moderation.run({}, ctx)) as { total?: number };
+      if (typeof queue.total === 'number' && Number.isSafeInteger(queue.total) && queue.total >= 0) {
+        progress?.('composing');
+        const count = new Intl.NumberFormat(body.lang === 'hi' ? 'hi-IN' : 'en-IN').format(queue.total);
+        const reply =
+          body.lang === 'hi'
+            ? `Approval के लिए **${count}** listings pending हैं।`
+            : `**${count}** ${queue.total === 1 ? 'listing is' : 'listings are'} pending approval.`;
+        return { reply: reply + '\n\n[Moderation queue](/admin/moderation)', used: [moderation.name], cards: this.cardsFor(moderation.name, queue) };
+      }
+    }
     const msgs: any[] = [{ role: 'system', content: this.system(user, body.lang, body.context) }, ...body.messages.slice(-16)];
     const used: string[] = [];
     let cards: AssistantReply['cards'];
 
-    for (let round = 0; round < MAX_ROUNDS; round++) {
-      const m = await this.ai.chatWithTools(msgs, toOpenAi(allowed), { feature: 'assistant', openRouterOnly: true, orgId: user.orgId, userId: user.id });
-      if (!m.tool_calls?.length) return { reply: (m.content ?? '').trim() || '🙂', cards, used };
+    const tools = toOpenAi(allowed);
+    const results = new Map<string, unknown>();
+    const fallback = () => ({
+      reply: cards
+        ? body.lang === 'hi'
+          ? 'मिले हुए records नीचे हैं।'
+          : 'Here are the records I found.'
+        : body.lang === 'hi'
+          ? 'यह request पूरी नहीं हुई। इसे छोटे हिस्से में पूछकर फिर कोशिश करें।'
+          : 'This request didn’t finish. Try asking for one part at a time.',
+      cards,
+      used,
+    });
+    for (let round = 0; round < MAX_ROUNDS && Date.now() < deadlineAt; round++) {
+      if (round > 0) progress?.('composing');
+      let m;
+      try {
+        m = await this.ai.chatWithTools(msgs, tools, {
+          feature: 'assistant',
+          openRouterOnly: true,
+          orgId: user.orgId,
+          userId: user.id,
+          deadlineAt,
+          onFallback: () => progress?.('retrying'),
+        });
+      } catch (error) {
+        if (cards) return fallback();
+        throw error;
+      }
+      if (!m.tool_calls?.length) {
+        const reply = (m.content ?? '').trim();
+        return reply ? { reply, cards, used } : fallback();
+      }
       msgs.push({ role: 'assistant', content: m.content ?? '', tool_calls: m.tool_calls });
       for (const tc of m.tool_calls) {
         const tool = allowed.find((t) => t.name === tc.function.name);
@@ -188,6 +252,7 @@ export class AssistantService {
           continue;
         }
         if (tool.write) {
+          progress?.('confirming');
           let summary: string;
           try {
             summary = tool.summary?.(args) ?? tool.name;
@@ -211,22 +276,40 @@ export class AssistantService {
           const reply = (m.content ?? '').trim() || `${summary} — क्या मैं यह कर दूँ?`;
           return { reply, pending: { token, tool: tool.name, summary }, cards, used };
         }
-        used.push(tool.name);
-        let result: unknown;
-        try {
-          result = await tool.run(args, ctx);
-          cards = this.cardsFor(tool.name, result) ?? cards;
-        } catch (e) {
-          result = { error: (e as Error).message };
+        const key = tool.name + JSON.stringify(Object.entries(args).sort(([a], [b]) => a.localeCompare(b)));
+        let result = results.get(key);
+        if (!results.has(key)) {
+          progress?.('retrieving');
+          if (!used.includes(tool.name)) used.push(tool.name);
+          try {
+            result = await tool.run(args, ctx);
+            cards = this.cardsFor(tool.name, result) ?? cards;
+          } catch (e) {
+            result = { error: (e as Error).message };
+          }
+          results.set(key, result);
         }
-        msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 6000) });
+        const content = JSON.stringify(result ?? null);
+        msgs.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          content: content.length <= 6000 ? content : JSON.stringify({ preview: content.slice(0, 2800), truncated: true }),
+        });
       }
     }
-    return { reply: 'माफ़ कीजिए, यह काम पूरा नहीं हो पाया — थोड़ा और साफ़ बताइए।', cards, used };
+    return fallback();
   }
 
-  /** Runs a confirmed write action, then lets the model phrase the outcome in the user's language. */
-  async confirm(user: RequestUser & { name?: string }, auth: string, token: string, _lang: string, ip?: string): Promise<AssistantReply> {
+  /** Runs a confirmed write and returns the actual outcome without a provider call. */
+  async confirm(
+    user: RequestUser & { name?: string },
+    auth: string,
+    token: string,
+    _lang: string,
+    ip?: string,
+    progress?: ReportProgress,
+  ): Promise<AssistantReply> {
+    progress?.('applying');
     const where = { ...this.confirmationOwner(user), tokenHash: sha256(token), expiresAt: { gt: new Date() } };
     const pending = await this.db.assistantConfirmation.findUnique({ where: { tokenHash: where.tokenHash } });
     if (!pending || pending.expiresAt <= new Date()) throw new BadRequestException('यह request expire हो गई — दोबारा बोलें');
@@ -256,7 +339,7 @@ export class AssistantService {
             ),
           ) as AssistantReply['receipt'])
         : undefined;
-    return { reply, used: ok ? [tool.name] : [], cards: this.cardsFor(tool.name, result), receipt };
+    return { reply, actionSucceeded: ok, used: ok ? [tool.name] : [], cards: this.cardsFor(tool.name, result), receipt };
   }
 
   async cancel(user: RequestUser, token: string) {
@@ -274,9 +357,14 @@ export class AssistantService {
 
   private cardsFor(tool: string, result: any): AssistantReply['cards'] | undefined {
     const listings = Array.isArray(result) ? (tool.includes('lead') ? null : result) : result?.listings;
-    if (listings?.length && listings[0]?.url?.startsWith('/property/')) return { type: 'listings', items: listings.slice(0, 8) };
-    const leads = Array.isArray(result?.leads) ? result.leads : null;
-    if (leads?.length) return { type: 'leads', items: leads.slice(0, 8) };
+    if (Array.isArray(listings)) {
+      const items = listings.filter((item) => assistantDestination(item?.url)).slice(0, 8);
+      if (items.length) return { type: 'listings', items };
+    }
+    if (Array.isArray(result?.leads)) {
+      const items = result.leads.filter((item: any) => assistantDestination(item?.url)).slice(0, 8);
+      if (items.length) return { type: 'leads', items };
+    }
     return undefined;
   }
 }

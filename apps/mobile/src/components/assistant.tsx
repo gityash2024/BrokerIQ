@@ -1,14 +1,16 @@
-import { InlineLoader } from '@/components/request-loader';
+import { AssistantActivity, AssistantText } from './assistant-presentation';
+import { randomUUID } from 'expo-crypto';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Modal, TextInput, View } from 'react-native';
+import { FlatList, Linking, Modal, TextInput, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
 import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, X } from 'lucide-react-native';
-import { hasDelegatedAccess, languageOf, moduleAllowed } from '@brokeriq/shared';
+import { assistantDestination, hasDelegatedAccess, languageOf, moduleAllowed, type AssistantPhase, type AssistantProgress } from '@brokeriq/shared';
+import { useRealtime } from '@/lib/realtime';
 import { ApiError, errorMessage, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -26,7 +28,7 @@ type Msg = {
   content: string;
   cards?: { type: 'listings' | 'leads'; items: any[] };
   pending?: { token: string; summary: string };
-  resolved?: 'done' | 'cancelled';
+  resolved?: 'done' | 'cancelled' | 'failed';
 };
 const HIDDEN = ['/login', '/onboarding', '/data-consent', '/scanner', '/post-property'];
 
@@ -65,7 +67,12 @@ export function AssistantButton() {
       >
         <Sparkles size={26} color="#fff" />
       </PressableScale>
-      {open && <AssistantSheet onClose={() => setOpen(false)} />}
+      {open && (
+        <AssistantSheet
+          key={JSON.stringify([user.id, user.organizationId, user.role, user.rolePermissions, user.agentChatEnabled])}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -78,6 +85,24 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [phases, setPhases] = useState<AssistantPhase[]>([]);
+  const request = useRef<string | undefined>(undefined);
+  const pathname = usePathname();
+  useRealtime<AssistantProgress>('assistant.progress', ({ requestId, phase }) => {
+    if (request.current === requestId) setPhases((previous) => (previous.at(-1) === phase ? previous : [...previous.slice(-3), phase]));
+  });
+  const start = (phase: AssistantPhase) => {
+    const requestId = randomUUID();
+    request.current = requestId;
+    setPhases([phase]);
+    setBusy(true);
+    return requestId;
+  };
+  const finish = () => {
+    request.current = undefined;
+    setPhases([]);
+    setBusy(false);
+  };
   const [speak, setSpeak] = useState(false);
   const [recording, setRecording] = useState(false);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -95,14 +120,20 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
   const append = (m: Msg) => setMsgs((x) => [...x, m]);
 
   const send = async (content: string) => {
-    const q = content.trim();
+    const q = content.trim().slice(0, 4000);
     if (!q || busy) return;
     const history = [...msgs, { role: 'user' as const, content: q }];
     setMsgs(history);
     setText('');
-    setBusy(true);
+    const requestId = start('understanding');
     try {
-      const r = await post<any>('/assistant/chat', { messages: history.map(({ role, content }) => ({ role, content })), lang, context: { path: '/app' } });
+      const entityId = /^\/(?:lead|inventory|property)\/([^/]+)$/.exec(pathname)?.[1];
+      const r = await post<any>('/assistant/chat', {
+        requestId,
+        messages: history.slice(-16).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
+        lang,
+        context: { path: pathname, entityId },
+      });
       append({ role: 'assistant', content: r.reply, cards: r.cards, pending: r.pending });
       say(r.reply);
     } catch (e) {
@@ -114,17 +145,22 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
             : `⚠️ ${errorMessage(e)}`,
       });
     } finally {
-      setBusy(false);
+      finish();
     }
   };
 
   const resolve = async (i: number, ok: boolean) => {
     const p = msgs[i].pending!;
-    setMsgs((m) => m.map((x, k) => (k === i ? { ...x, resolved: ok ? 'done' : 'cancelled' } : x)));
-    if (!ok) return void post('/assistant/cancel', { token: p.token }).catch(() => undefined);
-    setBusy(true);
+    const resolveAs = (resolved: Msg['resolved']) => setMsgs((m) => m.map((x, k) => (k === i ? { ...x, resolved } : x)));
+    if (busy) return;
+    if (!ok) {
+      resolveAs('cancelled');
+      return void post('/assistant/cancel', { token: p.token }).catch(() => undefined);
+    }
+    const requestId = start('applying');
     try {
-      const r = await post<any>('/assistant/confirm', { token: p.token, lang });
+      const r = await post<any>('/assistant/confirm', { token: p.token, lang, requestId });
+      resolveAs(r.actionSucceeded === false ? 'failed' : 'done');
       const receipt = r.receipt
         ? Object.entries(r.receipt)
             .map(([label, value]) => label + ' ' + value)
@@ -133,9 +169,10 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
       append({ role: 'assistant', content: [r.reply, receipt].filter(Boolean).join('\n'), cards: r.cards });
       say(r.reply);
     } catch (e) {
+      resolveAs('failed');
       append({ role: 'assistant', content: `⚠️ ${errorMessage(e)}` });
     } finally {
-      setBusy(false);
+      finish();
     }
   };
 
@@ -145,14 +182,14 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
       setRecording(false);
       await setAudioModeAsync({ allowsRecording: false });
       if (!recorder.uri) return;
-      setBusy(true);
+      start('transcribing');
       try {
         const b64 = await FileSystem.readAsStringAsync(recorder.uri, { encoding: FileSystem.EncodingType.Base64 });
         const r = await post<{ text: string }>('/assistant/transcribe', { audio: b64, mime: 'audio/m4a', lang });
-        setBusy(false);
+        finish();
         if (r.text) setText(r.text); // The user reviews/edits the transcript before sending it.
       } catch (e) {
-        setBusy(false);
+        finish();
         append({ role: 'assistant', content: `⚠️ ${errorMessage(e)}` });
       }
       return;
@@ -165,17 +202,25 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
     setRecording(true);
   };
 
-  const open = (url: string) => {
+  const open = (destination: string) => {
+    if (destination.startsWith('https://')) {
+      void Linking.openURL(destination)
+        .then(onClose)
+        .catch(() => append({ role: 'assistant', content: 'Could not open the BrokerIQ Web portal.' }));
+      return;
+    }
     onClose();
-    router.push(url.startsWith('/broker/leads/') ? `/lead/${url.split('/').pop()}` : (url as any));
+    router.push(destination as never);
   };
 
   const hints =
     user?.role === 'SUPER_ADMIN'
       ? ['Approval के लिए कितनी listings pending हैं?', 'आज का platform overview']
-      : user?.role === 'USER'
-        ? ['Sector 65 में 3 BHK furnished, 60k तक', '40k rent पर move-in cost कितना होगा?', 'मेरी enquiries दिखाओ']
-        : ['आज का agenda बताओ', 'Hot leads दिखाओ', 'नई lead जोड़ो: Rahul 98xxxxxxxx'];
+      : user?.role === 'PROPERTY_OWNER'
+        ? ['मेरी properties दिखाओ', 'मेरी properties की availability बताओ']
+        : user?.role === 'USER'
+          ? ['Sector 65 में 3 BHK furnished, 60k तक', '40k rent पर move-in cost कितना होगा?', 'मेरी enquiries दिखाओ']
+          : ['आज का agenda बताओ', 'Hot leads दिखाओ', 'नई lead जोड़ो: Rahul 98xxxxxxxx'];
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
@@ -236,31 +281,42 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
                   borderBottomLeftRadius: m.role === 'user' ? 18 : 6,
                 }}
               >
-                <Txt color={m.role === 'user' ? 'white' : 'fg'} selectable>
-                  {m.content}
-                </Txt>
+                {m.role === 'assistant' ? (
+                  <AssistantText
+                    content={m.content}
+                    cardUrls={m.cards?.items.map((item) => item.url) ?? []}
+                    staff={user?.role === 'SUPER_ADMIN' || user?.role === 'MODERATOR'}
+                    onNavigate={open}
+                  />
+                ) : (
+                  <Txt color="white" selectable>
+                    {m.content}
+                  </Txt>
+                )}
               </View>
-              {m.cards?.items.map((it) => (
-                <Card key={it.id} onPress={() => it.url && open(it.url)} style={{ padding: 10, alignSelf: 'stretch' }}>
-                  <Txt v="bodyStrong" numberOfLines={1}>
-                    {m.cards!.type === 'listings' ? it.title : it.name}
-                  </Txt>
-                  <Txt v="caption" color="muted">
-                    {(m.cards!.type === 'listings'
-                      ? [it.purpose, it.priceText ?? it.rentText, it.locality, it.bedrooms ? `${it.bedrooms} BHK` : null]
-                      : [it.phone, it.stage, it.temperature]
-                    )
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Txt>
-                </Card>
-              ))}
+              {m.cards?.items
+                .filter((item) => assistantDestination(item.url, true))
+                .map((it) => (
+                  <Card key={it.id} onPress={() => open(assistantDestination(it.url, true)!)} style={{ padding: 10, alignSelf: 'stretch' }}>
+                    <Txt v="bodyStrong" numberOfLines={1}>
+                      {m.cards!.type === 'listings' ? it.title : it.name}
+                    </Txt>
+                    <Txt v="caption" color="muted">
+                      {(m.cards!.type === 'listings'
+                        ? [it.purpose, it.priceText ?? it.rentText, it.locality, it.bedrooms ? `${it.bedrooms} BHK` : null]
+                        : [it.phone, it.stage, it.temperature]
+                      )
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Txt>
+                  </Card>
+                ))}
               {m.pending && (
                 <Card style={{ padding: 12, gap: 8, alignSelf: 'stretch', borderColor: c.warning, backgroundColor: `${c.warning}14` }}>
                   <Txt v="bodyStrong">{m.pending.summary}</Txt>
                   {m.resolved ? (
                     <Txt v="caption" color="muted">
-                      {m.resolved === 'done' ? '✅ Confirmed' : 'रद्द किया'}
+                      {m.resolved === 'done' ? '✅ Confirmed' : m.resolved === 'failed' ? 'Could not confirm' : 'रद्द किया'}
                     </Txt>
                   ) : (
                     <Row>
@@ -272,16 +328,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
               )}
             </View>
           )}
-          ListFooterComponent={
-            busy ? (
-              <Row gap={8}>
-                <InlineLoader />
-                <Txt v="small" color="muted">
-                  सोच रहा हूँ…
-                </Txt>
-              </Row>
-            ) : null
-          }
+          ListFooterComponent={busy && phases.length > 0 ? <AssistantActivity phases={phases} lang={lang} /> : null}
         />
         <Row gap={8} style={{ padding: 12, paddingBottom: insets.bottom + 12, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
           <PressableScale
@@ -300,6 +347,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
           </PressableScale>
           <TextInput
             value={text}
+            maxLength={4000}
             onChangeText={setText}
             placeholder={tr(recording ? 'सुन रहा हूँ… (■ दबाकर भेजें)' : 'लिखें या mic दबाकर बोलें…')}
             placeholderTextColor={c.subtle}

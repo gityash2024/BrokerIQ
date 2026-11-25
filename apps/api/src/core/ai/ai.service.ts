@@ -39,6 +39,8 @@ interface CallOpts {
   strictSchema?: boolean;
   openRouterOnly?: boolean;
   deferWhenRateLimited?: boolean;
+  deadlineAt?: number;
+  onFallback?: () => void;
 }
 
 const PROVIDERS: ProviderName[] = ['qwen_local', 'openrouter', 'groq', 'gemini'];
@@ -72,7 +74,10 @@ class RetryableError extends Error {
 class ProviderError extends Error {}
 
 export class OpenRouterQuotaDeferred extends Error {
-  constructor(readonly until: Date, readonly daily = false) {
+  constructor(
+    readonly until: Date,
+    readonly daily = false,
+  ) {
     super(daily ? 'OpenRouter daily request limit reached' : 'Free OpenRouter capacity is temporarily unavailable');
   }
 }
@@ -257,6 +262,8 @@ export class AiService {
   async chatWithTools(messages: any[], tools: any[], opts: CallOpts) {
     let message: { content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] } = { content: '' };
     await this.run(opts, 'tools', async (p, model) => {
+      const timeout = opts.deadlineAt == null ? TEXT_TIMEOUT_MS : Math.min(12_000, opts.deadlineAt - Date.now());
+      if (timeout <= 0) throw new RetryableError('Assistant turn deadline exceeded');
       const data = await this.post(
         p,
         {
@@ -267,9 +274,11 @@ export class AiService {
           temperature: 0.2,
           max_tokens: opts.maxTokens ?? 1200,
         },
-        TEXT_TIMEOUT_MS,
+        timeout,
       );
-      const m = data.choices?.[0]?.message;
+      const choice = data.choices?.[0];
+      if (choice?.finish_reason === 'length') throw new RetryableError('incomplete assistant response');
+      const m = choice?.message;
       if (!m || (!m.content && !m.tool_calls?.length)) throw new RetryableError('empty answer');
       message = m;
       return { text: m.content ?? '', tokens: data.usage?.total_tokens ?? 0 };
@@ -354,21 +363,22 @@ export class AiService {
     kind: 'text' | 'vision' | 'tools' | 'json',
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
-    const providers = (await this.providers(kind === 'vision' && (opts.feature === 'capture' || opts.feature === 'property_video'), opts.openRouterOnly)).filter((p) =>
-      !opts.openRouterOnly || p.name === 'openrouter',
-    ).filter((p) =>
-      kind === 'vision'
-        ? p.visionModels.length > 0
-        : (kind !== 'tools' || p.name !== 'qwen_local') &&
-          (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
-          p.textModels.length > 0,
-    );
+    const providers = (await this.providers(kind === 'vision' && (opts.feature === 'capture' || opts.feature === 'property_video'), opts.openRouterOnly))
+      .filter((p) => !opts.openRouterOnly || p.name === 'openrouter')
+      .filter((p) =>
+        kind === 'vision'
+          ? p.visionModels.length > 0
+          : (kind !== 'tools' || p.name !== 'qwen_local') &&
+            (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
+            p.textModels.length > 0,
+      );
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
     const rateLimited: Date[] = [];
     for (const p of providers) {
       const models = kind === 'vision' ? p.visionModels : p.textModels;
       for (const model of models) {
+        if (opts.deadlineAt != null && Date.now() >= opts.deadlineAt) break;
         const retryAt = this.openRouterRetryAt.get(model) ?? 0;
         if (p.name === 'openrouter' && Date.now() < retryAt) {
           rateLimited.push(new Date(retryAt));
@@ -376,13 +386,14 @@ export class AiService {
           continue;
         }
         try {
+          if (errors.length) opts.onFallback?.();
           let out;
           try {
             out = await attempt(p, model);
           } catch (error) {
             // One bounded retry for network/5xx glitches; rate limits immediately
             // follow the configured fallback chain and retain Retry-After.
-            if (p.name !== 'openrouter' || !(error instanceof RetryableError) || !error.transient) throw error;
+            if (opts.deadlineAt != null || p.name !== 'openrouter' || !(error instanceof RetryableError) || !error.transient) throw error;
             await this.track(p.name, model, opts, false, 0);
             await new Promise((resolve) => setTimeout(resolve, 1000));
             out = await attempt(p, model);
@@ -492,6 +503,7 @@ export class AiService {
   }
 
   private async postRequest(p: Provider, body: Record<string, unknown>, timeoutMs: number): Promise<any> {
+    const startedAt = Date.now();
     const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}) };
     if (p.name === 'openrouter') {
       if (typeof body.model !== 'string' || !isFreeOpenRouterModel(body.model)) throw new ProviderError('OpenRouter requires a free model');
@@ -504,7 +516,7 @@ export class AiService {
         ...(p.disableReasoning && !this.openRouterMandatoryReasoning.has(body.model) ? { reasoning: { enabled: false } } : {}),
         provider: {
           ...openRouterFreeRouting,
-          ...((body.response_format as { type?: string } | undefined)?.type === 'json_schema' ? { require_parameters: true } : {}),
+          ...(body.tools || (body.response_format as { type?: string } | undefined)?.type === 'json_schema' ? { require_parameters: true } : {}),
         },
       };
     }
@@ -548,13 +560,19 @@ export class AiService {
     }
     const data: any = await res.json().catch(() => ({}));
     const msg = data?.error?.message ?? data?.[0]?.error?.message ?? `HTTP ${res.status}`;
-    if (p.name === 'openrouter' && [400, 422].includes(res.status) && typeof body.model === 'string' &&
-        (body.reasoning as { enabled?: boolean } | undefined)?.enabled === false &&
-        /reasoning is mandatory.*cannot be disabled/i.test(String(msg))) {
+    if (
+      p.name === 'openrouter' &&
+      [400, 422].includes(res.status) &&
+      typeof body.model === 'string' &&
+      (body.reasoning as { enabled?: boolean } | undefined)?.enabled === false &&
+      /reasoning is mandatory.*cannot be disabled/i.test(String(msg))
+    ) {
       const { reasoning: _reasoning, ...retry } = body;
       // The setting applies to optional reasoning. Both requests use the same free price/privacy rules and quota.
       if (body.model !== 'openrouter/free') this.openRouterMandatoryReasoning.add(body.model);
-      return this.postRequest({ ...p, disableReasoning: false }, retry, timeoutMs);
+      const remaining = timeoutMs - (Date.now() - startedAt);
+      if (remaining < 1) throw new RetryableError('No time left for the reasoning retry');
+      return this.postRequest({ ...p, disableReasoning: false }, retry, remaining);
     }
     if (res.status === 401 || res.status === 403) throw new ProviderError(`key rejected: ${msg}`);
     if (res.status === 402) throw new ProviderError(`no credit: ${msg}`);
@@ -588,9 +606,10 @@ export class AiService {
         const data = await this.post(p, { model, messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 5 }, 20_000);
         const ok = String(data.choices?.[0]?.message?.content ?? '').trim();
         if (!ok) throw new RetryableError('empty diagnostic response');
-        const [free, quota] = key === 'openrouter'
-          ? await Promise.all([this.freeModels(p.apiKey).catch((): string[] => []), this.freeDailyQuota(p.apiKey).catch(() => null)])
-          : [new Array<string>(), null] as const;
+        const [free, quota] =
+          key === 'openrouter'
+            ? await Promise.all([this.freeModels(p.apiKey).catch((): string[] => []), this.freeDailyQuota(p.apiKey).catch(() => null)])
+            : ([new Array<string>(), null] as const);
         const missing =
           key === 'openrouter' && free.length ? [...p.textModels, ...p.visionModels].filter((m) => m !== 'openrouter/free' && !free.includes(m)) : [];
         return [
@@ -611,7 +630,8 @@ export class AiService {
 
   private async freeDailyQuota(apiKey: string) {
     const response = await fetch('https://openrouter.ai/api/v1/key', {
-      headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000),
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) return null;
     const data: { data?: { free_model_daily_requests?: { used?: number; limit?: number } } } = await response.json();

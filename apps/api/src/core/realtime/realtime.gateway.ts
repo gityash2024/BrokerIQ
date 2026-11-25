@@ -39,8 +39,8 @@ export class RealtimeGateway implements OnGatewayConnection {
         current.deletedAt ||
         (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED') ||
         (env().BROKER_FIRST &&
-          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(current.role) ||
-            (['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(current.role) && !current.organizationId)))
+          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER', 'USER'].includes(current.role) ||
+            (['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'].includes(current.role) && !current.organizationId)))
       ) {
         client.disconnect(true);
         return;
@@ -52,8 +52,8 @@ export class RealtimeGateway implements OnGatewayConnection {
       const expiry = setTimeout(() => client.disconnect(true), Math.max(1, payload.exp * 1000 - Date.now()));
       expiry.unref();
       client.on('disconnect', () => clearTimeout(expiry));
-      if (current.organizationId && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(current.role) &&
-          !current.delegatedPermissions.includes(ROLE_PERMISSIONS_MARKER)) client.join(`org:${current.organizationId}`);
+      if (current.organizationId && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(current.role) && !current.delegatedPermissions.includes(ROLE_PERMISSIONS_MARKER))
+        client.join(`org:${current.organizationId}`);
       if (current.role === 'SUPER_ADMIN') client.join('admins');
     } catch {
       client.disconnect(true);
@@ -74,6 +74,10 @@ export class RealtimeGateway implements OnGatewayConnection {
   disconnectUser(userId: string) {
     this.server?.to(`user:${userId}`).emit('session.revoked', { reason: 'ACCOUNT_ACCESS_CHANGED' });
     this.server?.in(`user:${userId}`).disconnectSockets(true);
+  }
+
+  toSession(sessionId: string, event: string, data: unknown) {
+    this.server?.to(`session:${sessionId}`).emit(event, data);
   }
 
   toUser(userId: string, event: string, data: unknown) {

@@ -1,10 +1,12 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { usePathname } from 'next/navigation';
 import { Building2, LayoutDashboard, SlidersHorizontal, Users, Clock, Workflow } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { useConfig } from '@/lib/config';
+import { useAuth } from '@/lib/auth';
 import { ADMIN_BUSINESS_RESOURCES, moduleAllowed, type AdminBusinessResource } from '@brokeriq/shared';
 import { adminToolGroups } from '@/components/admin/admin-tools';
 
@@ -105,9 +107,12 @@ function Inner({ children }: { children: React.ReactNode }) {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const moderation = pathname === '/admin/moderation';
   return (
-    <RequireAuth roles={['SUPER_ADMIN']}>
-      <Inner>{children}</Inner>
+    <RequireAuth roles={moderation ? ['SUPER_ADMIN', 'MODERATOR'] : ['SUPER_ADMIN']} preserveSearch={moderation}>
+      {user?.role === 'MODERATOR' ? <main className="mx-auto max-w-5xl p-4 sm:p-6">{children}</main> : <Inner>{children}</Inner>}
     </RequireAuth>
   );
 }

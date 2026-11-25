@@ -37,11 +37,13 @@ export class AdminListingsController {
   // ------------------------------------------------------------------ moderation
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @Get('moderation/listings')
-  async moderation(@Query() q: { status?: string; q?: string; page?: string; flagged?: string }) {
+  async moderation(@Query() q: { status?: string; q?: string; page?: string; flagged?: string; listing?: string }) {
+    if (q.listing !== undefined && !/^[a-zA-Z0-9_-]{1,100}$/.test(q.listing)) throw new BadRequestException('Invalid listing ID');
     const page = Math.max(1, Number(q.page) || 1);
     const where: Prisma.ListingWhereInput = {
       deletedAt: null,
       status: (q.status as any) || 'PENDING_REVIEW',
+      ...(q.listing ? { id: q.listing } : {}),
       ...(q.flagged === 'true' ? { NOT: { moderationFlags: { isEmpty: true } } } : {}),
       ...(q.q ? { OR: [{ title: { contains: q.q, mode: 'insensitive' } }, { slug: { contains: q.q } }] } : {}),
     };

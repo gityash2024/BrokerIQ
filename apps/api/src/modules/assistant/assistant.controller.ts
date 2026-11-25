@@ -2,7 +2,8 @@ import { Body, Controller, Post, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { assistantChatSchema, assistantConfirmSchema, transcribeSchema } from '@brokeriq/shared';
+import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
+import { assistantChatSchema, assistantConfirmSchema, transcribeSchema, type AssistantPhase } from '@brokeriq/shared';
 import { ClientIp, CurrentUser, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -18,7 +19,14 @@ export class AssistantController {
     private readonly access: AccessService,
     private readonly assistant: AssistantService,
     private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
   ) {}
+
+  private report(req: Request, requestId?: string) {
+    const sessionId = (req as Request & { sessionId?: string }).sessionId;
+    if (!sessionId || !requestId) return undefined;
+    return (phase: AssistantPhase) => this.realtime.toSession(sessionId, 'assistant.progress', { requestId, phase });
+  }
 
   private async withName(user: RequestUser) {
     const u = await this.prisma.user.findUnique({ where: { id: user.id }, select: { name: true } });
@@ -34,7 +42,7 @@ export class AssistantController {
     @ClientIp() ip?: string,
   ) {
     await this.access.assertAllowed(user, 'ai');
-    return this.assistant.chat(await this.withName(user), String(req.headers.authorization ?? ''), body, ip);
+    return this.assistant.chat(await this.withName(user), String(req.headers.authorization ?? ''), body, ip, this.report(req, body.requestId));
   }
 
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
@@ -46,7 +54,14 @@ export class AssistantController {
     @ClientIp() ip?: string,
   ) {
     await this.access.assertAllowed(user, 'ai');
-    return this.assistant.confirm(await this.withName(user), String(req.headers.authorization ?? ''), body.token, body.lang, ip);
+    return this.assistant.confirm(
+      await this.withName(user),
+      String(req.headers.authorization ?? ''),
+      body.token,
+      body.lang,
+      ip,
+      this.report(req, body.requestId),
+    );
   }
 
   @Post('cancel')

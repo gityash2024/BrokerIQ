@@ -29,4 +29,14 @@ describe('Assistant property purpose and amount contract', () => {
     await expect(TOOLS.find((t) => t.name === 'search_properties')!.run({}, ctx)).rejects.toThrow('Choose RENT or SALE');
     expect(call).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    ['USER', '/user/account/listings/pending-id/edit'],
+    ['BROKER_ADMIN', '/broker/listings/pending-id/edit'],
+  ])('links own pending records to the authorized %s workspace', async (role, url) => {
+    const call = jest.fn().mockResolvedValue({ items: [{ id: 'pending-id', slug: 'pending-slug', status: 'PENDING_REVIEW' }] });
+    const me = jest.fn().mockResolvedValue({ role });
+    const result = await TOOLS.find((tool) => tool.name === 'my_listings')!.run({}, { call, me });
+    expect(result).toMatchObject({ listings: [{ url }] });
+  });
 });

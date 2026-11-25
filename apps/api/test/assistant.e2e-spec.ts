@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { json } from 'express';
 import { AppModule } from '../src/app.module';
@@ -7,6 +8,8 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { SettingsService } from '../src/core/settings/settings.service';
 import { AiService } from '../src/core/ai/ai.service';
+import { AuthService } from '../src/modules/auth/auth.service';
+import { RealtimeGateway } from '../src/core/realtime/realtime.gateway';
 
 /**
  * AI assistant: the LLM is mocked with a scripted queue of replies so we can assert what the
@@ -135,6 +138,63 @@ describe('AI assistant (e2e)', () => {
     const l = await prisma.listing.findFirstOrThrow({ where: { postedBy: { email: email('user') } } });
     expect(l).toMatchObject({ purpose: 'RENT', status: 'PENDING_REVIEW', price: 42000 }); // still needs admin approval
     await http.post('/api/assistant/confirm').set(auth(user)).send({ token: r.body.pending.token }).expect(400); // single use
+  });
+
+  it('answers the exact pending-count question without AI and links to the authorized moderation record', async () => {
+    const staff = await prisma.user.create({
+      data: { email: email('moderator-admin'), name: 'Isolated moderation admin', role: 'SUPER_ADMIN' },
+      include: { organization: true },
+    });
+    const session = await app.get(AuthService).issue(staff);
+    const listing = await prisma.listing.create({
+      data: {
+        slug: 'isolated-moderation-' + uniq,
+        title: 'Isolated moderation listing',
+        purpose: 'RENT',
+        propertyType: 'APARTMENT',
+        category: 'RESIDENTIAL',
+        status: 'PENDING_REVIEW',
+        localityId,
+        price: 45000,
+        postedByType: 'OWNER',
+        postedById: staff.id,
+      },
+    });
+    const total = await prisma.listing.count({ where: { status: 'PENDING_REVIEW', deletedAt: null } });
+    const requestId = randomUUID();
+    const progress = jest.spyOn(app.get(RealtimeGateway), 'toSession');
+    const calls = assistantInputs.length;
+    try {
+      const result = await http
+        .post('/api/assistant/chat')
+        .set(auth(session.accessToken))
+        .send({
+          requestId,
+          messages: [{ role: 'user', content: 'Approval के लिए कितनी listings pending हैं?' }],
+          lang: 'hi',
+        })
+        .expect(201);
+      expect(result.body.reply).toContain(`**${total}**`);
+      expect(result.body.cards.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: listing.id,
+            url: '/admin/moderation?listing=' + listing.id,
+          }),
+        ]),
+      );
+      expect(assistantInputs).toHaveLength(calls);
+      expect(progress.mock.calls.map(([, event, data]) => [event, data])).toEqual(
+        ['understanding', 'retrieving', 'composing'].map((phase) => ['assistant.progress', { requestId, phase }]),
+      );
+      expect(new Set(progress.mock.calls.map(([sessionId]) => sessionId)).size).toBe(1);
+      const selected = await http.get('/api/admin/moderation/listings').query({ listing: listing.id }).set(auth(session.accessToken)).expect(200);
+      expect(selected.body.items.map(({ id }: { id: string }) => id)).toEqual([listing.id]);
+      await http.get('/api/admin/moderation/listings').query({ listing: listing.id }).set(auth(user)).expect(403);
+      await http.get('/api/listings/' + listing.slug).expect(404);
+    } finally {
+      progress.mockRestore();
+    }
   });
 
   it('brokers get CRM tools scoped to their firm', async () => {
