@@ -4,6 +4,7 @@ import { Prisma, type OrganicRun, type OrganicSource } from '@prisma/client';
 import { brokerRequirementSchema, canonicalInventorySector, inventoryInputSchema, ledgerMatch, organicRecordInput, realeGurugramSource,
   type OrganicQuery, type OrganicRecordInput, type OrganicSourceInput } from '@brokeriq/shared';
 import { createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { env } from '../../config/env';
 import { JobDeferred, JobsService } from '../../core/jobs/jobs.service';
 import { SettingsService } from '../../core/settings/settings.service';
@@ -28,7 +29,7 @@ export class OrganicService {
   constructor(private readonly db: PrismaService, private readonly jobs: JobsService, private readonly settings: SettingsService,
     private readonly ai: AiService, private readonly notifications: NotificationsService) {
     jobs.register('organic.discovery', (job) => this.discover(job.kind, job.key, job.day, job.sourceId));
-    jobs.register('organic.collect', (job) => this.collectScheduled(job.kind, job.key, job.day));
+    jobs.register('organic.collect', (job) => this.collectScheduled(job.kind, job.key, job.day, job.sourceId));
     jobs.register('organic.enrich', (job) => this.enrichScheduled(job.kind, job.key));
     jobs.register('organic.publish', (job) => this.publishScheduled(job.kind, job.key));
     jobs.register('organic.ready', (job) => this.notifyReady(job.kind, job.day));
@@ -109,13 +110,15 @@ export class OrganicService {
     return digest(JSON.stringify([source.url, source.format, source.itemsPath, source.permissionUrl, source.contactRedistribution, source.supports]));
   }
 
-  private async collectScheduled(kind: Kind, key: string, discoveryDay: string) {
+  private async collectScheduled(kind: Kind, key: string, discoveryDay: string, sourceId?: string) {
+    const manual = key.startsWith('organic-manual:');
     const cutoff = new Date(discoveryDay + 'T00:00:00+05:30');
     const run = await this.db.organicRun.upsert({ where: { key }, update: {}, create: {
-      kind, key, status: 'COLLECTING', windowFrom: new Date(cutoff.valueOf() - day), windowTo: cutoff,
+      kind, key, status: 'COLLECTING',
+      ...(manual ? {} : { windowFrom: new Date(cutoff.valueOf() - day), windowTo: cutoff }),
     } });
     if (run.status !== 'COLLECTING' || !(await this.continueScheduled(kind, run))) return;
-    const sources = await this.db.organicSource.findMany({ where: { enabled: true, supports: { has: kind } },
+    const sources = await this.db.organicSource.findMany({ where: { id: sourceId, enabled: true, supports: { has: kind } },
       orderBy: [{ priority: 'desc' }, { id: 'asc' }] });
     const localities = await this.localityNames();
     const attemptField = kind === 'SUPPLY' ? 'supplyAttemptAt' : 'demandAttemptAt';
@@ -133,10 +136,9 @@ export class OrganicService {
         continue;
       }
       try {
-        const content = await readOrganicSource(source.url, null);
-        const entries = content.text ? decodeOrganicSource(content.text, source.format, source.itemsPath, source.supports, source.url) : [];
+        const { entries } = await this.readSource(source);
         const rows = entries.flatMap((entry) => {
-          if (entry.kind !== kind || !this.inWindow(entry, now, run.windowFrom!, cutoff)) return [];
+          if (entry.kind !== kind || !this.inWindow(entry, now, run.windowFrom ?? undefined, run.windowTo ?? undefined)) return [];
           const normalized = normalizeOrganicRecord(entry, localities, source.contactRedistribution);
           return normalized ? [normalized.data] : [];
         });
@@ -217,7 +219,7 @@ export class OrganicService {
   }
 
   private async continueScheduled(kind: Kind, run: OrganicRun) {
-    if ((await this.settingsFor(kind)).enabled) return true;
+    if (run.key.startsWith('organic-manual:') || (await this.settingsFor(kind)).enabled) return true;
     await this.db.$transaction([
       this.db.organicSourceBatch.updateMany({ where: { runId: run.id, status: { in: ['COLLECTED', 'ENRICHED'] } }, data: { rows: Prisma.DbNull, status: 'SKIPPED' } }),
       this.db.organicRun.update({ where: { id: run.id }, data: { status: 'CANCELLED', finishedAt: new Date() } }),
@@ -244,6 +246,30 @@ export class OrganicService {
     ]);
   }
 
+  private async readSource(source: OrganicSource, etag?: string | null) {
+    const registry = source.format === 'RERA_PROJECTS';
+    const content = await readOrganicSource(source.url, registry ? null : etag);
+    const decode = (body: string) => decodeOrganicSource(body, source.format, source.itemsPath, source.supports, source.url);
+    const entries = content.text ? decode(content.text) : [];
+    if (registry && content.text) {
+      // Validate the configured registry before generating further public requests.
+      if (source.url !== realeGurugramSource.url) throw new Error('Unexpected RERA registry endpoint');
+      const first = JSON.parse(content.text) as { pages?: number };
+      if (typeof first.pages !== 'number' || !Number.isSafeInteger(first.pages) || first.pages < 1 || first.pages > 80) {
+        throw new Error('Unsupported RERA project page count');
+      }
+      const url = new URL(source.url);
+      for (let page = 2; page <= first.pages; page++) {
+        await delay(350);
+        url.searchParams.set('page', String(page));
+        const next = await readOrganicSource(url.href);
+        if (!next.text || (JSON.parse(next.text) as { page?: number }).page !== page) throw new Error('Invalid RERA project page');
+        entries.push(...decode(next.text));
+      }
+    }
+    return { entries, etag: content.etag };
+  }
+
   private async localityNames() {
     return (await this.db.locality.findMany({ where: { isActive: true }, select: { name: true } })).map(({ name }) => name);
   }
@@ -259,10 +285,19 @@ export class OrganicService {
     return this.db.organicSource.update({ where: { id: sourceId }, data: { lastFailureAt: new Date(), lastError: 'Source could not be fetched or validated' } });
   }
 
-  runNow(kind: Kind, sourceId?: string) {
-    const slot = Math.floor(Date.now() / (5 * 60_000));
+  async runNow(kind: Kind, sourceId?: string) {
+    const now = new Date();
+    const slot = Math.floor(now.valueOf() / (5 * 60_000));
     const key = ['organic-manual', kind, sourceId ?? 'all', slot].join(':');
-    return this.jobs.enqueue('organic.discovery', { kind, key, day: dayKey(new Date()), sourceId }, { key });
+    const legacy = await this.db.job.findUnique({ where: { key } });
+    if (legacy) return legacy;
+    if (sourceId && !(await this.db.organicSource.count({ where: { id: sourceId, enabled: true, supports: { has: kind } } })))
+      throw new NotFoundException('This source is unavailable for the selected workflow');
+    const payload = { kind, key, day: dayKey(now), sourceId };
+    const collect = await this.jobs.enqueue('organic.collect', payload, { key: key + ':collect', runAt: now });
+    await this.jobs.enqueue('organic.enrich', payload, { key: key + ':enrich', runAt: new Date(now.valueOf() + 1000) });
+    await this.jobs.enqueue('organic.publish', payload, { key: key + ':publish', runAt: new Date(now.valueOf() + 2000) });
+    return collect;
   }
 
   private async discover(kind: Kind, key: string, discoveryDay: string, sourceId?: string) {
@@ -291,12 +326,11 @@ export class OrganicService {
       if (!lease.count) { report.skipped++; continue; }
       try {
         // The date window moves even if the feed bytes stay the same.
-        const content = await readOrganicSource(source.url, scheduled ? null : source[etagField]);
+        const { entries, etag } = await this.readSource(source, scheduled ? null : source[etagField]);
         let inserted = 0;
         let duplicate = 0;
         let reviewed = 0;
         let attempts = 0;
-        const entries = content.text ? decodeOrganicSource(content.text, source.format, source.itemsPath, source.supports, source.url) : [];
         for (const entry of entries) {
           if (entry.kind !== kind || !this.inWindow(entry, now, scheduled ? yesterday : undefined, scheduled ? windowTo : undefined)) continue;
           let normalized = normalizeOrganicRecord(entry, localities, source.contactRedistribution);
@@ -312,7 +346,7 @@ export class OrganicService {
         report.records += inserted;
         report.duplicates += duplicate;
         report.reviewed += reviewed;
-        await this.db.organicSource.update({ where: { id: source.id }, data: { [etagField]: content.etag, lastSuccessAt: new Date(), lastError: null,
+        await this.db.organicSource.update({ where: { id: source.id }, data: { [etagField]: etag, lastSuccessAt: new Date(), lastError: null,
           lastReport: { found: entries.length, inserted, duplicate, reviewed } } });
       } catch {
         report.failed++;

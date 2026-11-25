@@ -116,6 +116,42 @@ describe('Organic daily delivery', () => {
     }
   });
 
+  it('queues restartable manual source phases while the schedule is paused', async () => {
+    const key = randomUUID();
+    const service = app.get(OrganicService);
+    const source = await db.organicSource.create({ data: {
+      name: 'Manual run source', url: 'https://example.org/manual/' + key, permissionUrl: 'https://example.org/terms',
+      format: 'JSON', supports: ['SUPPLY'], enabled: true,
+    } });
+    const settings = jest.spyOn(service, 'settingsFor').mockResolvedValue({
+      enabled: false, time: '00:00', enrichTime: '05:00', resultsTime: '06:00', notifyTime: '07:00',
+    });
+    const read = jest.spyOn(sourceAdapter, 'readOrganicSource').mockResolvedValue({ text: '[]', etag: null });
+    let runKey: string | undefined;
+    try {
+      const collect = await service.runNow('SUPPLY', source.id);
+      const payload = collect.payload as { key: string; day: string };
+      runKey = payload.key;
+      expect((await service.runNow('SUPPLY', source.id)).id).toBe(collect.id);
+      expect(await db.job.count({ where: { key: { startsWith: runKey + ':' } } })).toBe(3);
+      await service['collectScheduled']('SUPPLY', runKey, payload.day, source.id);
+      await service['enrichScheduled']('SUPPLY', runKey);
+      await service['publishScheduled']('SUPPLY', runKey);
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(await db.organicRun.findUnique({ where: { key: runKey } })).toMatchObject({
+        status: 'COMPLETE', report: { sources: 1, records: 0 },
+      });
+    } finally {
+      settings.mockRestore();
+      read.mockRestore();
+      if (runKey) {
+        await db.job.deleteMany({ where: { key: { startsWith: runKey + ':' } } });
+        await db.organicRun.deleteMany({ where: { key: runKey } });
+      }
+      await db.organicSource.update({ where: { id: source.id }, data: { enabled: false } });
+    }
+  });
+
   it('transfers each qualifying lead only once, preserves firm scope, and rejects a foreign recipient', async () => {
     const key = randomUUID();
     const identity = async (name: string, role: 'SUPER_ADMIN' | 'BROKER_ADMIN', organizationId?: string) => {

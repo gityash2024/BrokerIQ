@@ -63,10 +63,14 @@ export class OrganicExecutionsService {
       }
     }
     const relatedJobs = await this.db.job.findMany({ where: { type: { in: jobTypes }, OR: [
-      { key: { in: [...runs.keys()].flatMap((key) => key.startsWith('organic-discovery:') ?
-        [key, key + ':collect', key + ':enrich', key + ':publish', key.replace('organic-discovery:', 'organic-ready:')] :
-        key.startsWith('delivery:') ? ['organic-' + key] :
-          runs.get(key)?.kind === 'MANUAL' ? ['organic-manual-transfer:' + runs.get(key)?.id] : [key]) } },
+      { key: { in: [...runs.keys()].flatMap((key) => {
+        if (key.startsWith('organic-discovery:') || key.startsWith('organic-manual:')) {
+          const phases = [key, key + ':collect', key + ':enrich', key + ':publish'];
+          return key.startsWith('organic-discovery:') ? [...phases, key.replace('organic-discovery:', 'organic-ready:')] : phases;
+        }
+        if (key.startsWith('delivery:')) return ['organic-' + key];
+        return runs.get(key)?.kind === 'MANUAL' ? ['organic-manual-transfer:' + runs.get(key)?.id] : [key];
+      }) } },
       { id: { in: active.map(({ id }) => id) } },
     ] }, select: jobSelect, orderBy: [{ runAt: 'asc' }, { id: 'asc' }] });
     const jobsByRun = new Map<string, Job[]>();
