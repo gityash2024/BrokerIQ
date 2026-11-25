@@ -40,6 +40,43 @@ export const pdfInventoryFilters = z.object({
   minRent: z.coerce.number().min(0).optional(),
   maxRent: z.coerce.number().min(0).optional(),
 });
+export const PDF_BULK_LIMIT = 5000;
+export const pdfInventoryBulkChange = z.discriminatedUnion('field', [
+  z.object({ field: z.literal('availability'), value: pdfInventoryFields.shape.availability.unwrap() }),
+  z.object({ field: z.literal('review'), value: z.enum(['SAVED', 'NEEDS_REVIEW']) }),
+]);
+export type PdfInventoryBulkChange = z.infer<typeof pdfInventoryBulkChange>;
+export const pdfInventoryBulkPreview = z.object({
+  selection: z.discriminatedUnion('mode', [
+    z.object({ mode: z.literal('ids'), ids: z.array(z.string().min(1).max(100)).min(1).max(PDF_BULK_LIMIT) }),
+    z.object({ mode: z.literal('filtered'), filters: pdfInventoryFilters.omit({ page: true }) }),
+  ]),
+  change: pdfInventoryBulkChange,
+});
+export type PdfInventoryBulkInput = z.infer<typeof pdfInventoryBulkPreview>;
+export type PdfInventoryBulkPreview = {
+  token: string | null;
+  selected: number;
+  eligible: number;
+  skipped: number;
+};
+export type PdfInventoryBulkRun = {
+  id: string;
+  status: 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
+  total: number;
+  updated: number;
+  skipped: number;
+  processed: number;
+};
+
+export const pdfInventoryBulkOptions = [
+  ['available', 'Mark available', { field: 'availability', value: 'AVAILABLE' }],
+  ['rented', 'Mark rented', { field: 'availability', value: 'RENTED' }],
+  ['unknown', 'Set availability to unknown', { field: 'availability', value: 'UNKNOWN' }],
+  ['review', 'Send to review', { field: 'review', value: 'NEEDS_REVIEW' }],
+  ['saved', 'Mark reviewed', { field: 'review', value: 'SAVED' }],
+] as const satisfies readonly [string, string, PdfInventoryBulkChange][];
+
 export type PdfInventoryFields = z.infer<typeof pdfInventoryFields>;
 export type PdfInventoryUpdate = z.infer<typeof pdfInventoryUpdate>;
 export type PdfInventoryFilters = z.infer<typeof pdfInventoryFilters>;

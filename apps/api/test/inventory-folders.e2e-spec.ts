@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
+import { JobsService } from '../src/core/jobs/jobs.service';
 
 describe('Inventory directories, reviewed capture and visit directions', () => {
   let app: INestApplication;
@@ -146,6 +147,42 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     await api().patch(patch).set(headers(delegate)).send({ ownerName: 'Changed owner', expectedUpdatedAt: row.updatedAt }).expect(403);
     await api().patch(patch).set(headers(delegate)).send({ monthlyRent: 25000, expectedUpdatedAt: row.updatedAt }).expect(200);
     await api().get(scoped).set(headers(outsider)).expect(200).expect(({ body }) => expect(body.total).toBe(0));
+  });
+
+  it('previews a filtered PDF bulk update and resumes once without overwriting new edits or leaking the firm scope', async () => {
+    const batch = await db.importBatch.create({ data: { organizationId: firmId, sourceType: 'PDF', sourceHash: randomUUID(), status: 'COMPLETE' } });
+    const row = (rowNo: number, availability: 'AVAILABLE' | 'UNKNOWN') => db.pdfInventoryRow.create({
+      data: { organizationId: firmId, batchId: batch.id, pageNo: 4, rowNo, address: 'Regression only', locality: 'Sector 30',
+        rawText: 'Preserved source evidence', availability },
+    });
+    const [first, second, unchanged] = await Promise.all([row(1, 'UNKNOWN'), row(2, 'UNKNOWN'), row(3, 'AVAILABLE')]);
+    const preview = '/api/inventory-pdf/bulk/preview';
+    const apply = '/api/inventory-pdf/bulk/apply';
+    const change = { field: 'availability', value: 'AVAILABLE' };
+    await api().post(preview).set(headers(outsider)).send({ selection: { mode: 'ids', ids: [first.id] }, change }).expect(404);
+    await api().post(preview).set(headers(delegate)).send({ selection: { mode: 'ids', ids: [first.id] }, change: { field: 'review', value: 'SAVED' } }).expect(403);
+    const result = (await api().post(preview).set(headers(delegate))
+      .send({ selection: { mode: 'filtered', filters: { batchId: batch.id } }, change }).expect(201)).body;
+    expect(result).toMatchObject({ selected: 3, eligible: 2, skipped: 1 });
+    await api().post(apply).set(headers(outsider)).send({ token: result.token }).expect(400);
+    await db.pdfInventoryRow.update({ where: { id: second.id }, data: { monthlyRent: 32100, updatedAt: new Date(Date.now() + 1000) } });
+    const send = () => api().post(apply).set(headers(delegate)).send({ token: result.token }).expect(201);
+    const queued = (await send()).body;
+    expect((await send()).body.id).toBe(queued.id);
+    const retry = '/api/inventory-pdf/bulk/' + queued.id + '/retry';
+    await api().post(retry).set(headers(delegate)).expect(409);
+    await db.job.update({ where: { id: queued.id }, data: { status: 'FAILED', attempts: 5 } });
+    await api().post(retry).set(headers(outsider)).expect(404);
+    await api().post(retry).set(headers(delegate)).expect(201)
+      .expect(({ body }) => expect(body).toMatchObject({ status: 'PENDING', processed: 0 }));
+    const job = await db.job.update({ where: { id: queued.id }, data: { status: 'RUNNING', attempts: 1, lockedAt: new Date() } });
+    await (app.get(JobsService) as any).execute(job);
+    await api().get('/api/inventory-pdf/bulk/' + queued.id).set(headers(delegate)).expect(200)
+      .expect(({ body }) => expect(body).toMatchObject({ status: 'DONE', total: 2, updated: 1, skipped: 1, processed: 2 }));
+    await api().get('/api/inventory-pdf/bulk/' + queued.id).set(headers(outsider)).expect(404);
+    expect(await db.pdfInventoryRow.findUnique({ where: { id: first.id } })).toMatchObject({ availability: 'AVAILABLE', rawText: 'Preserved source evidence' });
+    expect(await db.pdfInventoryRow.findUnique({ where: { id: second.id } })).toMatchObject({ availability: 'UNKNOWN', monthlyRent: 32100 });
+    expect(await db.pdfInventoryRow.findUnique({ where: { id: unchanged.id } })).toMatchObject({ availability: 'AVAILABLE', updatedAt: unchanged.updatedAt });
   });
 
   it('opens a new sector before any property exists and scopes custom folders to their firm', async () => {

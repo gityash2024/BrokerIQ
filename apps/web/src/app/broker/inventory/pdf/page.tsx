@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { bytesToBase64, hasDelegatedAccess, normalizeIndianPhone, PDF_INVENTORY_MAX_BYTES, pdfInventoryEditableFields, pdfInventoryFilterFields, uploadImport,
-  type PdfInventoryBatch, type PdfInventoryRow } from '@brokeriq/shared';
+import { bytesToBase64, hasDelegatedAccess, normalizeIndianPhone, PDF_INVENTORY_MAX_BYTES, pdfInventoryBulkOptions, pdfInventoryEditableFields, pdfInventoryFilterFields, uploadImport,
+  type PdfInventoryBatch, type PdfInventoryBulkPreview, type PdfInventoryBulkRun, type PdfInventoryRow } from '@brokeriq/shared';
 import { toast } from 'sonner';
 import { api, assertAccountContext, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -29,6 +29,13 @@ export default function PdfInventoryPage() {
   const [progress, setProgress] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useRouteState<string | null>('pdf-inventory.row', null);
   const [batchBusy, setBatchBusy] = useState('');
+  const [selecting, setSelecting] = useState(false);
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
+  const [allFiltered, setAllFiltered] = useState(false);
+  const [bulkAction, setBulkAction] = useState('');
+  const [bulkPreview, setBulkPreview] = useState<PdfInventoryBulkPreview | null>(null);
+  const [bulkRunId, setBulkRunId] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const allowed = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN'].includes(user.role) && hasDelegatedAccess(user, 'inventory', 'view');
   const canCreate = allowed && hasDelegatedAccess(user, 'inventory', 'create');
   const canEdit = allowed && hasDelegatedAccess(user, 'inventory', 'edit');
@@ -40,7 +47,54 @@ export default function PdfInventoryPage() {
     enabled: allowed,
     refetchInterval: (state) => state.state.data?.batches.some(({ status }) => status === 'PENDING' || status === 'PROCESSING') ? 3000 : false,
   });
+  const bulkRun = useQuery({
+    queryKey: ['pdf-inventory-bulk', user?.organization?.id, user?.id, bulkRunId],
+    queryFn: () => api<PdfInventoryBulkRun>(endpoint + '/bulk/' + bulkRunId),
+    enabled: canEdit && !!bulkRunId,
+    refetchInterval: ({ state }) => ['DONE', 'FAILED'].includes(state.data?.status ?? '') ? false : 2000,
+  });
+  useEffect(() => {
+    setBulkIds([]);
+    setAllFiltered(false);
+    setBulkPreview(null);
+  }, [search, user?.id, user?.organization?.id, canEdit]);
+  useEffect(() => {
+    setBulkRunId(null);
+  }, [user?.id, user?.organization?.id]);
+  useEffect(() => {
+    if (['DONE', 'FAILED'].includes(bulkRun.data?.status ?? '')) void cache.invalidateQueries({ queryKey: ['pdf-inventory'] });
+  }, [bulkRun.data?.status, cache]);
+
   const selected = data.data?.items.find(({ id }) => id === selectedId);
+  const pageIds = data.data?.items.map(({ id }) => id) ?? [];
+  const pageSelected = !!pageIds.length && pageIds.every((id) => bulkIds.includes(id));
+  const actions = pdfInventoryBulkOptions.filter(([, , change]) => change.field !== 'review' || hasDelegatedAccess(user, 'inventory', 'approve'));
+  const bulkCount = allFiltered ? data.data?.total ?? 0 : bulkIds.length;
+
+  async function bulk(confirm: boolean) {
+    const change = actions.find(([key]) => key === bulkAction)?.[2];
+    if (!canEdit || !change || bulkBusy) return;
+    const owner = captureAccountContext();
+    setBulkBusy(true);
+    try {
+      if (confirm) {
+        if (!bulkPreview?.token) return;
+        const run = await api<PdfInventoryBulkRun>(endpoint + '/bulk/apply', { method: 'POST', body: { token: bulkPreview.token } });
+        assertAccountContext(owner);
+        setBulkRunId(run.id);
+        setBulkPreview(null);
+        setBulkIds([]);
+        setAllFiltered(false);
+        setSelecting(false);
+      } else {
+        const selection = allFiltered ? { mode: 'filtered', filters: JSON.parse(search) } : { mode: 'ids', ids: bulkIds };
+        const preview = await api<PdfInventoryBulkPreview>(endpoint + '/bulk/preview', { method: 'POST', body: { selection, change } });
+        assertAccountContext(owner);
+        setBulkPreview(preview);
+      }
+    } catch (error) { toast.error(errorMessage(error)); }
+    finally { setBulkBusy(false); }
+  }
   useEffect(() => {
     setFile(null);
     if (picker.current) picker.current.value = '';
@@ -49,6 +103,18 @@ export default function PdfInventoryPage() {
   function filter(name: string, value: string) {
     setFilters({ ...filters, [name]: value });
     setPage(1);
+  }
+
+  async function retryBulk() {
+    if (!bulkRunId || bulkBusy) return;
+    const ownerContext = captureAccountContext();
+    setBulkBusy(true);
+    try {
+      const run = await api<PdfInventoryBulkRun>(endpoint + '/bulk/' + bulkRunId + '/retry', { method: 'POST' });
+      assertAccountContext(ownerContext);
+      cache.setQueryData(['pdf-inventory-bulk', user?.organization?.id, user?.id, run.id], run);
+    } catch (error) { toast.error(errorMessage(error)); }
+    finally { setBulkBusy(false); }
   }
 
   async function upload() {
@@ -87,6 +153,36 @@ export default function PdfInventoryPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="PDF Inventory" />
+      {canEdit && <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" disabled={bulkBusy} onClick={() => {
+          setSelecting(!selecting); setBulkIds([]); setAllFiltered(false); setBulkPreview(null);
+        }}>{selecting ? 'Cancel selection' : 'Select properties'}</Button>
+        {selecting && <>
+          <Button size="sm" variant="secondary" disabled={!pageIds.length || allFiltered || bulkBusy} onClick={() => {
+            setBulkIds((ids) => pageSelected ? ids.filter((id) => !pageIds.includes(id)) : [...new Set([...ids, ...pageIds])]);
+          }}>{pageSelected ? 'Unselect page' : 'Select page'}</Button>
+          <Button size="sm" variant="secondary" disabled={!data.data?.total || bulkBusy} onClick={() => {
+            setAllFiltered(!allFiltered); setBulkIds([]);
+          }}>{allFiltered ? 'Clear filtered selection' : 'Select all filtered'}</Button>
+          <span className="text-sm text-muted">{bulkCount} selected</span>
+          <select aria-label="Bulk PDF action" className={input + ' !w-auto'} value={bulkAction} onChange={(event) => setBulkAction(event.target.value)}>
+            <option value="">Choose an action</option>
+            {actions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+          <Button size="sm" disabled={!bulkCount || !bulkAction || bulkBusy} onClick={() => void bulk(false)}>Preview</Button>
+        </>}
+        {bulkRun.data && <p className="text-sm" role="status">
+          {bulkRun.data.status === 'FAILED' ? 'Bulk operation could not finish. ' : ''}
+          {bulkRun.data.processed}/{bulkRun.data.total} processed · {bulkRun.data.updated} updated · {bulkRun.data.skipped} skipped
+        </p>}
+        {bulkRun.data?.status === 'FAILED' && <Button size="sm" variant="secondary" disabled={bulkBusy} onClick={() => void retryBulk()}>Retry update</Button>}
+        {bulkRun.error && <ApiErrorState error={bulkRun.error} onRetry={() => bulkRun.refetch()} />}
+      </div>}
+      {canEdit && bulkPreview && <Dialog open onOpenChange={(open) => { if (!open && !bulkBusy) setBulkPreview(null); }} title="Preview PDF update"
+        footer={<Button disabled={!bulkPreview.token || bulkBusy} onClick={() => void bulk(true)}>Apply update</Button>}>
+        <p>{bulkPreview.selected} selected · {bulkPreview.eligible} eligible · {bulkPreview.skipped} skipped</p>
+        <p className="text-sm text-muted">Records changed after this preview will be skipped.</p>
+      </Dialog>}
       {canCreate && <div className="card flex flex-wrap items-end gap-3 p-4">
         <label className="space-y-1 text-sm">Property PDF
           <input ref={picker} className={input} type="file" accept="application/pdf,.pdf" disabled={progress !== null}
@@ -130,8 +226,11 @@ export default function PdfInventoryPage() {
       {data.isError ? <ApiErrorState error={data.error} onRetry={() => data.refetch()} /> : (
         <div className="card overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead><tr>{['Property', 'Configuration', 'Rent', 'Availability', 'Review', ''].map((label, i) => <th className="p-3" key={i}>{label}</th>)}</tr></thead>
+            <thead><tr>{canEdit && selecting && <th className="p-3">Select</th>}{['Property', 'Configuration', 'Rent', 'Availability', 'Review', ''].map((label, i) => <th className="p-3" key={i}>{label}</th>)}</tr></thead>
             <tbody>{data.data?.items.map((row) => <tr className="border-t border-line" key={row.id}>
+              {canEdit && selecting && <td className="p-3"><input type="checkbox" aria-label={'Select PDF property ' + row.rowNo}
+                checked={allFiltered || bulkIds.includes(row.id)} disabled={allFiltered || bulkBusy}
+                onChange={() => setBulkIds((ids) => ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id])} /></td>}
               <td className="p-3">{row.address || 'Address to review'}<div className="text-muted">{row.sector || row.locality} · Page {row.pageNo}, row {row.rowNo}</div></td>
               <td className="p-3">{[row.configuration, row.floor, row.areaSqft && row.areaSqft + ' sq ft'].filter(Boolean).join(' · ')}</td>
               <td className="p-3">{row.monthlyRent == null ? '—' : '₹' + row.monthlyRent.toLocaleString('en-IN')}</td>

@@ -1,19 +1,21 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
-import { normalizeIndianPhone, pdfInventoryFields, type PdfInventoryFilters, type PdfInventoryUpdate } from '@brokeriq/shared';
+import { normalizeIndianPhone, pdfInventoryFields, PDF_BULK_LIMIT, type PdfInventoryBulkChange, type PdfInventoryBulkInput, type PdfInventoryBulkPreview, type PdfInventoryBulkRun, type PdfInventoryFilters, type PdfInventoryUpdate } from '@brokeriq/shared';
 import { z } from 'zod';
 import type { RequestUser } from '../../common/decorators';
 import { requireOrg } from '../../common/utils';
 import { AiService } from '../../core/ai/ai.service';
 import { JobsService } from '../../core/jobs/jobs.service';
+import { ModulesService } from '../../core/features/modules.service';
+import { CryptoService } from '../../core/settings/crypto.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { openCaptureSource } from './capture-stream';
@@ -32,14 +34,36 @@ const cleanRow = ({ id, batchId, pageNo, rowNo, rawText, locality, sector, addre
 });
 const hasPdfContactAccess = (user: RequestUser) => !user.delegatedActor || Boolean(user.delegatedPermissions?.includes('inventory:approve_details'));
 
+const bulkType = 'inventory.pdf.bulk';
+const bulkRow = { id: true, updatedAt: true, availability: true, review: true, address: true, locality: true } as const;
+type BulkRow = Prisma.PdfInventoryRowGetPayload<{ select: typeof bulkRow }>;
+type BulkSnapshot = {
+  scope: typeof bulkType;
+  nonce: string;
+  orgId: string;
+  actorId: string;
+  expiresAt: number;
+  rows: { id: string; revision: string }[];
+  change: PdfInventoryBulkChange;
+};
+type BulkProgress = BulkSnapshot & { processed: number; updated: number; skipped: number };
+
+function canChangePdfRow(row: BulkRow, change: PdfInventoryBulkChange) {
+  if (change.field === 'availability') return row.availability !== change.value;
+  return row.review !== 'DUPLICATE' && row.review !== change.value &&
+    (change.value !== 'SAVED' || Boolean(row.address && row.locality && row.availability !== 'UNKNOWN'));
+}
+
 @Injectable()
 export class PdfInventoryService {
   constructor(private readonly db: PrismaService, private readonly storage: LocalStorageService,
-    private readonly queue: JobsService, private readonly ai: AiService) {
+    private readonly queue: JobsService, private readonly ai: AiService,
+    private readonly crypto: CryptoService, private readonly modules: ModulesService) {
     this.queue.register('import.pdf', (job) => this.extract(job.batchId));
+    this.queue.register(bulkType, (_payload, job) => this.performBulk(job.id, job.attempts));
   }
 
-  async list(user: RequestUser, filters: PdfInventoryFilters) {
+  private rowWhere(user: RequestUser, filters: Omit<PdfInventoryFilters, 'page'>) {
     const organizationId = requireOrg(user);
     const canReadContacts = hasPdfContactAccess(user);
     const where: Prisma.PdfInventoryRowWhereInput = {
@@ -60,6 +84,13 @@ export class PdfInventoryService {
         if (contact) where.OR.push({ contacts: { has: contact } });
       }
     }
+    return where;
+  }
+
+  async list(user: RequestUser, filters: PdfInventoryFilters) {
+    const where = this.rowWhere(user, filters);
+    const organizationId = requireOrg(user);
+    const canReadContacts = hasPdfContactAccess(user);
     const [items, total, batches] = await Promise.all([
       this.db.pdfInventoryRow.findMany({ where, take: 30, skip: (filters.page - 1) * 30,
         orderBy: [{ batch: { createdAt: 'desc' } }, { batchId: 'asc' }, { pageNo: 'asc' }, { rowNo: 'asc' }] }),
@@ -67,6 +98,101 @@ export class PdfInventoryService {
       this.db.importBatch.findMany({ where: { sourceType: 'PDF', organizationId }, orderBy: { createdAt: 'desc' }, take: 100, select: batchSelect }),
     ]);
     return { items: items.map((row) => cleanRow(row, canReadContacts)), total, page: filters.page, batches };
+  }
+
+  private assertBulkGrant(user: RequestUser, change: PdfInventoryBulkChange) {
+    if (user.role !== 'BROKER_ADMIN' ||
+      (user.delegatedActor && !['view', 'edit', ...(change.field === 'review' ? ['approve'] : [])]
+        .every((action) => user.delegatedPermissions?.includes('inventory:' + action)))) {
+      throw new ForbiddenException('Inventory permission is required for this bulk action');
+    }
+  }
+
+  async previewBulk(user: RequestUser, { selection, change }: PdfInventoryBulkInput): Promise<PdfInventoryBulkPreview> {
+    this.assertBulkGrant(user, change);
+    const orgId = requireOrg(user);
+    const ids = selection.mode === 'ids' ? [...new Set(selection.ids)] : null;
+    const where = selection.mode === 'filtered' ? this.rowWhere(user, selection.filters) :
+      { organizationId: orgId, deletedAt: null, id: { in: ids! } };
+    const records = await this.db.pdfInventoryRow.findMany({ where, take: PDF_BULK_LIMIT + 1, orderBy: { id: 'asc' }, select: bulkRow });
+    if (records.length > PDF_BULK_LIMIT) throw new BadRequestException('Narrow the filters to 5,000 PDF properties per operation');
+    if (ids && records.length !== ids.length) throw new NotFoundException('Some selected PDF properties are no longer available');
+    const rows = records.filter((row) => canChangePdfRow(row, change)).map(({ id, updatedAt }) => ({ id, revision: updatedAt.toISOString() }));
+    const snapshot: BulkSnapshot = { scope: bulkType, nonce: randomUUID(), orgId, actorId: user.id, expiresAt: Date.now() + 10 * 60_000, rows, change };
+    return {
+      token: rows.length ? this.crypto.encrypt(JSON.stringify(snapshot)) : null,
+      selected: records.length, eligible: rows.length, skipped: records.length - rows.length,
+    };
+  }
+
+  async queueBulk(user: RequestUser, token: string) {
+    let snapshot: BulkSnapshot;
+    try {
+      snapshot = JSON.parse(this.crypto.decrypt(token)) as BulkSnapshot;
+      if (snapshot.scope !== bulkType || snapshot.actorId !== user.id || snapshot.orgId !== requireOrg(user) || snapshot.expiresAt < Date.now()) {
+        throw new Error();
+      }
+    } catch { throw new BadRequestException('This preview expired or belongs to another workspace'); }
+    this.assertBulkGrant(user, snapshot.change);
+    const job = await this.queue.enqueue(bulkType, { ...snapshot, processed: 0, updated: 0, skipped: 0 }, { key: bulkType + ':' + snapshot.nonce });
+    return this.bulkResult(job);
+  }
+
+  private bulkResult(job: { id: string; status: string; payload: Prisma.JsonValue }): PdfInventoryBulkRun {
+    const state = job.payload as unknown as BulkProgress;
+    return { id: job.id, status: job.status as PdfInventoryBulkRun['status'], total: state.rows.length, processed: state.processed,
+      updated: state.updated, skipped: state.skipped };
+  }
+
+  async bulkStatus(user: RequestUser, id: string) {
+    const job = await this.db.job.findFirst({ where: { id, type: bulkType } });
+    const state = job?.payload as unknown as BulkProgress | undefined;
+    if (!job || state?.actorId !== user.id || state.orgId !== requireOrg(user)) throw new NotFoundException('PDF bulk operation not found');
+    this.assertBulkGrant(user, state.change);
+    return this.bulkResult(job);
+  }
+
+  async retryBulk(user: RequestUser, id: string) {
+    const run = await this.bulkStatus(user, id);
+    if (run.status !== 'FAILED') throw new ConflictException('This operation is not waiting for a retry');
+    await this.db.job.updateMany({ where: { id, type: bulkType, status: 'FAILED' },
+      data: { status: 'PENDING', attempts: 0, runAt: new Date(), lockedAt: null, lastError: null } });
+    return this.bulkStatus(user, id);
+  }
+
+  private async performBulk(jobId: string, attempt: number) {
+    for (;;) {
+      await this.modules.assertPath('/inventory-pdf', 'BROKER_ADMIN');
+      const workRemains = await this.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${bulkType + ':' + jobId}))`;
+        const job = await tx.job.findFirst({ where: { id: jobId, status: 'RUNNING', attempts: attempt } });
+        if (!job) return false;
+        const state = job.payload as unknown as BulkProgress;
+        const batch = state.rows.slice(state.processed, state.processed + 50);
+        if (!batch.length) return false;
+        await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${state.actorId} FOR SHARE`;
+        const actor = await tx.user.findFirst({ where: { id: state.actorId, organizationId: state.orgId, deletedAt: null, status: 'ACTIVE' },
+          select: { role: true, delegatedPermissions: true, organization: { select: { status: true } } } });
+        const delegated = actor?.role === 'SUB_BROKER_ADMIN';
+        if (!actor || actor.organization?.status !== 'ACTIVE') throw new ForbiddenException('Firm membership changed');
+        this.assertBulkGrant({ id: state.actorId, orgId: state.orgId, email: '', role: delegated ? 'BROKER_ADMIN' : actor.role,
+          delegatedActor: delegated, delegatedPermissions: actor.delegatedPermissions }, state.change);
+        const data = state.change.field === 'availability' ? { availability: state.change.value } : { review: state.change.value };
+        let updated = 0;
+        for (const { id, revision } of batch) {
+          const changed = await tx.pdfInventoryRow.updateMany({ where: { id, organizationId: state.orgId, deletedAt: null, updatedAt: new Date(revision) }, data });
+          updated += changed.count;
+        }
+        state.processed += batch.length;
+        state.updated += updated;
+        state.skipped += batch.length - updated;
+        await tx.job.update({ where: { id: job.id }, data: { payload: state as Prisma.InputJsonValue } });
+        if (updated) await tx.auditLog.create({ data: { actorId: state.actorId, organizationId: state.orgId, entity: 'Job', entityId: job.id,
+          action: 'inventory.pdf.bulk', meta: { change: state.change, updated, skipped: batch.length - updated, processed: state.processed } } });
+        return state.processed < state.rows.length;
+      });
+      if (!workRemains) return;
+    }
   }
 
   async update(id: string, user: RequestUser, dto: PdfInventoryUpdate) {

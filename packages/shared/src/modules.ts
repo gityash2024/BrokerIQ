@@ -111,7 +111,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/inventory',
     ['/broker/inventory', '/broker/scanner', '/broker/listings', '/broker/publications'],
     ['/inventory', '/inventory-pdf', '/listings', '/ai/scan', '/media/property-video'],
-    ['import.pdf', 'inventory.access-notification', 'inventory.survey-whatsapp', 'property.video.extract'],
+    ['import.pdf', 'inventory.pdf.bulk', 'inventory.access-notification', 'inventory.survey-whatsapp', 'property.video.extract'],
   ),
   core(
     'leads',

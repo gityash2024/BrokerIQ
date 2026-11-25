@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { pdfInventoryFilters, pdfInventoryUpdate, type PdfInventoryFilters, type PdfInventoryUpdate } from '@brokeriq/shared';
+import { pdfInventoryBulkPreview, pdfInventoryFilters, pdfInventoryUpdate, type PdfInventoryBulkInput, type PdfInventoryFilters, type PdfInventoryUpdate } from '@brokeriq/shared';
 import { z } from 'zod';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
@@ -37,6 +37,27 @@ export class PdfInventoryController {
   @Post('batches/:id/retry')
   retry(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.imports.retry(id, user);
+  }
+
+  @Post('bulk/preview')
+  previewBulk(@CurrentUser() user: RequestUser, @Body(new ZodPipe(pdfInventoryBulkPreview)) input: PdfInventoryBulkInput) {
+    return this.imports.previewBulk(user, input);
+  }
+
+  @Post('bulk/apply')
+  applyBulk(@CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ token: z.string().min(1).max(1_000_000) }).strict())) input: { token: string }) {
+    return this.imports.queueBulk(user, input.token);
+  }
+
+  @Get('bulk/:id')
+  bulkStatus(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.imports.bulkStatus(user, id);
+  }
+
+  @Post('bulk/:id/retry')
+  retryBulk(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.imports.retryBulk(user, id);
   }
 
   @Patch(':id')
