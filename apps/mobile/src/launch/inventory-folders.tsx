@@ -1,5 +1,5 @@
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, BackHandler, FlatList, Linking, Switch, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
@@ -25,6 +25,7 @@ import {
   type PagedLedger,
 } from '@brokeriq/shared';
 import { InlineLoader } from '@/components/request-loader';
+import { ListJumpControls, resultPage, useListJump } from '@/components/list-jump';
 import { api, errorMessage, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
@@ -105,10 +106,16 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs(query)}`),
     enabled: !!user && (!leaf || survey),
   });
+  const jumpScope = JSON.stringify([query, user?.id, user?.organization?.id]);
+  const [anchor, setAnchor] = useState({ scope: '', page: 1 });
+  const startPage = anchor.scope === jumpScope ? anchor.page : 1;
+  const scroll = useListJump();
+  const list = useRef<FlatList<InventoryFolder | LedgerItem>>(null);
+
   const records = useInfiniteQuery({
-    queryKey: ['inventory-folder-items', user?.id, today, query],
+    queryKey: ['inventory-folder-items', user?.id, today, query, startPage],
     queryFn: ({ pageParam }) => api<PagedLedger>(`/inventory${qs({ ...query, page: pageParam, pageSize: 30 })}`),
-    initialPageParam: 1,
+    initialPageParam: startPage,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     enabled: !!user && leaf,
     refetchInterval: (state) => inventoryAccessRefreshInterval(state.state.data?.pages.flatMap((page) => page.items) ?? []),
@@ -184,7 +191,11 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
 
   return (
     <BrokerScreen title={survey ? 'Survey' : 'Available Inventory'}>
+      <View style={{ flex: 1 }}>
       <FlatList
+        ref={list}
+        onScroll={scroll.measure}
+        scrollEventThrottle={64}
         style={{ flex: 1 }}
         data={rows}
         keyExtractor={(row) => ('id' in row ? row.id : row.key)}
@@ -408,6 +419,17 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
           )
         }
       />
+      {scroll.visible && leaf && records.data && <ListJumpControls onJump={(to) => {
+        const total = records.data!.pages[0]?.totalPages ?? 1;
+        const page = resultPage(to, Math.max(total, 1));
+        if (page === startPage && to === 'bottom') list.current?.scrollToEnd();
+        else {
+          setAnchor({ scope: jumpScope, page });
+          scroll.reset();
+          list.current?.scrollToOffset({ offset: 0, animated: false });
+        }
+      }} />}
+      </View>
       <Sheet open={openFilters} onClose={() => setOpenFilters(false)} title="Inventory filters">
         <View style={{ gap: 10 }}>
           <Input label="Sector / locality" value={draft.sector} onChangeText={(sector) => setDraft({ ...draft, sector })} />

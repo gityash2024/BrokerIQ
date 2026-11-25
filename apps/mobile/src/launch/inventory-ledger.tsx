@@ -1,11 +1,12 @@
 import { InlineLoader } from '@/components/request-loader';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, FlatList, Pressable, Switch } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger, type LedgerItem } from '@brokeriq/shared';
+import { ListJumpControls, resultPage, useListJump } from '@/components/list-jump';
 import { api, qs, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
@@ -84,10 +85,16 @@ export function InventoryLedger() {
     setSelecting(false);
   }, [term, filters]);
 
+  const jumpScope = JSON.stringify([term, filters, user?.id, user?.organization?.id]);
+  const [anchor, setAnchor] = useState({ scope: '', page: 1 });
+  const startPage = anchor.scope === jumpScope ? anchor.page : 1;
+  const scroll = useListJump();
+  const list = useRef<FlatList<LedgerItem>>(null);
+
   const query = useInfiniteQuery({
-    queryKey: ['ledger', term, filters],
+    queryKey: ['ledger', term, filters, startPage],
     queryFn: ({ pageParam }) => api<PagedLedger>(`/inventory${qs({ ...filters, search: term, page: pageParam, pageSize: 30 })}`),
-    initialPageParam: 1,
+    initialPageParam: startPage,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
   });
 
@@ -115,7 +122,11 @@ export function InventoryLedger() {
 
   return (
     <BrokerScreen title="All Inventory" subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}>
+      <View style={{ flex: 1 }}>
       <FlatList
+        ref={list}
+        onScroll={scroll.measure}
+        scrollEventThrottle={64}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
@@ -460,6 +471,17 @@ export function InventoryLedger() {
         }
         ListFooterComponent={query.isFetchingNextPage ? <InlineLoader style={{ padding: 20 }} /> : null}
       />
+      {scroll.visible && query.data && <ListJumpControls onJump={(to) => {
+        const total = query.data!.pages[0]?.totalPages ?? 1;
+        const page = resultPage(to, Math.max(total, 1));
+        if (page === startPage && to === 'bottom') list.current?.scrollToEnd();
+        else {
+          setAnchor({ scope: jumpScope, page });
+          scroll.reset();
+          list.current?.scrollToOffset({ offset: 0, animated: false });
+        }
+      }} />}
+      </View>
 
       {selecting && <View style={{ padding: 12, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
         <NativeInventoryBulkActions key={JSON.stringify([term, filters, user?.id, user?.organization?.id])}
