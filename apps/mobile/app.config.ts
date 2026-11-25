@@ -1,6 +1,6 @@
 import type { ExpoConfig } from 'expo/config';
 
-const androidVersionCode = 106;
+const androidVersionCode = 107;
 
 /**
  * Only build-time identifiers live here. Everything the user sees (site name,
@@ -11,7 +11,7 @@ const config: ExpoConfig = {
   name: process.env.APP_NAME ?? 'BrokerIQ',
   slug: 'brokeriq',
   scheme: 'brokeriq',
-  version: '2.3.65',
+  version: '2.3.66',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
