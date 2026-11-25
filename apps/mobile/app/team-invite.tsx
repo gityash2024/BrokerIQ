@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { delegableModules, delegatedGrant } from '@brokeriq/shared';
+import { roleModulePermissions, delegatedGrant } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 import { Share, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -16,13 +16,13 @@ export default function TeamInvite() {
   const [form, setForm] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
   const [selection, setPermissions] = useState<string[] | null>(null);
   const { modules, loaded } = useConfig();
-  const permissions = selection ?? delegableModules(modules).flatMap(({ key, actions }) =>
+  const permissions = selection ?? roleModulePermissions(modules, form.role).flatMap(({ key, actions }) =>
     actions.map((action) => delegatedGrant(key, action)));
   const invite = useApiMutation(
     () =>
       post<{ link: string; emailed: boolean }>('/broker/team/invite', {
         ...form,
-        ...(form.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}),
+        ...(form.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : form.role === 'PROPERTY_OWNER' ? {} : { rolePermissions: permissions }),
       }),
     {
       invalidate: [['team']],
@@ -59,11 +59,11 @@ export default function TeamInvite() {
                     ['PROPERTY_OWNER', 'Property Owner'],
                   ] as const
                 ).map(([role, label]) => (
-                  <Chip key={role} label={label} active={form.role === role} onPress={() => setForm({ ...form, role })} />
+                  <Chip key={role} label={label} active={form.role === role} onPress={() => { setForm({ ...form, role }); setPermissions(null); }} />
                 ))}
               </View>
-              {form.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
-              <Button title="Send invite" loading={invite.isPending} disabled={!form.name || !form.email || (form.role === 'SUB_BROKER_ADMIN' && !loaded)} onPress={() => invite.mutate(undefined)} />
+              {form.role !== 'PROPERTY_OWNER' && <DelegatedPermissions role={form.role} value={permissions} onChange={setPermissions} />}
+              <Button title="Send invite" loading={invite.isPending} disabled={!form.name || !form.email || (form.role !== 'PROPERTY_OWNER' && !loaded)} onPress={() => invite.mutate(undefined)} />
             </>
           )}
         </NativeCard>

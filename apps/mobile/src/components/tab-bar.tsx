@@ -4,7 +4,7 @@ import { useTheme } from '@/lib/theme';
 import { Txt } from '@/ui';
 import * as Haptics from 'expo-haptics';
 import { useConfig } from '@/lib/config';
-import { canUseBrokerChat, moduleAllowed, delegatedModulePolicies } from '@brokeriq/shared';
+import { canUseBrokerChat, moduleAllowed, delegatedModulePolicies, roleModulePolicies } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 
 const keys: Record<string, string> = {
@@ -29,7 +29,7 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
   const activeRoute = state.routes[state.index]?.name;
   const focusedTab = activeRoute === 'inventory-ledger' || activeRoute === 'inventory-survey' ? 'inventory' : activeRoute;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
-  const policies = delegated ? delegatedModulePolicies(modules, user.delegatedPermissions ?? []) : modules;
+  const policies = delegated ? delegatedModulePolicies(modules, user.delegatedPermissions ?? []) : roleModulePolicies(modules, user);
 
   return (
     <View

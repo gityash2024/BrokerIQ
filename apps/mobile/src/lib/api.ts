@@ -60,7 +60,7 @@ export const authStore = {
   async set(s: Session | null) {
     const revision = ++sessionRevision;
     const previous = authStore.get()?.user;
-    const changed = previous?.id !== s?.user.id || previous?.role !== s?.user.role || previous?.organization?.id !== s?.user.organization?.id;
+    const changed = previous?.id !== s?.user.id || previous?.role !== s?.user.role || previous?.organization?.id !== s?.user.organization?.id || JSON.stringify(previous?.rolePermissions ?? null) !== JSON.stringify(s?.user.rolePermissions ?? null);
     if (changed) {
       scopeEpoch++;
       queryClient.clear();

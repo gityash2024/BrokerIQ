@@ -1,3 +1,4 @@
+import { storedRolePermissions } from '@brokeriq/shared';
 import { ConflictException, ForbiddenException, HttpStatus, Injectable, Logger, OnApplicationBootstrap, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
@@ -76,6 +77,7 @@ export class AuthService implements OnApplicationBootstrap {
       phone: u.phone,
       avatarUrl: u.avatarUrl,
       role: u.role,
+      rolePermissions: storedRolePermissions(u.role, u.delegatedPermissions),
       ...(u.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: u.delegatedPermissions } : {}),
       ...(u.role === 'BROKER_AGENT' ? { agentChatEnabled: u.agentChatEnabled } : {}),
       organizationId: u.organizationId,
@@ -643,6 +645,11 @@ export class AuthService implements OnApplicationBootstrap {
       ]);
     });
     this.realtime.disconnectUser(id);
+  }
+
+  notifyRolePermissions(userId: string, organizationId?: string, fullAdmin = false) {
+    if (organizationId) this.realtime.changeFirmRoom(userId, organizationId, fullAdmin);
+    this.realtime.toUser(userId, 'firm.permissions_changed', {});
   }
 
   notifyAgentChatAccess(userId: string) {

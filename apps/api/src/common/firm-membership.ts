@@ -1,8 +1,10 @@
+import { ROLE_PERMISSIONS_MARKER } from '@brokeriq/shared';
 import type { Prisma } from '@prisma/client';
 
 export async function hasAnotherActiveBrokerAdmin(tx: Prisma.TransactionClient, organizationId: string, userId: string) {
   return !!(await tx.user.findFirst({
-    where: { id: { not: userId }, organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null },
+    where: { id: { not: userId }, organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null,
+      NOT: { delegatedPermissions: { has: ROLE_PERMISSIONS_MARKER } } },
     select: { id: true },
   }));
 }

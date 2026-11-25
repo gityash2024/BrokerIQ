@@ -1,16 +1,16 @@
 'use client';
 import { LoadingArtwork } from '@/components/ui/request-loader';
-import { delegableModules, delegatedGrant } from '@brokeriq/shared';
+import { roleModulePermissions, delegatedGrant } from '@brokeriq/shared';
 import { useConfig, useConfigStatus } from '@/lib/config';
 
-export function DelegatedPermissions({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+export function DelegatedPermissions({ value, onChange, role = 'SUB_BROKER_ADMIN' }: { value: string[]; onChange: (value: string[]) => void; role?: string }) {
   const { modules } = useConfig();
   const { loaded } = useConfigStatus();
   if (!loaded) return <LoadingArtwork className="h-16" label="Loading available permissions…" />;
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">Choose individual actions. Unchecked actions remain restricted.</p>
-      {delegableModules(modules).map((module) => (
+      {roleModulePermissions(modules, role).map((module) => (
         <fieldset key={module.key} className="rounded-xl border border-line p-3">
           <legend className="px-1 text-sm font-semibold">{module.name}</legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

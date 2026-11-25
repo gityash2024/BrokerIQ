@@ -238,6 +238,11 @@ function Editor({ member }: { member: Member }) {
           </form>
           {user?.id !== member.id && (
             <div className="card flex flex-wrap gap-3 p-5">
+              {user?.role === 'BROKER_ADMIN' && !user.rolePermissions && ['BROKER_AGENT', 'BROKER_ADMIN'].includes(member.role) && (
+                <Button variant="secondary" disabled={busy || conflict} href={`${teamBase}/${encodeURIComponent(member.id)}/permissions?mode=role`}>
+                  Edit module permissions
+                </Button>
+              )}
               {(member.role === 'BROKER_AGENT' || (user?.role === 'BROKER_ADMIN' && member.role === 'SUB_BROKER_ADMIN')) && (
                 <Button access={canEdit} variant="secondary" disabled={busy || conflict} href={`${teamBase}/${encodeURIComponent(member.id)}/permissions`}>
                   {member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}

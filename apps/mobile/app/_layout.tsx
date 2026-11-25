@@ -159,15 +159,16 @@ export default function RootLayout() {
     if (agentId) void qc.invalidateQueries({ queryKey: ['notifications'] });
   }, [agentId, agentChatEnabled]);
   useRealtime('agent.chat_access_changed', () => { if (agentId) void refreshCurrentUser().catch(() => undefined); });
-  useRealtime('connect', () => { if (agentId) void refreshCurrentUser().catch(() => undefined); });
+  useRealtime('firm.permissions_changed', () => { if (loggedInUserId) void refreshCurrentUser().catch(() => undefined); });
+  useRealtime('connect', () => { if (loggedInUserId) void refreshCurrentUser().catch(() => undefined); });
   useEffect(() => {
-    if (!agentId) return;
+    if (!loggedInUserId) return;
     const refresh = () => { if (AppState.currentState === 'active') void refreshCurrentUser().catch(() => undefined); };
     refresh();
     const subscription = AppState.addEventListener('change', refresh);
     const timer = setInterval(refresh, 60_000);
     return () => { subscription.remove(); clearInterval(timer); };
-  }, [agentId]);
+  }, [loggedInUserId]);
 
   useRealtime<any>('notification', (notice) => {
     qc.invalidateQueries({ queryKey: ['notifications'] });

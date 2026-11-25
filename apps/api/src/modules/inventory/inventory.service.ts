@@ -1121,7 +1121,8 @@ export class InventoryService {
       const affectsPublicListing = Object.keys(input).some(
         (key) => !['expectedRevision', 'clientMutationId', 'directionsUrl', 'directoryMonth', 'availableSince'].includes(key),
       );
-      if (affectsPublicListing && user.delegatedActor && current.publishedListingId && !user.delegatedPermissions?.includes('inventory:publish')) {
+      if (affectsPublicListing && (user.delegatedActor || user.rolePermissions) && current.publishedListingId &&
+          !(user.rolePermissions ?? user.delegatedPermissions)?.includes('inventory:publish')) {
         const listing = await tx.listing.findUnique({ where: { id: current.publishedListingId }, select: { status: true, deletedAt: true } });
         if (listing && !listing.deletedAt && ['ACTIVE', 'PENDING_REVIEW'].includes(listing.status)) {
           throw new ForbiddenException('Editing this property also requires permission to withdraw its listing');
@@ -1484,7 +1485,7 @@ export class InventoryService {
   }
   private bulkChange(item: BulkProperty, action: InventoryBulkAction, user: RequestUser): InventoryInput | null {
     const open = hasOpenListing(item);
-    if (open && user.delegatedActor && !user.delegatedPermissions?.includes('inventory:publish')) return null;
+    if (open && (user.delegatedActor || user.rolePermissions) && !(user.rolePermissions ?? user.delegatedPermissions)?.includes('inventory:publish')) return null;
     if (action === 'available' || action === 'rented') {
       if (missingInventoryFolderFields(item).length) return null;
       if (action === 'available') {
@@ -1554,7 +1555,7 @@ export class InventoryService {
       });
       if (items.length !== unique.length || new Set(items.map((i) => i.organizationId)).size !== 1)
         throw new ForbiddenException('Select properties from one authorized firm only');
-      if (user.delegatedActor && !user.delegatedPermissions?.includes('inventory:publish') && items.some(hasOpenListing))
+      if ((user.delegatedActor || user.rolePermissions) && !(user.rolePermissions ?? user.delegatedPermissions)?.includes('inventory:publish') && items.some(hasOpenListing))
         throw new ForbiddenException('Editing these properties also requires permission to withdraw their listings');
       for (const item of items) await this.withdrawLinked(tx, item);
       return tx.inventoryItem.updateMany({

@@ -21,6 +21,7 @@ export interface RequestUser {
   agentChatEnabled?: boolean;
   delegatedActor?: boolean;
   delegatedPermissions?: string[];
+  rolePermissions?: string[];
 }
 
 export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext): RequestUser | undefined => {

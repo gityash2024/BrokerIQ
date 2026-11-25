@@ -1,3 +1,4 @@
+import { storedRolePermissions } from '@brokeriq/shared';
 import { Prisma, type ShiftLocation } from '@prisma/client';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { agentTargets, dashboardMonthPeriod } from '@brokeriq/shared';
@@ -222,7 +223,8 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
 
       return {
         ...member,
-        delegatedPermissions: user.role === 'BROKER_ADMIN' && !user.delegatedActor ? member.delegatedPermissions : undefined,
+        delegatedPermissions: user.role === 'BROKER_ADMIN' && !user.delegatedActor && member.role === 'SUB_BROKER_ADMIN' ? member.delegatedPermissions : undefined,
+        rolePermissions: user.role === 'BROKER_ADMIN' && !user.delegatedActor ? storedRolePermissions(member.role, member.delegatedPermissions) : undefined,
         agentChatEnabled: user.role === 'BROKER_ADMIN' && !user.delegatedActor && member.role === 'BROKER_AGENT' ? member.agentChatEnabled : undefined,
         kycStatus,
         kycDocuments:

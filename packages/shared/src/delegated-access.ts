@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PLATFORM_MODULES, moduleAllowed, type ModulePolicies } from './modules';
+import { PLATFORM_MODULES, moduleAllowed, defaultModulePolicies, type ModulePolicies } from './modules';
 
 export const delegatedActions = [
   'view',
@@ -44,13 +44,46 @@ export function delegableModules(policies: ModulePolicies | undefined) {
   }));
 }
 
+export const ROLE_PERMISSIONS_MARKER = '$role-permissions';
+export type FirmPermissionsActor = { role: string; delegatedPermissions?: readonly string[]; rolePermissions?: readonly string[] };
+
+export function roleModulePermissions(policies: ModulePolicies | undefined, role: string) {
+  if (role === 'SUB_BROKER_ADMIN') return delegableModules(policies);
+  if (!['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)) return [];
+  return PLATFORM_MODULES.flatMap((module) => {
+    if (['consumer', 'legacy'].includes(module.key) || !moduleAllowed(policies, module.key, role)) return [];
+    const actions = actionsByModule[module.key] ?? (['view', 'create', 'edit', 'delete'] as const);
+    const adminActions: DelegatedAction[] = ['approve', 'publish', 'assign', 'approve_details', 'connection_status', 'sync'];
+    return [{ ...module, actions: role === 'BROKER_AGENT' ? actions.filter((action) => !adminActions.includes(action)) : actions }];
+  });
+}
+
+export function storedRolePermissions(role: string, grants: string[]) {
+  if (!['BROKER_ADMIN', 'BROKER_AGENT'].includes(role) || !grants.includes(ROLE_PERMISSIONS_MARKER)) return undefined;
+  return grants.filter((grant) => grant !== ROLE_PERMISSIONS_MARKER);
+}
+
+export function roleModulePolicies(policies: ModulePolicies | undefined, actor: FirmPermissionsActor | null | undefined) {
+  if (!actor?.rolePermissions) return policies;
+  const next = { ...defaultModulePolicies(), ...policies };
+  for (const module of roleModulePermissions(policies, actor.role)) {
+    const current = next[module.key];
+    const canLog = module.key === 'time_logging' && actor.rolePermissions.includes(delegatedGrant(module.key, 'create'));
+    if (!canLog && !actor.rolePermissions.includes(delegatedGrant(module.key, 'view'))) {
+      next[module.key] = { ...current, roles: current.roles.filter((role) => role !== actor.role) };
+    }
+  }
+  return next;
+}
+
 /** For a delegated account, every requested action must be explicitly granted. */
 export function hasDelegatedAccess(
-  user: { role: string; delegatedPermissions?: readonly string[] } | null | undefined,
+  user: FirmPermissionsActor | null | undefined,
   module: string,
   ...actions: DelegatedAction[]
 ) {
-  return user?.role !== 'SUB_BROKER_ADMIN' || actions.every((action) => user.delegatedPermissions?.includes(delegatedGrant(module, action)));
+  const grants = user?.role === 'SUB_BROKER_ADMIN' ? user.delegatedPermissions ?? [] : user?.rolePermissions;
+  return !grants || actions.every((action) => grants.includes(delegatedGrant(module, action)));
 }
 
 export function delegatedModulePolicies(policies: ModulePolicies | undefined, grants: readonly string[]): ModulePolicies {

@@ -95,6 +95,7 @@ export const inviteMemberSchema = z.object({
   name: z.string().trim().min(2).max(80),
   role: z.enum(['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER']).default('BROKER_AGENT'),
   delegatedPermissions: delegatedGrantSchema.optional(),
+  rolePermissions: delegatedGrantSchema.optional(),
 });
 
 // ------------------------------------------------------------------ Listings

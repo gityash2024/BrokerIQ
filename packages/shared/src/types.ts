@@ -15,6 +15,7 @@ export interface AuthUser {
   role: 'SUPER_ADMIN' | 'MODERATOR' | 'SUPPORT' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'PROPERTY_OWNER' | 'USER';
   organizationId: string | null;
   delegatedPermissions?: string[];
+  rolePermissions?: string[];
   agentChatEnabled?: boolean;
   emailVerified: boolean;
   locale: string;

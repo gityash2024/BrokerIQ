@@ -64,4 +64,36 @@ describe('Broker Agent Chat permission', () => {
     expect(await db.auditLog.count({ where: { entityId: agent.user.id, action: 'team.agent_chat_access' } })).toBe(2);
     realtime.mockRestore();
   });
+  it('restricts Agent and Admin roles without escalating grants or signing them out', async () => {
+    const key = randomUUID();
+    const firm = await db.organization.create({ data: { name: 'Module access QA', slug: 'module-access-' + key } });
+    const outer = await db.organization.create({ data: { name: 'Outside module access', slug: 'outside-module-' + key } });
+    const identity = async (name: string, role: 'BROKER_ADMIN' | 'BROKER_AGENT', organizationId = firm.id) => {
+      const user = await db.user.create({ data: { name, role, organizationId, email: name + key + '@e2e.test' }, include: { organization: true } });
+      return { user, headers: token((await app.get(AuthService).issue(user)).accessToken) };
+    };
+    const admin = await identity('admin', 'BROKER_ADMIN');
+    const delegate = await identity('limited-admin', 'BROKER_ADMIN');
+    const agent = await identity('agent', 'BROKER_AGENT');
+    const outsider = await identity('outsider', 'BROKER_ADMIN', outer.id);
+    const grant = (id: string) => '/api/broker/team/members/' + id + '/module-access';
+    const restricted = { rolePermissions: ['today:view', 'inventory:view'], expectedUpdatedAt: agent.user.updatedAt.toISOString() };
+    await http().patch(grant(agent.user.id)).set(outsider.headers).send(restricted).expect(404);
+    await http().patch(grant(agent.user.id)).set(admin.headers).send({ ...restricted, rolePermissions: ['inventory:publish'] }).expect(403);
+    await http().patch(grant(agent.user.id)).set(admin.headers).send(restricted).expect(200);
+    await http().get('/api/auth/me').set(agent.headers).expect(200).expect(({ body }) => expect(body).toMatchObject({
+      role: 'BROKER_AGENT', agentChatEnabled: false, rolePermissions: restricted.rolePermissions,
+    }));
+    await http().get('/api/inventory').set(agent.headers).expect(200);
+    await http().get('/api/leads').set(agent.headers).expect(403);
+    await http().post('/api/inventory').set(agent.headers).send({ sector: 'Sector 30' }).expect(403);
+    await http().get('/api/chat/threads').set(agent.headers).expect(403);
+    await http().get('/api/me/notifications').set(agent.headers).expect(200);
+    await http().patch(grant(delegate.user.id)).set(admin.headers)
+      .send({ rolePermissions: ['today:view','team:view','team:edit'], expectedUpdatedAt: delegate.user.updatedAt.toISOString() }).expect(200);
+    await http().delete('/api/broker/team/' + admin.user.id).set(delegate.headers).expect(403);
+    await http().patch(grant(agent.user.id)).set(delegate.headers).send(restricted).expect(403);
+    await http().patch(grant(agent.user.id)).set(admin.headers).send(restricted).expect(409);
+  });
+
 });

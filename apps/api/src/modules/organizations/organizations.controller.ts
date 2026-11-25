@@ -1,3 +1,4 @@
+import { ROLE_PERMISSIONS_MARKER, roleModulePermissions, storedRolePermissions } from '@brokeriq/shared';
 import {
   BadRequestException,
   ConflictException,
@@ -420,11 +421,17 @@ export class OrganizationsController {
   @Roles('BROKER_ADMIN')
   @Post('broker/team/invite')
   async invite(@CurrentUser() user: RequestUser, @Body(new ZodPipe(inviteMemberSchema)) body: z.infer<typeof inviteMemberSchema>) {
-    const grants = await this.validateDelegation(user, body.role, body.delegatedPermissions);
+    if (user.rolePermissions) throw new ForbiddenException('Full Broker Admin access is required to invite members');
+    const delegated = await this.validateDelegation(user, body.role, body.delegatedPermissions);
+    const restricted = body.rolePermissions === undefined ? [] : await this.validateRolePermissions(body.role, body.rolePermissions);
+    const grants = [...delegated, ...restricted];
     const orgId = requireOrg(user);
     const token = randomToken(24);
     const invite = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
+      const actor = await tx.user.findFirst({ where: { id: user.id, organizationId: orgId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null },
+        select: { delegatedPermissions: true } });
+      if (!actor || actor.delegatedPermissions.includes(ROLE_PERMISSIONS_MARKER)) throw new ForbiddenException('Full Broker Admin access is required to invite members');
       const existing = await tx.user.findUnique({ where: { email: body.email } });
       if (existing?.organizationId) throw new BadRequestException('यह user पहले से किसी broker team में है');
       const now = new Date();
@@ -545,6 +552,46 @@ export class OrganizationsController {
     return { selectedAgentIds: selected.filter((id) => eligible.has(id)), agents };
   }
 
+  private async validateRolePermissions(role: string, permissions: string[]) {
+    if (!['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)) throw new BadRequestException('Use the permissions editor for the selected role');
+    const allowed = new Set(roleModulePermissions(await this.modules?.all(), role)
+      .flatMap(({ key, actions }) => actions.map((action) => delegatedGrant(key, action))));
+    const grants = [...new Set(permissions)];
+    if (grants.some((grant) => !allowed.has(grant))) throw new ForbiddenException('Module action is unavailable for this role');
+    return grants.length === allowed.size ? [] : [ROLE_PERMISSIONS_MARKER, ...grants];
+  }
+
+  @Roles('BROKER_ADMIN')
+  @Patch('broker/team/members/:userId/module-access')
+  async updateRolePermissions(@CurrentUser() user: RequestUser, @Param('userId') userId: string,
+    @Body(new ZodPipe(z.object({ rolePermissions: delegatedGrantSchema, expectedUpdatedAt: z.iso.datetime({ offset: true }) }).strict()))
+    input: { rolePermissions: string[]; expectedUpdatedAt: string }) {
+    if (user.role !== 'BROKER_ADMIN' || user.delegatedActor || user.rolePermissions || user.id === userId)
+      throw new ForbiddenException('Only another full firm Broker Admin can change these permissions');
+    const organizationId = requireOrg(user);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId + ':membership'}))`;
+      const actor = await tx.user.findFirst({ where: { id: user.id, organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null },
+        select: { delegatedPermissions: true } });
+      if (!actor || actor.delegatedPermissions.includes(ROLE_PERMISSIONS_MARKER)) throw new ForbiddenException('Firm membership changed');
+      const member = await tx.user.findFirst({ where: { id: userId, organizationId, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] }, deletedAt: null } });
+      if (!member) throw new NotFoundException('Firm member not found');
+      if (member.updatedAt.toISOString() !== input.expectedUpdatedAt) throw new ConflictException('Member changed. Reload permissions.');
+      const grants = await this.validateRolePermissions(member.role, input.rolePermissions);
+      const effective = storedRolePermissions(member.role, grants);
+      const updated = await tx.user.update({ where: { id: member.id }, data: {
+        delegatedPermissions: grants,
+        ...(member.role === 'BROKER_AGENT' ? { agentChatEnabled: input.rolePermissions.includes('inbox:view') } : {}),
+      }, select: { updatedAt: true } });
+      await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role, organizationId, entity: 'User', entityId: member.id,
+        action: 'team.module_access', meta: { role: member.role, rolePermissions: effective ?? null } } });
+      return { ...updated, rolePermissions: effective, fullAdmin: member.role === 'BROKER_ADMIN' && !effective };
+    });
+    const { fullAdmin, ...access } = result;
+    this.auth.notifyRolePermissions(userId, organizationId, fullAdmin);
+    return access;
+  }
+
   private async validateDelegation(user: RequestUser, role: string, permissions?: string[], existingAgentPromotion = false) {
     if (role !== 'SUB_BROKER_ADMIN') {
       if (permissions?.length) throw new BadRequestException('Permissions require a Sub-Broker Admin role');
@@ -583,6 +630,8 @@ export class OrganizationsController {
       };
     },
   ) {
+    if (user.rolePermissions && (body.role || body.status || body.delegatedPermissions || body.assignmentDashboardAgentIds))
+      throw new ForbiddenException('Full Broker Admin access is required to manage authorization');
     const userId = paramUserId === 'targets' && body.agentId ? body.agentId : paramUserId;
     const isSuper = user.role === 'SUPER_ADMIN';
     const member = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -711,22 +760,29 @@ export class OrganizationsController {
     @Param('userId') userId: string,
     @Body(new ZodPipe(z.object({ enabled: z.boolean() }).strict())) { enabled }: { enabled: boolean },
   ) {
-    if (user.role !== 'BROKER_ADMIN' || user.delegatedActor) throw new ForbiddenException('Only the firm Broker Admin can change agent Chat access');
+    if (user.role !== 'BROKER_ADMIN' || user.delegatedActor || user.rolePermissions) throw new ForbiddenException('Only the firm Broker Admin can change agent Chat access');
     const organizationId = requireOrg(user);
     const access = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId + ':membership'}))`;
       const admin = await tx.user.count({ where: { id: user.id, organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null } });
       if (!admin) throw new ForbiddenException('Only the firm Broker Admin can change agent Chat access');
       const agent = await tx.user.findFirst({ where: { id: userId, organizationId, role: 'BROKER_AGENT', deletedAt: null },
-        select: { agentChatEnabled: true, updatedAt: true } });
+        select: { delegatedPermissions: true, agentChatEnabled: true, updatedAt: true } });
       if (!agent) throw new NotFoundException('Agent not found in this firm');
-      if (agent.agentChatEnabled === enabled) return { changed: false, previousUpdatedAt: agent.updatedAt, updatedAt: agent.updatedAt };
-      const updated = await tx.user.update({ where: { id: userId }, data: { agentChatEnabled: enabled }, select: { updatedAt: true } });
+      const grants = storedRolePermissions('BROKER_AGENT', agent.delegatedPermissions);
+      const allowed = grants?.includes('inbox:view');
+      if (agent.agentChatEnabled === enabled && (!grants || allowed === enabled)) return { changed: false, previousUpdatedAt: agent.updatedAt, updatedAt: agent.updatedAt };
+      const updated = await tx.user.update({ where: { id: userId }, data: { agentChatEnabled: enabled, ...(grants ? { delegatedPermissions: [
+        ROLE_PERMISSIONS_MARKER, ...grants.filter((grant) => grant !== 'inbox:view'), ...(enabled ? ['inbox:view'] : []),
+      ] } : {}) }, select: { updatedAt: true } });
       await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role, organizationId,
         action: 'team.agent_chat_access', entity: 'User', entityId: userId, meta: { enabled } } });
       return { changed: true, previousUpdatedAt: agent.updatedAt, updatedAt: updated.updatedAt };
     });
-    if (access.changed) this.auth.notifyAgentChatAccess(userId);
+    if (access.changed) {
+      this.auth.notifyAgentChatAccess(userId);
+      this.auth.notifyRolePermissions(userId);
+    }
     return { enabled, previousUpdatedAt: access.previousUpdatedAt, updatedAt: access.updatedAt };
   }
 
@@ -798,7 +854,10 @@ export class OrganizationsController {
       if (firm.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
       await tx.user.update({
         where: { id: user.id },
-        data: { organizationId: invitation.organizationId, role: invitation.role, agentChatEnabled: true, delegatedPermissions: invitation.delegatedPermissions, emailVerified: true },
+        data: { organizationId: invitation.organizationId, role: invitation.role,
+          agentChatEnabled: !storedRolePermissions(invitation.role, invitation.delegatedPermissions) ||
+            invitation.delegatedPermissions.includes('inbox:view'),
+          delegatedPermissions: invitation.delegatedPermissions, emailVerified: true },
       });
       await tx.invite.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } });
       return invitation;

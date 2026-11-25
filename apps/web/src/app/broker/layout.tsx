@@ -9,7 +9,7 @@ import { useRealtime } from '@/lib/realtime';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { QuickLeadSearch } from '@/components/broker/quick-search';
-import { brokerWorkspaceGroups, canUseBrokerChat, workspaceLinkAccess } from '@brokeriq/shared';
+import { brokerWorkspaceGroups, canUseBrokerChat, workspaceLinkAccess, roleModulePolicies } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 import { AgentLocationTracker } from '@/components/broker/agent-location-tracker';
 
@@ -19,6 +19,8 @@ function Inner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const config = useConfig();
   const chatAllowed = canUseBrokerChat(user);
+  const actorModules = roleModulePolicies(config.modules, user);
+  const refreshAccess = () => { if (user?.id) void refreshMe().catch(() => undefined); };
   const cache = useQueryClient();
   useEffect(() => {
     if (user?.role === 'BROKER_AGENT') void cache.invalidateQueries({ queryKey: ['notifications'] });
@@ -33,9 +35,10 @@ function Inner({ children }: { children: React.ReactNode }) {
   });
 
   useRealtime('agent.chat_access_changed', () => { if (user?.role === 'BROKER_AGENT') void refreshMe().catch(() => undefined); });
-  useRealtime('connect', () => { if (user?.role === 'BROKER_AGENT') void refreshMe().catch(() => undefined); });
+  useRealtime('firm.permissions_changed', refreshAccess);
+  useRealtime('connect', refreshAccess);
   useEffect(() => {
-    if (user?.role !== 'BROKER_AGENT') return;
+    if (!user?.id) return;
     const refresh = () => { if (!document.hidden) void refreshMe().catch(() => undefined); };
     refresh();
     document.addEventListener('visibilitychange', refresh);
@@ -100,9 +103,11 @@ function Inner({ children }: { children: React.ReactNode }) {
   };
   const groups: NavGroup[] = [
     {
-      items: brokerWorkspaceGroups(config.modules, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''), true, config.flags.connect_whatsapp_cutover).filter((group) => chatAllowed || group.key !== 'inbox').map((group) => ({
+      items: brokerWorkspaceGroups(actorModules, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''), true, config.flags.connect_whatsapp_cutover).filter((group) =>
+        (!user?.rolePermissions || workspaceLinkAccess(user, actorModules, group.links[0]) === undefined) &&
+        (chatAllowed || group.key !== 'inbox')).map((group) => ({
         href: group.links[0].href,
-        accessReason: workspaceLinkAccess(user, config.modules, group.links[0]),
+        accessReason: workspaceLinkAccess(user, actorModules, group.links[0]),
         label: group.label,
         exact: group.key === 'today',
         icon: icons[group.key as keyof typeof icons] ?? Layers,
@@ -124,7 +129,7 @@ function Inner({ children }: { children: React.ReactNode }) {
           group.links.length > 1
             ? group.links.map((link) => ({
                 href: link.href,
-                accessReason: workspaceLinkAccess(user, config.modules, link),
+                accessReason: workspaceLinkAccess(user, actorModules, link),
                 label: link.label,
                 exact: true,
                 ...(link.href === '/broker/imports?target=INVENTORY'

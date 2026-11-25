@@ -18,7 +18,8 @@ export class TodayController {
     const assigned = user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
     const [leadsOn, inventoryOn, inboxOn] = await Promise.all(
       ['leads', 'inventory', 'inbox'].map(async (key) =>
-        (!user.delegatedActor || user.delegatedPermissions?.includes(`${key}:view`)) && await this.modules.enabled(key),
+        (!user.delegatedActor || user.delegatedPermissions?.includes(`${key}:view`)) &&
+        (!user.rolePermissions || user.rolePermissions.includes(`${key}:view`)) && await this.modules.enabled(key),
       ),
     );
     const now = new Date();

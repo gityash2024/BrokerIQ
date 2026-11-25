@@ -149,13 +149,13 @@ export function brokerUpcomingModules(policies: ModulePolicies | undefined, role
   );
 }
 
-export function canUseBrokerChat(user: { role: string; agentChatEnabled?: boolean } | null | undefined): boolean {
-  return user?.role !== 'BROKER_AGENT' || user.agentChatEnabled !== false;
+export function canUseBrokerChat(user: { role: string; rolePermissions?: readonly string[]; agentChatEnabled?: boolean } | null | undefined): boolean {
+  return (!user?.rolePermissions || user.rolePermissions.includes('inbox:view')) && (user?.role !== 'BROKER_AGENT' || user.agentChatEnabled !== false);
 }
 
 /** Discoverable controls retain their authorization and give a visible access explanation. */
 export function workspaceLinkAccess(
-  user: { role: string; delegatedPermissions?: readonly string[]; agentChatEnabled?: boolean } | null | undefined,
+  user: { role: string; delegatedPermissions?: readonly string[]; rolePermissions?: readonly string[]; agentChatEnabled?: boolean } | null | undefined,
   policies: ModulePolicies | undefined,
   link: WorkspaceLink,
 ): string | undefined {

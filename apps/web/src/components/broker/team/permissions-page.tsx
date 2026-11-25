@@ -4,15 +4,15 @@ import { shouldReturnTo } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { reapplySelectionChanges, type AssignmentAgentSelection, type BrokerTeamResponse } from '@brokeriq/shared';
+import { reapplySelectionChanges, roleModulePermissions, delegatedGrant, type AssignmentAgentSelection, type BrokerTeamResponse } from '@brokeriq/shared';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
 import { ApiError, api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useConfigStatus } from '@/lib/config';
+import { useConfig, useConfigStatus } from '@/lib/config';
 import { patch, useApiMutation } from '@/lib/hooks';
 import { DelegatedPermissions } from './delegated-permissions';
 
@@ -21,8 +21,9 @@ type Member = BrokerTeamResponse['members'][number] & { updatedAt: string; organ
 export function TeamPermissionsPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const roleMode = useSearchParams().get('mode') === 'role';
   const isSuper = user?.role === 'SUPER_ADMIN';
-  const allowed = !!user && (isSuper || user.role === 'BROKER_ADMIN') && id !== user.id;
+  const allowed = !!user && !user.rolePermissions && (roleMode ? user.role === 'BROKER_ADMIN' : isSuper || user.role === 'BROKER_ADMIN') && id !== user.id;
   const base = isSuper ? '/admin/team' : '/broker/team';
   const back = `${base}/${encodeURIComponent(id)}`;
   const member = useQuery({
@@ -34,7 +35,7 @@ export function TeamPermissionsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title={record?.role === 'SUB_BROKER_ADMIN' ? 'Edit Sub-Broker Admin permissions' : 'Make Sub-Broker Admin'}
+        title={roleMode ? 'Edit module permissions' : record?.role === 'SUB_BROKER_ADMIN' ? 'Edit Sub-Broker Admin permissions' : 'Make Sub-Broker Admin'}
         subtitle={record?.name}
         actions={
           <BackButton href={back} variant="secondary">
@@ -48,20 +49,25 @@ export function TeamPermissionsPage() {
         <ApiErrorState error={member.error} onRetry={() => member.refetch()} />
       ) : !record ? (
         <LoadingArtwork className="h-16" label="Loading team member…" />
-      ) : record.role !== 'BROKER_AGENT' && (isSuper || record.role !== 'SUB_BROKER_ADMIN') ? (
+      ) : (roleMode ? !['BROKER_AGENT', 'BROKER_ADMIN'].includes(record.role) : record.role !== 'BROKER_AGENT' && (isSuper || record.role !== 'SUB_BROKER_ADMIN')) ? (
         <p>This member’s permissions cannot be changed here.</p>
       ) : (
-        <PermissionForm key={record.id} member={record} back={back} onReload={async () => (await member.refetch({ throwOnError: true })).data!.member} />
+        <PermissionForm key={record.id + ':' + roleMode} roleMode={roleMode} member={record} back={back} onReload={async () => (await member.refetch({ throwOnError: true })).data!.member} />
       )}
     </div>
   );
 }
 
-function PermissionForm({ member, back, onReload }: { member: Member; back: string; onReload: () => Promise<Member> }) {
+function PermissionForm({ member, back, onReload, roleMode }: { member: Member; roleMode: boolean; back: string; onReload: () => Promise<Member> }) {
   const router = useRouter();
   const { loaded } = useConfigStatus();
+  const { modules } = useConfig();
+  const defaults = (record: Member) => roleModulePermissions(modules, record.role)
+    .flatMap(({ key, actions }) => actions.map((action) => delegatedGrant(key, action)))
+    .filter((grant) => record.agentChatEnabled !== false || grant !== 'inbox:view');
+  const current = (record: Member) => roleMode ? record.rolePermissions ?? defaults(record) : record.delegatedPermissions ?? [];
   const { user } = useAuth();
-  const editAssignmentAgents = user?.role === 'BROKER_ADMIN';
+  const editAssignmentAgents = !roleMode && user?.role === 'BROKER_ADMIN';
   const [agentDraft, setAgentDraft] = useState<{ baseline: string[]; selected: string[] }>();
   const [agentSearch, setAgentSearch] = useState('');
   const assignmentAgents = useQuery({
@@ -77,17 +83,20 @@ function PermissionForm({ member, back, onReload }: { member: Member; back: stri
   const [reloading, setReloading] = useState(false);
   const [reloadFailed, setReloadFailed] = useState(false);
   const [reloaded, setReloaded] = useState(false);
-  const [grants, setGrants] = useState(member.delegatedPermissions ?? []);
+  const [draftGrants, setGrants] = useState<string[] | null>(null);
+  const grants = draftGrants ?? current(member);
   const save = useApiMutation(
     () =>
-      patch(`/broker/team/${encodeURIComponent(member.id)}`, {
+      roleMode ? patch(`/broker/team/members/${encodeURIComponent(member.id)}/module-access`, {
+        expectedUpdatedAt: baseline.updatedAt, rolePermissions: grants,
+      }) : patch(`/broker/team/${encodeURIComponent(member.id)}`, {
         expectedUpdatedAt: baseline.updatedAt,
         role: 'SUB_BROKER_ADMIN',
         delegatedPermissions: grants,
         ...(agentDraft ? { assignmentDashboardAgentIds: agentDraft.selected } : {}),
       }),
     {
-      success: 'Sub-Broker Admin permissions saved',
+      success: roleMode ? 'Module permissions saved' : 'Sub-Broker Admin permissions saved',
       invalidate: [['team']],
       onSuccess: () => shouldReturnTo(back) ? router.back() : router.replace(back),
     },
@@ -98,7 +107,7 @@ function PermissionForm({ member, back, onReload }: { member: Member; back: stri
     setReloadFailed(false);
     try {
       const [latest, assignments] = await Promise.all([onReload(), editAssignmentAgents ? assignmentAgents.refetch({ throwOnError: true }) : undefined]);
-      setGrants((draft) => reapplySelectionChanges(baseline.delegatedPermissions ?? [], draft, latest.delegatedPermissions ?? []));
+      setGrants((draft) => reapplySelectionChanges(current(baseline), draft ?? current(baseline), current(latest)));
       if (assignments?.data) {
         const { selectedAgentIds, agents } = assignments.data;
         setAgentDraft(
@@ -164,7 +173,7 @@ function PermissionForm({ member, back, onReload }: { member: Member; back: stri
           )}
         </fieldset>
       )}
-      <DelegatedPermissions value={grants} onChange={setGrants} />
+      <DelegatedPermissions role={roleMode ? member.role : undefined} value={grants} onChange={setGrants} />
       <Button loading={save.isPending} disabled={!loaded || conflict || reloading} onClick={() => save.mutate(undefined)}>
         Save permissions
       </Button>

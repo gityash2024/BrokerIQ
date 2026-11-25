@@ -1,3 +1,4 @@
+import { ROLE_PERMISSIONS_MARKER, storedRolePermissions } from '@brokeriq/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, type Notification } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -31,11 +32,15 @@ export class NotificationsService {
       LEFT JOIN "Lead" l ON l.id = COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)'))
       JOIN "User" u ON u.id = n."userId"
       WHERE n."userId"=${userId}
-        AND ((u.role='BROKER_AGENT' AND NOT u."agentChatEnabled" AND n.link ~ '^/broker/inbox([/?#]|$)')
+        AND ((((u.role='BROKER_AGENT' AND NOT u."agentChatEnabled") OR
+           (${ROLE_PERMISSIONS_MARKER}=ANY(u."delegatedPermissions") AND NOT ('inbox:view'=ANY(u."delegatedPermissions"))))
+          AND n.link ~ '^/broker/inbox([/?#]|$)')
           OR (COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)')) IS NOT NULL
         AND NOT COALESCE((l.id IS NOT NULL AND l."deletedAt" IS NULL AND (
           u.role='SUPER_ADMIN' OR (u."organizationId"=l."organizationId" AND
-          (u.role='BROKER_ADMIN' OR (u.role='SUB_BROKER_ADMIN' AND 'leads:view'=ANY(u."delegatedPermissions")) OR (u.role='BROKER_AGENT' AND l."assignedToId"=u.id))))), FALSE)))`);
+          ((u.role='BROKER_ADMIN' OR (u.role='BROKER_AGENT' AND l."assignedToId"=u.id)) AND
+            (NOT (${ROLE_PERMISSIONS_MARKER}=ANY(u."delegatedPermissions")) OR 'leads:view'=ANY(u."delegatedPermissions"))
+          OR (u.role='SUB_BROKER_ADMIN' AND 'leads:view'=ANY(u."delegatedPermissions")))))), FALSE)))`);
     return rows.map((row) => row.id);
   }
 
@@ -67,9 +72,12 @@ export class NotificationsService {
               }
             : {}),
         },
-        select: { id: true },
+        select: { id: true, role: true, delegatedPermissions: true },
       })
-    ).map((u) => u.id);
+    ).filter((user) => {
+      const grants = storedRolePermissions(user.role, user.delegatedPermissions);
+      return !grants || ((!inbox || grants.includes('inbox:view')) && (!lead || grants.includes('leads:view')));
+    }).map(({ id }) => id);
     if (!ids.length) return;
     const notes = await this.prisma.notification.createManyAndReturn({
       data: ids.map((userId) => ({

@@ -44,7 +44,7 @@ export const authStore = {
     if (typeof window === 'undefined') return;
     const stored = authStore.get();
     const previous = stored?.user;
-    const changed = !v || previous?.id !== v.user.id || previous?.role !== v.user.role || previous?.organization?.id !== v.user.organization?.id;
+    const changed = !v || previous?.id !== v.user.id || previous?.role !== v.user.role || previous?.organization?.id !== v.user.organization?.id || JSON.stringify(previous?.rolePermissions ?? null) !== JSON.stringify(v.user.rolePermissions ?? null);
     if (changed) {
       guestEpoch++;
       cacheResets.forEach((reset) => reset());

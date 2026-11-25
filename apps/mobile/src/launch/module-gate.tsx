@@ -1,7 +1,7 @@
 import { Redirect, usePathname, router } from 'expo-router';
 import { Fragment } from 'react';
 import { View } from 'react-native';
-import { canUseBrokerChat, hasDelegatedAccess, delegatedModulePolicies, moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
+import { canUseBrokerChat, hasDelegatedAccess, delegatedModulePolicies, roleModulePolicies, moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
 import { captureAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -66,9 +66,9 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
               : 'consumer'
             : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
-  const policies = delegated ? delegatedModulePolicies(config.modules, user?.delegatedPermissions ?? []) : config.modules;
+  const policies = delegated ? delegatedModulePolicies(config.modules, user?.delegatedPermissions ?? []) : roleModulePolicies(config.modules, user);
   const actionAllowed =
-    !delegated ||
+    (!delegated && !user?.rolePermissions) ||
     (path === '/inventory-edit'
       ? hasDelegatedAccess(user, 'inventory', 'view') && (hasDelegatedAccess(user, 'inventory', 'create') || hasDelegatedAccess(user, 'inventory', 'edit'))
       : path === '/add-lead'

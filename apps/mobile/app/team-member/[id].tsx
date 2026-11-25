@@ -235,6 +235,10 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
       {!self && !delegated && (
         <Card style={{ padding: 16, gap: 10 }}>
           <Txt v="bodyStrong">Team actions</Txt>
+          {user?.role === 'BROKER_ADMIN' && !user.rolePermissions && ['BROKER_AGENT', 'BROKER_ADMIN'].includes(member.role) && (
+            <Button title="Edit module permissions" variant="secondary" disabled={busy || baseline !== member.updatedAt}
+              onPress={() => router.push({ pathname: '/team-member/[id]/permissions', params: { id: member.id, mode: 'role' } })} />
+          )}
           {!owner && member.role !== 'BROKER_ADMIN' && (
             <Button
               title={member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}

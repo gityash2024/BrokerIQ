@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
-import { normalizeIndianPhone, pdfInventoryFields, PDF_BULK_LIMIT, type PdfInventoryBulkChange, type PdfInventoryBulkInput, type PdfInventoryBulkPreview, type PdfInventoryBulkRun, type PdfInventoryFilters, type PdfInventoryUpdate } from '@brokeriq/shared';
+import { normalizeIndianPhone, storedRolePermissions, pdfInventoryFields, PDF_BULK_LIMIT, type PdfInventoryBulkChange, type PdfInventoryBulkInput, type PdfInventoryBulkPreview, type PdfInventoryBulkRun, type PdfInventoryFilters, type PdfInventoryUpdate } from '@brokeriq/shared';
 import { z } from 'zod';
 import type { RequestUser } from '../../common/decorators';
 import { requireOrg } from '../../common/utils';
@@ -32,7 +32,7 @@ const cleanRow = ({ id, batchId, pageNo, rowNo, rawText, locality, sector, addre
   rawText: canReadContacts ? rawText : '', ownerName: canReadContacts ? ownerName : null, contacts: canReadContacts ? contacts : [],
   notes: canReadContacts ? notes : null,
 });
-const hasPdfContactAccess = (user: RequestUser) => !user.delegatedActor || Boolean(user.delegatedPermissions?.includes('inventory:approve_details'));
+const hasPdfContactAccess = (user: RequestUser) => !user.delegatedActor && !user.rolePermissions || Boolean((user.rolePermissions ?? user.delegatedPermissions)?.includes('inventory:approve_details'));
 
 const bulkType = 'inventory.pdf.bulk';
 const bulkRow = { id: true, updatedAt: true, availability: true, review: true, address: true, locality: true } as const;
@@ -102,8 +102,8 @@ export class PdfInventoryService {
 
   private assertBulkGrant(user: RequestUser, change: PdfInventoryBulkChange) {
     if (user.role !== 'BROKER_ADMIN' ||
-      (user.delegatedActor && !['view', 'edit', ...(change.field === 'review' ? ['approve'] : [])]
-        .every((action) => user.delegatedPermissions?.includes('inventory:' + action)))) {
+      ((user.delegatedActor || user.rolePermissions) && !['view', 'edit', ...(change.field === 'review' ? ['approve'] : [])]
+        .every((action) => (user.rolePermissions ?? user.delegatedPermissions)?.includes('inventory:' + action)))) {
       throw new ForbiddenException('Inventory permission is required for this bulk action');
     }
   }
@@ -176,7 +176,8 @@ export class PdfInventoryService {
         const delegated = actor?.role === 'SUB_BROKER_ADMIN';
         if (!actor || actor.organization?.status !== 'ACTIVE') throw new ForbiddenException('Firm membership changed');
         this.assertBulkGrant({ id: state.actorId, orgId: state.orgId, email: '', role: delegated ? 'BROKER_ADMIN' : actor.role,
-          delegatedActor: delegated, delegatedPermissions: actor.delegatedPermissions }, state.change);
+          delegatedActor: delegated, delegatedPermissions: actor.delegatedPermissions,
+          rolePermissions: storedRolePermissions(actor.role, actor.delegatedPermissions) }, state.change);
         const data = state.change.field === 'availability' ? { availability: state.change.value } : { review: state.change.value };
         let updated = 0;
         for (const { id, revision } of batch) {

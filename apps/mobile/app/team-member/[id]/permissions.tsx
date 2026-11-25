@@ -4,10 +4,11 @@ import { View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { reapplySelectionChanges, type AssignmentAgentSelection, type BrokerTeamResponse } from '@brokeriq/shared';
+import { reapplySelectionChanges, roleModulePermissions, delegatedGrant, type AssignmentAgentSelection, type BrokerTeamResponse } from '@brokeriq/shared';
 import { DelegatedPermissions } from '@/components/delegated-permissions';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ApiError, api, patch } from '@/lib/api';
+import { useConfig } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
 import { goBack } from '@/lib/navigation';
@@ -16,9 +17,10 @@ import { Button, Chip, ErrorView, Input, Loader, Txt } from '@/ui';
 type Member = BrokerTeamResponse['members'][number] & { updatedAt: string };
 
 export default function TeamPermissions() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
+  const roleMode = mode === 'role';
   const { user } = useAuth();
-  const allowed = !!id && user?.role === 'BROKER_ADMIN' && id !== user.id;
+  const allowed = !!id && user?.role === 'BROKER_ADMIN' && !user.rolePermissions && id !== user.id;
   const q = useQuery({
     queryKey: ['team', 'member', user?.id, id],
     queryFn: () => api<{ member: Member }>(`/broker/team/${encodeURIComponent(id)}`),
@@ -26,7 +28,7 @@ export default function TeamPermissions() {
   });
   const member = q.data?.member;
   return (
-    <BrokerScreen title="Sub-Broker Admin permissions" subtitle={member?.name} back>
+    <BrokerScreen title={roleMode ? 'Edit module permissions' : 'Sub-Broker Admin permissions'} subtitle={member?.name} back>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <NativeCard style={{ gap: 12 }}>
           {!allowed ? (
@@ -35,10 +37,10 @@ export default function TeamPermissions() {
             <ErrorView error={q.error} onRetry={() => q.refetch()} />
           ) : !member ? (
             <Loader />
-          ) : !['BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(member.role) ? (
+          ) : !(roleMode ? ['BROKER_AGENT', 'BROKER_ADMIN'] : ['BROKER_AGENT', 'SUB_BROKER_ADMIN']).includes(member.role) ? (
             <Txt>This member’s permissions cannot be changed here.</Txt>
           ) : (
-            <PermissionEditor key={member.id} member={member} onReload={async () => (await q.refetch({ throwOnError: true })).data!.member} />
+            <PermissionEditor key={member.id + ':' + roleMode} roleMode={roleMode} member={member} onReload={async () => (await q.refetch({ throwOnError: true })).data!.member} />
           )}
         </NativeCard>
       </ScrollView>
@@ -46,19 +48,26 @@ export default function TeamPermissions() {
   );
 }
 
-function PermissionEditor({ member, onReload }: { member: Member; onReload: () => Promise<Member> }) {
+function PermissionEditor({ member, onReload, roleMode }: { member: Member; roleMode: boolean; onReload: () => Promise<Member> }) {
   const [baseline, setBaseline] = useState(member);
   const [reloading, setReloading] = useState(false);
   const [reloadFailed, setReloadFailed] = useState(false);
   const [reloaded, setReloaded] = useState(false);
   const { user } = useAuth();
-  const [grants, setGrants] = useState(member.delegatedPermissions ?? []);
+  const { modules, loaded } = useConfig();
+  const defaults = (record: Member) => roleModulePermissions(modules, record.role)
+    .flatMap(({ key, actions }) => actions.map((action) => delegatedGrant(key, action)))
+    .filter((grant) => record.agentChatEnabled !== false || grant !== 'inbox:view');
+  const current = (record: Member) => roleMode ? record.rolePermissions ?? defaults(record) : record.delegatedPermissions ?? [];
+  const [draftGrants, setGrants] = useState<string[] | null>(null);
+  const grants = draftGrants ?? current(member);
   const [agentDraft, setAgentDraft] = useState<{ baseline: string[]; selected: string[] }>();
   const [agentSearch, setAgentSearch] = useState('');
   const [limit, setLimit] = useState(12);
   const assignmentAgents = useQuery({
     queryKey: ['team', 'assignment-dashboard', user?.id, member.id],
     queryFn: () => api<AssignmentAgentSelection>(`/broker/team/${encodeURIComponent(member.id)}/assignment-dashboard`),
+    enabled: !roleMode,
   });
   const loadedAgents = assignmentAgents.data?.selectedAgentIds ?? [];
   const selectedAgents = agentDraft?.selected ?? loadedAgents;
@@ -74,7 +83,7 @@ function PermissionEditor({ member, onReload }: { member: Member; onReload: () =
         ...(agentDraft ? { assignmentDashboardAgentIds: agentDraft.selected } : {}),
       }),
     {
-      success: 'Sub-Broker Admin permissions saved',
+      success: roleMode ? 'Module permissions saved' : 'Sub-Broker Admin permissions saved',
       invalidate: [['team']],
       onSuccess: () => goBack({ pathname: '/team-member/[id]', params: { id: member.id } }),
     },
@@ -84,8 +93,8 @@ function PermissionEditor({ member, onReload }: { member: Member; onReload: () =
     setReloading(true);
     setReloadFailed(false);
     try {
-      const [latest, assignments] = await Promise.all([onReload(), assignmentAgents.refetch({ throwOnError: true })]);
-      setGrants((draft) => reapplySelectionChanges(baseline.delegatedPermissions ?? [], draft, latest.delegatedPermissions ?? []));
+      const [latest, assignments] = await Promise.all([onReload(), roleMode ? undefined : assignmentAgents.refetch({ throwOnError: true })]);
+      setGrants((draft) => reapplySelectionChanges(current(baseline), draft ?? current(baseline), current(latest)));
       if (assignments?.data) {
         const { selectedAgentIds, agents } = assignments.data;
         setAgentDraft(
@@ -107,7 +116,7 @@ function PermissionEditor({ member, onReload }: { member: Member; onReload: () =
   }
   return (
     <>
-      <NativeCard>
+      {!roleMode && <NativeCard>
         <Txt v="bodyStrong">Agents in assignment dashboard</Txt>
         <Txt v="caption" color="muted">
           Enable Today and Team viewing, plus Leads or Inventory viewing for the corresponding counts.
@@ -146,9 +155,9 @@ function PermissionEditor({ member, onReload }: { member: Member; onReload: () =
             {matchedAgents.length > limit && <Button title="Show more agents" variant="secondary" size="sm" onPress={() => setLimit(limit + 12)} />}
           </>
         )}
-      </NativeCard>
-      <DelegatedPermissions value={grants} onChange={setGrants} />
-      <Button title="Save permissions" loading={save.isPending} disabled={conflict || reloading} onPress={() => save.mutate(undefined)} />
+      </NativeCard>}
+      <DelegatedPermissions role={roleMode ? member.role : undefined} value={grants} onChange={setGrants} />
+      <Button title="Save permissions" loading={save.isPending} disabled={!loaded || conflict || reloading} onPress={() => save.mutate(undefined)} />
       {conflict && (
         <>
           <Txt color="danger">{reloadFailed ? 'Could not reload permissions. Try again.' : 'This member changed while you were editing.'}</Txt>

@@ -26,10 +26,12 @@ export class InsightsController {
   async dashboard(@CurrentUser() user: RequestUser) {
     const orgId = requireOrg(user);
     const mine = user.role === 'BROKER_AGENT';
-    const leadScope: Prisma.LeadWhereInput = { organizationId: orgId, deletedAt: null, ...(mine ? { assignedToId: user.id } : {}) };
+    const canView = (module: string) => !user.rolePermissions || user.rolePermissions.includes(module + ':view');
+    const leadScope: Prisma.LeadWhereInput = { organizationId: orgId, deletedAt: null, ...(!canView('leads') ? { id: { in: [] } } : {}), ...(mine ? { assignedToId: user.id } : {}) };
     const inventoryScope: Prisma.InventoryItemWhereInput = {
       organizationId: orgId,
       deletedAt: null,
+      ...(!canView('inventory') ? { id: { in: [] } } : {}),
       ...(mine ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] } : {}),
     };
     const today0 = startOfDay();
@@ -54,13 +56,13 @@ export class InsightsController {
     ] = await Promise.all([
       this.prisma.lead.count({ where: { ...leadScope, createdAt: { gte: today0 } } }),
       this.prisma.lead.count({ where: { ...leadScope, stage: { notIn: ['WON', 'LOST'] } } }),
-      mine
+      mine || !canView('leads')
         ? Promise.resolve(0)
         : this.prisma.lead.count({ where: { organizationId: orgId, deletedAt: null, assignedToId: null, stage: { notIn: ['WON', 'LOST'] } } }),
       this.prisma.followUp.count({
         where: {
           organizationId: orgId,
-          lead: liveTaskLeadWhere(orgId, user),
+          lead: canView('leads') ? liveTaskLeadWhere(orgId, user) : { id: { in: [] } },
           status: 'PENDING',
           dueAt: { lt: new Date() },
           ...(mine ? { assignedToId: user.id } : {}),
@@ -69,7 +71,7 @@ export class InsightsController {
       this.prisma.followUp.findMany({
         where: {
           organizationId: orgId,
-          lead: liveTaskLeadWhere(orgId, user),
+          lead: canView('leads') ? liveTaskLeadWhere(orgId, user) : { id: { in: [] } },
           status: 'PENDING',
           dueAt: { lte: today1 },
           ...(mine ? { assignedToId: user.id } : {}),
@@ -83,7 +85,7 @@ export class InsightsController {
           organizationId: orgId,
           scheduledAt: { gte: today0, lte: today1 },
           status: { in: ['SCHEDULED', 'CONFIRMED'] },
-          lead: liveTaskLeadWhere(orgId, user),
+          lead: canView('leads') ? liveTaskLeadWhere(orgId, user) : { id: { in: [] } },
           ...(mine ? { assignedToId: user.id } : {}),
         },
         orderBy: { scheduledAt: 'asc' },
@@ -95,15 +97,15 @@ export class InsightsController {
       this.prisma.deal.aggregate({
         where: {
           organizationId: orgId,
-          status: 'CLOSED',
+          status: 'CLOSED', ...(!canView('deals') ? { id: { in: [] } } : {}),
           closedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
           ...(mine ? { agentId: user.id } : {}),
         },
         _sum: { commissionAmount: true, dealValue: true },
         _count: true,
       }),
-      this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null, ...(mine ? { postedById: user.id } : {}) } }),
-      mine && user.agentChatEnabled === false ? Promise.resolve({ _sum: { unreadCount: 0 }, _count: { _all: 0 } }) : this.prisma.conversation.aggregate({
+      this.prisma.listing.count({ where: { organizationId: orgId, ...(!canView('inventory') ? { id: { in: [] } } : {}), status: 'ACTIVE', deletedAt: null, ...(mine ? { postedById: user.id } : {}) } }),
+      !canView('inbox') || (mine && user.agentChatEnabled === false) ? Promise.resolve({ _sum: { unreadCount: 0 }, _count: { _all: 0 } }) : this.prisma.conversation.aggregate({
         where: {
           organizationId: orgId,
           unreadCount: { gt: 0 },
@@ -121,7 +123,7 @@ export class InsightsController {
         orderBy: { _count: { sector: 'desc' } },
         take: 6,
       }),
-      mine
+      mine || !canView('automation')
         ? Promise.resolve(null)
         : this.prisma.connectorState.findUnique({
             where: { organizationId_type: { organizationId: orgId, type: 'HOUSING_API' } },

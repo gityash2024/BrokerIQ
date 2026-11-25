@@ -1,7 +1,7 @@
 'use client';
 import { BackButton } from '@/components/ui/back-button';
 import { useState } from 'react';
-import { delegableModules, delegatedGrant } from '@brokeriq/shared';
+import { roleModulePermissions, delegatedGrant } from '@brokeriq/shared';
 import { useConfig, useConfigStatus } from '@/lib/config';
 import { Link2, Send } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,14 +19,14 @@ export default function InvitePage() {
   const [selection, setPermissions] = useState<string[] | null>(null);
   const { modules } = useConfig();
   const { loaded } = useConfigStatus();
-  const permissions = selection ?? delegableModules(modules).flatMap(({ key, actions }) =>
+  const permissions = selection ?? roleModulePermissions(modules, f.role).flatMap(({ key, actions }) =>
     actions.map((action) => delegatedGrant(key, action)));
   const [result, setResult] = useState<{ link: string; emailed: boolean } | null>(null);
   const send = useApiMutation(
     () =>
       post<{ link: string; emailed: boolean }>('/broker/team/invite', {
         ...f,
-        ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}),
+        ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : f.role === 'PROPERTY_OWNER' ? {} : { rolePermissions: permissions }),
       }),
     {
       invalidate: [['team']],
@@ -73,18 +73,18 @@ export default function InvitePage() {
                 <Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
               </Field>
               <Field label="Role" hint="Admin: billing, connectors, automations, पूरी team की leads। Agent: सिर्फ़ अपनी assigned leads।">
-                <Select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+                <Select value={f.role} onChange={(e) => { setF({ ...f, role: e.target.value }); setPermissions(null); }}>
                   <option value="BROKER_AGENT">Agent</option>
                   <option value="BROKER_ADMIN">Admin</option>
                   <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
                   <option value="PROPERTY_OWNER">Property Owner</option>
                 </Select>
               </Field>
-              {f.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
+              {f.role !== 'PROPERTY_OWNER' && <DelegatedPermissions role={f.role} value={permissions} onChange={setPermissions} />}
             </div>
           )}
           {!result && (
-            <Button loading={send.isPending} disabled={!f.name || !f.email || (f.role === 'SUB_BROKER_ADMIN' && !loaded)} onClick={() => send.mutate(undefined)}>
+            <Button loading={send.isPending} disabled={!f.name || !f.email || (f.role !== 'PROPERTY_OWNER' && !loaded)} onClick={() => send.mutate(undefined)}>
               <Send className="size-4" /> Send invite
             </Button>
           )}

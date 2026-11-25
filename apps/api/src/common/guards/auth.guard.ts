@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { storedRolePermissions } from '@brokeriq/shared';
 import type { Role } from '@prisma/client';
 import { IS_PUBLIC, ROLES_KEY, type RequestUser } from '../decorators';
 import { env } from '../../config/env';
@@ -69,7 +70,8 @@ export class JwtAuthGuard implements CanActivate {
       } else {
         req.sessionId = sessionId;
         req.delegatedPermissions = current.delegatedPermissions;
-        req.user = { id: current.id, role: current.role, orgId: current.organizationId, email: current.email, agentChatEnabled: current.agentChatEnabled } satisfies RequestUser;
+        req.user = { id: current.id, role: current.role, orgId: current.organizationId, email: current.email, agentChatEnabled: current.agentChatEnabled,
+          rolePermissions: storedRolePermissions(current.role, current.delegatedPermissions) } satisfies RequestUser;
       }
     }
     if (isPublic) return true;

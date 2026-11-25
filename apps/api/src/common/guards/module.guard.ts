@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC } from '../decorators';
-import { delegatedGrant, delegableModules, moduleForPath } from '@brokeriq/shared';
+import { IS_PUBLIC, type RequestUser } from '../decorators';
+import { delegatedGrant, delegableModules, moduleForPath, roleModulePermissions } from '@brokeriq/shared';
 import { ModulesService } from '../../core/features/modules.service';
 import { delegatedEndpoint } from './delegated-access';
 import { env } from '../../config/env';
@@ -121,6 +121,9 @@ export class ModuleGuard implements CanActivate {
         return true;
       throw new ForbiddenException('Property Owner accounts can access their linked properties');
     }
+    if (user?.rolePermissions) {
+      await this.requireFirmPermissions({ ...user, rolePermissions: user.rolePermissions }, req, requestPath, context);
+    }
     if (!env().BROKER_FIRST) return true;
     if (user && !['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role))
       throw new ForbiddenException('यह role अभी launch में उपलब्ध नहीं है।');
@@ -142,4 +145,48 @@ export class ModuleGuard implements CanActivate {
     await this.modules.assertPath(path, agentConnect ? 'BROKER_ADMIN' : publicSlots ? 'USER' : (user?.role ?? 'PUBLIC'));
     return true;
   }
+  private async requireFirmPermissions(user: Pick<RequestUser, 'role' | 'id'> & { rolePermissions: string[] }, request: any, path: string, context: ExecutionContext) {
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()])) return;
+    const route = String(request.route?.path ?? path).replace(/^\/api(?=\/|$)/i, '').replace(/\/+$/, '').toLowerCase();
+    // Full firm admins alone can control who may log in or change the authorization ceiling.
+    if (!['GET', 'HEAD'].includes(request.method) && (
+      /^\/broker\/team\/(?:invite(?:s)?(?:\/|$)|members\/|:[^/]+$)/.test(route) ||
+      route === '/connect/firm-policy'
+    )) throw new ForbiddenException('Full Broker Admin access is required to manage authorization');
+    if (/^\/auth(?:\/|$)/.test(route) || /^\/me(?:$|\/(?:privacy|consent|push-tokens|notifications)(?:\/|$))/.test(route)) return;
+
+    const has = (key: string, action: string) => user.rolePermissions.includes(key + ':' + action);
+    if (route === '/broker/dashboard/records') {
+      const module = ['availability', 'localities'].includes(request.query?.chart) ? 'inventory' : 'leads';
+      if (!has(module, 'view')) throw new ForbiddenException('This chart is not assigned to your account');
+    }
+    if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(route) && !has('inventory', 'view'))
+      throw new ForbiddenException('Inventory view permission is required for property matches');
+    if (route.endsWith('/resolve-lead') && !has('leads', 'view'))
+      throw new ForbiddenException('Leads view permission is required to open a lead conversation');
+    if (route === '/broker-requirements/:id/convert' && (!has('inventory', 'create') || !has('inventory', 'view')))
+      throw new ForbiddenException('Inventory create permission is also required');
+    if (route === '/me/uploads/sign' && request.body?.kind === 'listing' &&
+      (!has('inventory', 'view') || (!has('inventory', 'create') && !has('inventory', 'edit')))) {
+      throw new ForbiddenException('Inventory media requires create or edit permission');
+    }
+    const explicitlyMapped = delegatedEndpoint(route, request.method, request.body);
+    const key = explicitlyMapped?.module ?? (
+      /^\/chat(?:\/|$)/.test(route) ? 'inbox' : /^\/media\/property-video(?:\/|$)/.test(route) ? 'inventory' : moduleForPath(path, 'api')
+    );
+    const catalog = key && roleModulePermissions(await this.modules.all(), user.role).find((module) => module.key === key);
+    if (!catalog) return;
+    const actions = explicitlyMapped?.actions ?? (
+      request.method === 'DELETE' ? ['delete'] : request.method === 'POST' ? ['create'] :
+        ['PATCH', 'PUT'].includes(request.method) ? ['edit'] : ['view']
+    );
+    const assignment = request.body && Object.prototype.hasOwnProperty.call(request.body, 'assignedToId') &&
+      (key === 'inventory' || key === 'leads') && user.role === 'BROKER_ADMIN' ? ['assign'] : [];
+    const available: readonly string[] = catalog.actions;
+    const required = [...new Set(['view', ...actions, ...assignment])].filter((action) => available.includes(action));
+    if (!required.every((action) => user.rolePermissions.includes(key + ':' + action))) {
+      throw new ForbiddenException('This action is not assigned to your account');
+    }
+  }
+
 }

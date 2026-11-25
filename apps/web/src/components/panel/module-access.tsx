@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { hasDelegatedAccess, delegatedModulePolicies, moduleAllowed, moduleForPath, defaultModulePolicies, PLATFORM_MODULES } from '@brokeriq/shared';
+import { hasDelegatedAccess, delegatedModulePolicies, roleModulePolicies, moduleAllowed, moduleForPath, defaultModulePolicies, PLATFORM_MODULES } from '@brokeriq/shared';
 import { Clock3, LockKeyhole, EyeOff } from 'lucide-react';
 import { useConfig, useConfigStatus } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
@@ -17,7 +17,7 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
   const screenScope = `${context.scope}:${context.revision}`;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const role = delegated ? 'BROKER_ADMIN' : (user?.role ?? 'PUBLIC');
-  const policies = delegated ? delegatedModulePolicies(config.modules, user.delegatedPermissions ?? []) : config.modules;
+  const policies = delegated ? delegatedModulePolicies(config.modules, user.delegatedPermissions ?? []) : roleModulePolicies(config.modules, user);
   const key = moduleForPath(path);
   if (delegated && path === '/broker/kyc') return <Fragment key={screenScope}>{children}</Fragment>;
   if (key && !status.loaded)
@@ -32,7 +32,7 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
       </div>
     );
   const actionAllowed =
-    !delegated ||
+    (!delegated && !user?.rolePermissions) ||
     (path !== '/broker/onboarding' &&
       (path !== '/broker/publications' || hasDelegatedAccess(user, 'inventory', 'approve')) &&
       (path !== '/broker/connectors' || hasDelegatedAccess(user, 'automation', 'connection_status')));

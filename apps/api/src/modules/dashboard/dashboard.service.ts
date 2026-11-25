@@ -58,8 +58,11 @@ export class DashboardService {
     const policies = await this.modules.all();
     if (!moduleAllowed(policies, 'today', 'BROKER_ADMIN') || !moduleAllowed(policies, 'team', 'BROKER_ADMIN'))
       throw new ForbiddenException('Assignment dashboard is unavailable');
-    const leads = moduleAllowed(policies, 'leads', 'BROKER_ADMIN') && (!delegated || permissions.includes('leads:view'));
-    const inventory = moduleAllowed(policies, 'inventory', 'BROKER_ADMIN') && (!delegated || permissions.includes('inventory:view'));
+    const granted = (module: string) => (!delegated || permissions.includes(module + ':view')) &&
+      (!user.rolePermissions || user.rolePermissions.includes(module + ':view'));
+    if (!granted('today') || !granted('team')) throw new ForbiddenException('Assignment dashboard is unavailable');
+    const leads = moduleAllowed(policies, 'leads', 'BROKER_ADMIN') && granted('leads');
+    const inventory = moduleAllowed(policies, 'inventory', 'BROKER_ADMIN') && granted('inventory');
     if (!leads && !inventory) throw new ForbiddenException('Assignment dashboard is unavailable');
 
     const selected = delegated ? await assignedDashboardAgentIds(this.db, organizationId, user.id) : undefined;
@@ -357,7 +360,8 @@ export class DashboardService {
       const on = (key: string) =>
         policies[key]?.state === 'ACTIVE' &&
         policies[key].roles.some((role) => role === user.role) &&
-        (!user.delegatedActor || user.delegatedPermissions?.includes(key + ':view'));
+        (!user.delegatedActor || user.delegatedPermissions?.includes(key + ':view')) &&
+        (!user.rolePermissions || user.rolePermissions.includes(key + ':view'));
       const [availability, sectors, requirements, leads, overdue, visits, sources, stages, pendingReview] = await Promise.all([
         on('inventory')
           ? this.db.inventoryItem.groupBy({

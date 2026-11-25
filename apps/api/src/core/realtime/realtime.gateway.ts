@@ -1,3 +1,4 @@
+import { ROLE_PERMISSIONS_MARKER } from '@brokeriq/shared';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { OnGatewayConnection, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
@@ -51,11 +52,18 @@ export class RealtimeGateway implements OnGatewayConnection {
       const expiry = setTimeout(() => client.disconnect(true), Math.max(1, payload.exp * 1000 - Date.now()));
       expiry.unref();
       client.on('disconnect', () => clearTimeout(expiry));
-      if (current.organizationId && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(current.role)) client.join(`org:${current.organizationId}`);
+      if (current.organizationId && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(current.role) &&
+          !current.delegatedPermissions.includes(ROLE_PERMISSIONS_MARKER)) client.join(`org:${current.organizationId}`);
       if (current.role === 'SUPER_ADMIN') client.join('admins');
     } catch {
       client.disconnect(true);
     }
+  }
+
+  changeFirmRoom(userId: string, organizationId: string, fullAdmin: boolean) {
+    const sockets = this.server?.in(`user:${userId}`);
+    if (fullAdmin) sockets?.socketsJoin(`org:${organizationId}`);
+    else sockets?.socketsLeave(`org:${organizationId}`);
   }
 
   disconnectSession(sessionId: string) {

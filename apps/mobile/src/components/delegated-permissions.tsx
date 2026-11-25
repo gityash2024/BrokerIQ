@@ -1,15 +1,15 @@
 import { View } from 'react-native';
-import { delegableModules, delegatedGrant } from '@brokeriq/shared';
+import { roleModulePermissions, delegatedGrant } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 import { Card, Chip, Txt } from '@/ui';
 
-export function DelegatedPermissions({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+export function DelegatedPermissions({ value, onChange, role = 'SUB_BROKER_ADMIN' }: { value: string[]; onChange: (value: string[]) => void; role?: string }) {
   const { modules, loaded } = useConfig();
   if (!loaded) return <Txt color="muted">Loading available permissions…</Txt>;
   return (
     <View style={{ gap: 10 }}>
       <Txt color="muted">Choose individual actions. Unchecked actions remain restricted.</Txt>
-      {delegableModules(modules).map((module) => (
+      {roleModulePermissions(modules, role).map((module) => (
         <Card key={module.key} style={{ padding: 12, gap: 8 }}>
           <Txt v="bodyStrong">{module.name}</Txt>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
