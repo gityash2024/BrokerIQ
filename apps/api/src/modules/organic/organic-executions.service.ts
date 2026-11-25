@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
 import { nextOrganicTime } from './organic-record';
+import { OrganicWebSearchService } from './organic-web-search.service';
 import { OrganicService } from './organic.service';
 
 const jobTypes = ['organic.collect', 'organic.enrich', 'organic.publish', 'organic.ready',
@@ -11,6 +12,7 @@ const jobSelect = { id: true, key: true, type: true, status: true, attempts: tru
   runAt: true, lockedAt: true, createdAt: true, updatedAt: true, payload: true, lastError: true } as const;
 const runSelect = { id: true, kind: true, key: true, scheduleId: true, status: true, report: true,
   createdAt: true, finishedAt: true, windowTo: true,
+  searchQueries: { select: { label: true, query: true, status: true }, orderBy: { label: 'asc' } },
   sourceBatches: { select: { sourceId: true, status: true, processed: true, inserted: true, duplicates: true, reviewed: true } } } as const;
 type Job = Prisma.JobGetPayload<{ select: typeof jobSelect }>;
 type Run = Prisma.OrganicRunGetPayload<{ select: typeof runSelect }>;
@@ -35,10 +37,10 @@ function canRetryStep(type: string, status: string | undefined) {
 
 @Injectable()
 export class OrganicExecutionsService {
-  constructor(private readonly db: PrismaService, private readonly organic: OrganicService) {}
+  constructor(private readonly db: PrismaService, private readonly organic: OrganicService, private readonly webSearch: OrganicWebSearchService) {}
 
   async snapshot() {
-    const [recent, active, sources, rules, supply, demand, supplyWorkflow, demandWorkflow] = await Promise.all([
+    const [recent, active, sources, rules, supply, demand, supplyWorkflow, demandWorkflow, webSearchMode] = await Promise.all([
       this.db.organicRun.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 25, select: runSelect }),
       this.db.job.findMany({ where: { type: { in: jobTypes }, status: { in: ['PENDING', 'RUNNING', 'FAILED'] },
         OR: [{ createdAt: { gte: new Date(Date.now() - 48 * 60 * 60_000) } }, { status: { in: ['PENDING', 'RUNNING'] } }] },
@@ -51,6 +53,7 @@ export class OrganicExecutionsService {
       this.organic.settingsFor('DEMAND'),
       this.organic.workflowFor('SUPPLY'),
       this.organic.workflowFor('DEMAND'),
+      this.webSearch.mode(),
     ]);
     const keyByRunId = new Map(recent.map(({ id, key }) => [id, key]));
     const runs = new Map<string, Run | null>(recent.map((run) => [run.key, run]));
@@ -97,6 +100,7 @@ export class OrganicExecutionsService {
       return [{
         key, runId: run?.id ?? null, kind, status,
         revision: (first?.payload as { workflow?: { revision?: number } } | undefined)?.workflow?.revision ?? null, scheduleId: run?.scheduleId ?? null, createdAt: run?.createdAt ?? first.createdAt,
+        searchQueries: run?.searchQueries ?? [],
         finishedAt: run?.finishedAt ?? null, report: run?.report ?? null, sourceBatches: run?.sourceBatches ?? [],
         steps: jobs.map(({ id, type, status, runAt, lockedAt, updatedAt, attempts, maxAttempts, lastError }) => ({
           canRetry: status === 'FAILED' && canRetryStep(type, run?.status),
@@ -107,11 +111,16 @@ export class OrganicExecutionsService {
     });
     executions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return {
-      workerEnabled: env().JOBS_ENABLED, sources, executions,
+      workerEnabled: env().JOBS_ENABLED, webSearchMode, sources, executions,
       discovery: { SUPPLY: schedule(supply), DEMAND: schedule(demand) },
       workflows: { SUPPLY: supplyWorkflow, DEMAND: demandWorkflow },
       delivery: rules.map((rule) => ({ ...rule, firmName: firms.find(({ id }) => id === rule.organizationId)?.name ?? 'Firm unavailable' })),
     };
+  }
+
+  async searchEvidence(runId: string) {
+    return this.db.organicWebSearchQuery.findMany({ where: { runId }, orderBy: { label: 'asc' },
+      select: { label: true, query: true, status: true, startedAt: true, finishedAt: true, httpStatus: true, pages: true } });
   }
 
   async retryJob(id: string, actorId: string) {

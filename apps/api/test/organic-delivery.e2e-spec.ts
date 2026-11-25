@@ -174,7 +174,7 @@ describe('Organic daily delivery', () => {
     const when = new Date('2026-11-19T18:30:00.000Z');
     const key = 'organic-discovery:DEMAND:2026-11-20';
     try {
-      const draft = { revision: initial.revision, sourceIds: [], useAi: false };
+      const draft = { revision: initial.revision, sourceIds: [], useAi: false, searchWeb: true };
       const saved = (await api().patch(path).set(headers).send(draft).expect(200)).body;
       expect(saved).toEqual({ ...draft, revision: initial.revision + 1 });
       await api().patch(path).set(headers).send(draft).expect(409);

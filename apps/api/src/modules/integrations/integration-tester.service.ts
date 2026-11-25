@@ -69,6 +69,17 @@ export class IntegrationTesterService {
       case 'groq':
       case 'gemini':
         return `AI response — ${await this.ai.test(key, v)}`;
+      case 'organic_web_search': {
+        const response = await fetch('https://api.tavily.com/search', {
+          method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
+          headers: { Authorization: 'Bearer ' + v.apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: 'Gurugram district Haryana official website', search_depth: 'basic', max_results: 1, auto_parameters: false }),
+        });
+        if (!response.ok) throw new Error('Tavily returned HTTP ' + response.status + '. Check the key and Researcher quota.');
+        const body = await response.json();
+        if (!Array.isArray(body.results)) throw new Error('Tavily returned an invalid search response.');
+        return `Tavily accepted the authenticated search · ${body.results.length} source link(s)`;
+      }
       case 'cloudinary':
         return `Cloudinary: ${await this.media.testCloudinary(v)}`;
       case 's3':

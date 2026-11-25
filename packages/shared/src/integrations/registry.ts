@@ -303,6 +303,23 @@ export const INTEGRATIONS: IntegrationDef[] = [
     testable: true,
   },
   {
+    key: 'organic_web_search',
+    name: 'Organic web search (Tavily)',
+    category: 'leads',
+    scope: 'platform',
+    description: 'Find Gurugram source links for Organic Supply and Demand. Use the free Researcher plan and keep pay-as-you-go off.',
+    freeTier: '1,000 search credits per month on the Researcher plan',
+    docsUrl: 'https://docs.tavily.com/documentation/api-reference/endpoint/search',
+    steps: [
+      'Create a Tavily Researcher account at app.tavily.com.',
+      'Leave pay-as-you-go disabled and create an API key.',
+      'Save the key here and enable public source search in the Organic Automation workflow.',
+    ],
+    fields: [{ key: 'apiKey', label: 'API key', type: 'password', required: true, secret: true }],
+    usedFor: ['Organic source discovery'],
+    testable: true,
+  },
+  {
     key: 'openrouter',
     name: 'OpenRouter AI (free open-source models)',
     category: 'ai',

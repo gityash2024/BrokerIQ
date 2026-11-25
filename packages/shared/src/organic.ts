@@ -62,6 +62,7 @@ export const organicSourceInput = z.object({
   enabled: z.boolean().default(false),
   contactRedistribution: z.boolean().default(false),
   itemsPath: z.string().regex(/^[a-zA-Z0-9_.]*$/).max(100).default(''),
+  searchPathPrefix: z.string().trim().max(240).regex(/^\/(?:(?:[a-z0-9_-]+)\/)+$/i).nullable().optional(),
   minIntervalMinutes: z.number().int().min(15).max(1440).default(60),
   priority: z.number().int().min(0).max(100).default(50),
 });

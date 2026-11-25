@@ -6,6 +6,7 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { OrganicDeliveryService } from './organic-delivery.service';
 import { OrganicExecutionsService } from './organic-executions.service';
+import { OrganicWebSearchService } from './organic-web-search.service';
 import { OrganicService } from './organic.service';
 
 const transferInput = z.object({
@@ -18,6 +19,7 @@ const workflowInput = z.object({
   revision: z.number().int().min(0).max(2_000_000_000),
   sourceIds: z.array(z.string().min(1).max(80)).max(100).nullable(),
   useAi: z.boolean(),
+  searchWeb: z.boolean().optional(),
 }).strict();
 const schedule = z.object({ enabled: z.boolean(), time, enrichTime: time.optional(), resultsTime: time.optional(), notifyTime: time })
   .refine(({ time, enrichTime, resultsTime, notifyTime }) =>
@@ -32,6 +34,9 @@ class OrganicController {
 
   @Get('executions')
   workflowExecutions() { return this.executions.snapshot(); }
+
+  @Get('executions/:id/search-evidence')
+  searchEvidence(@Param('id') id: string) { return this.executions.searchEvidence(id); }
 
   @Patch('workflows/:kind')
   saveWorkflow(@CurrentUser() user: RequestUser, @Param('kind', new ZodPipe(organicKind)) kind: 'SUPPLY' | 'DEMAND',
@@ -109,5 +114,5 @@ class OrganicController {
   deliveryRetry(@Param('id') id: string) { return this.delivery.retry(id); }
 }
 
-@Module({ controllers: [OrganicController], providers: [OrganicService, OrganicDeliveryService, OrganicExecutionsService] })
+@Module({ controllers: [OrganicController], providers: [OrganicService, OrganicDeliveryService, OrganicExecutionsService, OrganicWebSearchService] })
 export class OrganicModule {}

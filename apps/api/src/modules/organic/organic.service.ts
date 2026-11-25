@@ -13,13 +13,14 @@ import { AiService, OpenRouterQuotaDeferred } from '../../core/ai/ai.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { decodeOrganicSource, readOrganicSource, sourceEndpoint } from './organic-source';
+import { OrganicWebSearchService } from './organic-web-search.service';
 import { discoveryPhases, nextOrganicTime, normalizeOrganicRecord, pastOrganicTime } from './organic-record';
 
 type Kind = 'SUPPLY' | 'DEMAND';
 type DiscoverySettings = { enabled: boolean; time: string; enrichTime?: string; resultsTime?: string; notifyTime: string };
-type WorkflowConfig = { sourceIds: string[] | null; useAi: boolean; revision: number };
+type WorkflowConfig = { sourceIds: string[] | null; useAi: boolean; revision: number; searchWeb?: boolean };
 const workflowKey = (kind: Kind) => 'organic.workflow.' + kind.toLowerCase();
-const defaultWorkflow: WorkflowConfig = { sourceIds: null, useAi: true, revision: 0 };
+const defaultWorkflow: WorkflowConfig = { sourceIds: null, useAi: true, revision: 0, searchWeb: false };
 const terminal = ['COMPLETE', 'PARTIAL', 'NO_SOURCE', 'CANCELLED'];
 const defaults: DiscoverySettings = { enabled: false, time: '00:00', notifyTime: '07:00' };
 const day = 24 * 60 * 60_000;
@@ -31,7 +32,8 @@ const windowOf = (from?: string, to?: string) => ({ gte: from ? new Date(from + 
 @Injectable()
 export class OrganicService {
   constructor(private readonly db: PrismaService, private readonly jobs: JobsService, private readonly settings: SettingsService,
-    private readonly ai: AiService, private readonly notifications: NotificationsService) {
+    private readonly ai: AiService, private readonly notifications: NotificationsService,
+    private readonly webSearch: OrganicWebSearchService) {
     jobs.register('organic.discovery', (job) => this.discover(job.kind, job.key, job.day, job.sourceId));
     jobs.register('organic.collect', (job) => this.collectScheduled(job.kind, job.key, job.day, job.sourceId, job.workflow));
     jobs.register('organic.enrich', (job) => this.enrichScheduled(job.kind, job.key, job.workflow));
@@ -69,7 +71,7 @@ export class OrganicService {
       if (sourceIds && sourceIds.length !== await tx.organicSource.count({ where: { id: { in: sourceIds }, supports: { has: kind } } })) {
         throw new BadRequestException('Choose sources compatible with this workflow');
       }
-      const workflow = { sourceIds, useAi: input.useAi, revision: input.revision + 1 };
+      const workflow = { sourceIds, useAi: input.useAi, searchWeb: input.searchWeb ?? previous?.searchWeb ?? false, revision: input.revision + 1 };
       await tx.systemSetting.upsert({ where: { key }, create: { key, value: workflow, updatedById: actorId },
         update: { value: workflow, updatedById: actorId } });
       await tx.auditLog.create({ data: { actorId, actorRole: 'SUPER_ADMIN', action: 'organic.workflow.update',
@@ -84,6 +86,7 @@ export class OrganicService {
 
   async saveSource(input: OrganicSourceInput, actor: string, id?: string) {
     try { sourceEndpoint(input.url); } catch { throw new BadRequestException('Use a public HTTPS source endpoint'); }
+    if (input.searchPathPrefix && input.format !== 'HTML') throw new BadRequestException('Discovered pages require an approved HTML source');
     if (input.format === 'RERA_PROJECTS' && (input.url !== realeGurugramSource.url || input.permissionUrl !== realeGurugramSource.permissionUrl ||
       input.contactRedistribution || input.supports.length !== 1 || input.supports[0] !== 'SUPPLY' || input.minIntervalMinutes < realeGurugramSource.minIntervalMinutes)) {
       throw new BadRequestException('Use the licensed Gurugram registry profile without contact redistribution');
@@ -92,12 +95,12 @@ export class OrganicService {
       return await this.db.$transaction(async (tx) => {
         const prior = id ? await tx.organicSource.findUnique({ where: { id } }) : null;
         if (id && !prior) throw new NotFoundException('Source not found');
-        const changed = prior && (prior.url !== input.url || prior.format !== input.format || prior.itemsPath !== input.itemsPath);
+        const changed = prior && (prior.url !== input.url || prior.format !== input.format || prior.itemsPath !== input.itemsPath || (input.searchPathPrefix !== undefined && prior.searchPathPrefix !== input.searchPathPrefix));
         const saved = id ? await tx.organicSource.update({ where: { id }, data: { ...input, ...(changed ? {
           supplyEtag: null, demandEtag: null, supplyAttemptAt: null, demandAttemptAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailureAt: null, lastError: null,
         } : {}) } }) : await tx.organicSource.create({ data: input });
         await tx.auditLog.create({ data: { actorId: actor, actorRole: 'SUPER_ADMIN', action: 'organic.source.save',
-          entity: 'OrganicSource', entityId: saved.id, meta: { enabled: input.enabled, contacts: input.contactRedistribution, permissionUrl: input.permissionUrl } } });
+          entity: 'OrganicSource', entityId: saved.id, meta: { enabled: input.enabled, searchPathPrefix: saved.searchPathPrefix, contacts: input.contactRedistribution, permissionUrl: input.permissionUrl } } });
         return saved;
       });
     } catch (error) {
@@ -137,7 +140,8 @@ export class OrganicService {
   }
 
   private sourceState(source: OrganicSource) {
-    return digest(JSON.stringify([source.url, source.format, source.itemsPath, source.permissionUrl, source.contactRedistribution, source.supports]));
+    return digest(JSON.stringify([source.url, source.format, source.itemsPath, source.permissionUrl, source.contactRedistribution, source.supports,
+      ...(source.searchPathPrefix ? [source.searchPathPrefix] : [])]));
   }
 
   private async collectScheduled(kind: Kind, key: string, discoveryDay: string, sourceId?: string, workflow = defaultWorkflow) {
@@ -150,6 +154,7 @@ export class OrganicService {
     if (run.status !== 'COLLECTING' || !(await this.continueScheduled(kind, run))) return;
     const sources = await this.db.organicSource.findMany({ where: { id: sourceId ?? (workflow.sourceIds !== null ? { in: workflow.sourceIds } : undefined), enabled: true, supports: { has: kind } },
       orderBy: [{ priority: 'desc' }, { id: 'asc' }] });
+    if (!sourceId && workflow.searchWeb) await this.webSearch.run(run.id, kind, discoveryDay, manual);
     const localities = await this.localityNames();
     const attemptField = kind === 'SUPPLY' ? 'supplyAttemptAt' : 'demandAttemptAt';
     for (const source of sources) {
@@ -167,6 +172,22 @@ export class OrganicService {
       }
       try {
         const { entries } = await this.readSource(source);
+        if (!sourceId && workflow.searchWeb && source.searchPathPrefix) {
+          const urls = await this.webSearch.pagesForSource(run.id, source.url, source.searchPathPrefix);
+          const recentSince = run.windowFrom ?? new Date(cutoff.valueOf() - day);
+          for (const url of urls) {
+            await delay(350);
+            try {
+              const { text } = await readOrganicSource(url);
+              if (!text) continue;
+              const candidates = decodeOrganicSource(text, 'HTML', '', source.supports, url);
+              entries.push(...candidates.filter((entry) => entry.kind === kind && entry.publishedAt &&
+                new URL(entry.url).href === url && this.inWindow(entry, now, recentSince, run.windowTo ?? undefined)));
+            } catch {
+              // A single stale or unreachable page does not discard the approved feed.
+            }
+          }
+        }
         const rows = entries.flatMap((entry) => {
           if (entry.kind !== kind || !this.inWindow(entry, now, run.windowFrom ?? undefined, run.windowTo ?? undefined)) return [];
           const normalized = normalizeOrganicRecord(entry, localities, source.contactRedistribution);

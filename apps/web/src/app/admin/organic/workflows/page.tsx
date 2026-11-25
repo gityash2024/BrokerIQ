@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ArrowRight, Bell, Building2, Clock, Database, Globe2, Inbox, Play, Radio, Sparkles, Users, Workflow } from 'lucide-react';
+import { Activity, ArrowRight, Bell, Building2, Clock, Database, Globe2, Inbox, Play, Radio, Search, Sparkles, Users, Workflow } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -16,7 +16,7 @@ const endpoint = '/admin/organic';
 const queryKey = ['organic-executions'];
 type Kind = 'SUPPLY' | 'DEMAND' | 'DELIVERY';
 type Discovery = Exclude<Kind, 'DELIVERY'>;
-type WorkflowConfig = { sourceIds: string[] | null; useAi: boolean; revision: number };
+type WorkflowConfig = { sourceIds: string[] | null; useAi: boolean; revision: number; searchWeb?: boolean };
 type Schedule = { enabled: boolean; time: string; enrichTime: string; resultsTime: string; notifyTime: string };
 type Step = {
   id: string; type: string; status: string; attempts: number; maxAttempts: number;
@@ -25,10 +25,12 @@ type Step = {
 type Run = {
   key: string; runId: string | null; kind: Kind | 'MANUAL'; status: string; revision: number | null; createdAt: string; finishedAt: string | null;
   report: Record<string, number> | null; steps: Step[];
+  searchQueries?: { label: string; query: string; status: string }[];
   sourceBatches: { sourceId: string; status: string; processed: number; inserted: number; duplicates: number; reviewed: number }[];
 };
+type SearchEvidence = { label: string; query: string; status: string; pages: { url: string; domain: string; indexedDate: string | null }[] | null };
 type Snapshot = {
-  workerEnabled: boolean; executions: Run[];
+  workerEnabled: boolean; webSearchMode?: 'ACCOUNT' | 'KEYLESS'; executions: Run[];
   discovery: Record<Discovery, Schedule & { nextRunAt: string | null }>;
   workflows: Record<Discovery, WorkflowConfig>;
   sources: { id: string; name: string; enabled: boolean; supports: string[]; format: string }[];
@@ -99,7 +101,21 @@ export default function OrganicWorkflows() {
   const selected = runs.find(({ key }) => key === chosenRun) ?? runs[0];
   const compatibleSources = data?.sources.filter((source) => source.supports.includes(kind)) ?? [];
   const sources = compatibleSources.filter(({ id, enabled }) => enabled && (workflow?.sourceIds === null || workflow?.sourceIds.includes(id)));
-  const timeline = kind === 'DELIVERY' ? deliveryPhases : phases;
+  const timeline = kind === 'DELIVERY' ? deliveryPhases : [
+    { id: 'search', icon: Search, title: 'Search the web', note: 'Targeted queries for Gurugram buyers, tenants and owners' },
+    ...phases,
+  ];
+  const evidence = useQuery({
+    queryKey: [...queryKey, selected?.runId, 'search-evidence'],
+    queryFn: () => api<SearchEvidence[]>(endpoint + '/executions/' + selected?.runId + '/search-evidence'),
+    enabled: Boolean(selected?.runId && selected.searchQueries?.length),
+    refetchInterval: selected?.finishedAt ? false : 5_000,
+  });
+  const searchState = selected?.searchQueries?.length
+    ? selected.searchQueries.some(({ status }) => status === 'SEARCHING') ? 'RUNNING'
+      : selected.searchQueries.some(({ status }) => status === 'LINKS_FOUND') ? 'LINKS_FOUND'
+        : selected.searchQueries[0].status
+    : workflow?.searchWeb ? data?.webSearchMode === 'ACCOUNT' ? 'READY' : 'KEYLESS' : 'DISABLED';
 
   function patchSchedule(next: Schedule) {
     return mutate.mutateAsync({ path: '/discovery/' + kind, method: 'PATCH', body: next });
@@ -161,7 +177,7 @@ export default function OrganicWorkflows() {
         </div>
         <div className="bg-surface-2/30 p-4 sm:p-5"
           style={{ backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: '16px 16px' }}>
-          <ol className={'grid gap-3 ' + (kind === 'DELIVERY' ? 'lg:grid-cols-3' : 'lg:grid-cols-4')}>
+          <ol className={'grid gap-3 ' + (kind === 'DELIVERY' ? 'lg:grid-cols-3' : 'lg:grid-cols-5')}>
             {timeline.map(({ id, icon: Icon, title, note }, index) => {
               const step = selected?.steps.find(({ type }) => type === 'organic.' + id);
               const at = phases.find((phase) => phase.id === id)?.field;
@@ -169,12 +185,15 @@ export default function OrganicWorkflows() {
                 {index > 0 && <ArrowRight aria-hidden className="absolute -left-4 top-5 hidden size-4 rounded-full bg-surface text-primary lg:block" />}
                 <div className="flex items-start justify-between gap-2">
                   <div className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="size-4" /></div>
+                  {id === 'search' && <Status state={searchState} />}
                   {step && <Status state={step.deferred ? 'WAITING_TO_RETRY' : step.status} />}
                 </div>
                 <h3 className="mt-3 text-sm font-semibold">{title}</h3>
                 <p className="mt-1 text-xs text-muted">{id === 'enrich' && workflow && !workflow.useAi ? 'Rules and evidence checks' : note}</p>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   {schedule && at && <p className="text-xs font-semibold text-muted">{schedule[at]} IST</p>}
+                  {workflow && id === 'search' && <button type="button" onClick={() => setStepDraft({ step: 'collect', config: workflow })}
+                    className="text-xs font-semibold text-primary hover:underline">Configure search</button>}
                   {workflow && (id === 'collect' || id === 'enrich') && <button type="button" onClick={() => setStepDraft({ step: id, config: workflow })}
                     className="text-xs font-semibold text-primary hover:underline" aria-label={'Configure ' + title}>Configure</button>}
                 </div>
@@ -228,6 +247,23 @@ export default function OrganicWorkflows() {
                 {step.canRetry && <Button size="sm" variant="secondary" disabled={mutate.isPending || !data.workerEnabled}
                   onClick={() => mutate.mutate({ path: '/executions/steps/' + step.id + '/retry' })}>Retry step</Button>}</div>
             </li>)}</ul>
+            {Boolean(selected.searchQueries?.length) && <section aria-label="Web search evidence" className="mt-4 rounded-xl border border-line p-3">
+              <h3 className="text-sm font-semibold">Web search evidence</h3>
+              <p className="mt-1 text-xs text-muted">Links from each query are candidates for source review. Verify the original publication date and collection permissions before registering a source.</p>
+              {evidence.error && <ApiErrorState error={evidence.error} onRetry={() => void evidence.refetch()} />}
+              <div className="mt-2 divide-y divide-line">
+                {(evidence.data ?? []).map((item) => <details key={item.label} className="py-2">
+                  <summary className="cursor-pointer text-sm font-medium"><span className="mr-2">{item.label}</span><Status state={item.status} />
+                    {item.pages?.length ? <span className="ml-2 text-xs text-muted">{item.pages.length} links</span> : null}</summary>
+                  <p className="mt-2 break-words text-xs text-muted">{item.query}</p>
+                  {item.pages?.length ? <ul className="mt-2 grid gap-2">{item.pages.map((page) => <li key={page.url} className="min-w-0 rounded-lg bg-surface-2/40 p-2 text-xs">
+                    <a href={page.url} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-primary hover:underline">{page.url}</a>
+                    <p className="mt-1 text-muted">{page.indexedDate ? 'Date reported by search · ' + when(page.indexedDate) : 'Publication date unconfirmed'}</p>
+                  </li>)}</ul> : null}
+                  {item.status === 'NEEDS_SETUP' && <Link href="/admin/settings/integrations" className="mt-2 inline-block text-xs font-semibold text-primary">Set up Organic web search</Link>}
+                </details>)}
+              </div>
+            </section>}
             {selected.sourceBatches.length > 0 && <ul className="mt-3 divide-y divide-line border-t border-line">
               {selected.sourceBatches.map((batch) => {
                 const source = data.sources.find(({ id }) => id === batch.sourceId);
@@ -253,6 +289,10 @@ export default function OrganicWorkflows() {
         });
       }}>Save step</Button>}>
       {stepDraft?.step === 'collect' && <div className="grid gap-3">
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={stepDraft.config.searchWeb ?? false}
+          onChange={(event) => setStepDraft({ ...stepDraft, config: { ...stepDraft.config, searchWeb: event.target.checked } })} />
+          Find public source links with Tavily. Keyless access is rate-limited.</label>
+        {stepDraft.config.searchWeb && data?.webSearchMode === 'KEYLESS' && <Link href="/admin/settings/integrations" className="text-sm font-semibold text-primary">Add a free Tavily key for scheduled searches</Link>}
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={stepDraft.config.sourceIds === null}
           onChange={(event) => setStepDraft({ ...stepDraft, config: { ...stepDraft.config, sourceIds: event.target.checked ? null : compatibleSources.filter(({ enabled }) => enabled).map(({ id }) => id) } })} />
           Use all enabled sources</label>

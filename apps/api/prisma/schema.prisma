@@ -2684,6 +2684,7 @@ model OrganicSource {
   enabled                 Boolean  @default(false)
   contactRedistribution   Boolean  @default(false)
   itemsPath               String   @default("")
+  searchPathPrefix        String?
   minIntervalMinutes      Int      @default(60)
   priority                Int      @default(50)
   lastAttemptAt           DateTime?
@@ -2792,6 +2793,7 @@ model OrganicRun {
   createdAt     DateTime @default(now())
   finishedAt    DateTime?
   sourceBatches OrganicSourceBatch[]
+  searchQueries OrganicWebSearchQuery[]
   @@index([kind, createdAt])
   @@index([scheduleId, createdAt])
 }
@@ -3133,4 +3135,20 @@ model PropertyVideoExtraction {
 
   @@index([expiresAt])
   @@index([userId, expiresAt])
+}
+
+/// Search citations are evidence for source discovery, outside the lead transfer flow.
+model OrganicWebSearchQuery {
+  runId      String
+  label      String
+  query      String
+  status     String
+  startedAt  DateTime?
+  finishedAt DateTime?
+  httpStatus Int?
+  pages      Json?
+  run        OrganicRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@id([runId, label])
+  @@index([startedAt])
 }

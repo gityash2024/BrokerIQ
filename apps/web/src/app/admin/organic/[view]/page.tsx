@@ -272,7 +272,12 @@ function SourcesPage() {
       {([['name', 'Source name'], ['url', 'HTTPS feed or page'], ['permissionUrl', 'Collection and redistribution permission URL'], ['itemsPath', 'JSON item path']] as const).map(([key, label]) => (
         <label className="text-sm" key={key}>{label}<input className={input} required={key !== 'itemsPath'} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>
       ))}
-      <label className="text-sm">Source format<select className={input} value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as OrganicSourceInput['format'] })}><option>JSON</option><option>RSS</option><option>HTML</option><option value="RERA_PROJECTS">Gurugram RERA projects</option></select></label>
+      <label className="text-sm">Source format<select className={input} value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as OrganicSourceInput['format'], searchPathPrefix: null })}><option>JSON</option><option>RSS</option><option>HTML</option><option value="RERA_PROJECTS">Gurugram RERA projects</option></select></label>
+      {form.format === 'HTML' && <label className="text-sm">Approved listing path for search (optional)
+        <input className={input} value={form.searchPathPrefix ?? ''} placeholder="/listings/"
+          onChange={(event) => setForm({ ...form, searchPathPrefix: event.target.value || null })} />
+        <span className="mt-1 block text-xs text-muted">Only enter an exact path on this host where your source agreement allows automated listing collection and redistribution.</span>
+      </label>}
       {([['minIntervalMinutes', 'Minimum interval (minutes)'], ['priority', 'Priority']] as const).map(([key, label]) => <label className="text-sm" key={key}>{label}
         <input className={input} type="number" value={form[key]} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} /></label>)}
       <div className="flex flex-wrap gap-3">
