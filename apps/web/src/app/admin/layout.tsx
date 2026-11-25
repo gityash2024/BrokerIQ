@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, LayoutDashboard, SlidersHorizontal, Users, Clock } from 'lucide-react';
+import { Building2, LayoutDashboard, SlidersHorizontal, Users, Clock, Workflow } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
@@ -61,6 +61,7 @@ function Inner({ children }: { children: React.ReactNode }) {
     {
       title: 'Organic automation',
       items: [
+        { href: '/admin/organic/workflows', label: 'Workflow Console', icon: Workflow },
         { href: '/admin/organic/supply', label: 'Organic Property Supply', icon: Building2 },
         { href: '/admin/organic/demand', label: 'Organic Buyer & Tenant Leads', icon: Users },
         { href: '/admin/organic/sources', label: 'Discovery sources', icon: SlidersHorizontal },

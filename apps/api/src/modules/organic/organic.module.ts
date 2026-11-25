@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { OrganicDeliveryService } from './organic-delivery.service';
+import { OrganicExecutionsService } from './organic-executions.service';
 import { OrganicService } from './organic.service';
 
 const transferInput = z.object({
@@ -21,7 +22,14 @@ const schedule = z.object({ enabled: z.boolean(), time, enrichTime: time.optiona
 @Roles('SUPER_ADMIN')
 @Controller('admin/organic')
 class OrganicController {
-  constructor(private readonly records: OrganicService, private readonly delivery: OrganicDeliveryService) {}
+  constructor(private readonly records: OrganicService, private readonly delivery: OrganicDeliveryService,
+    private readonly executions: OrganicExecutionsService) {}
+
+  @Get('executions')
+  workflowExecutions() { return this.executions.snapshot(); }
+
+  @Post('executions/steps/:id/retry')
+  retryStep(@CurrentUser() user: RequestUser, @Param('id') id: string) { return this.executions.retryJob(id, user.id); }
 
   @Get('records')
   list(@Query(new ZodPipe(organicQuery)) query: OrganicQuery) { return this.records.list(query); }
@@ -90,5 +98,5 @@ class OrganicController {
   deliveryRetry(@Param('id') id: string) { return this.delivery.retry(id); }
 }
 
-@Module({ controllers: [OrganicController], providers: [OrganicService, OrganicDeliveryService] })
+@Module({ controllers: [OrganicController], providers: [OrganicService, OrganicDeliveryService, OrganicExecutionsService] })
 export class OrganicModule {}

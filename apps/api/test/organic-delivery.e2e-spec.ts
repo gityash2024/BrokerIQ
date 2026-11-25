@@ -73,6 +73,21 @@ describe('Organic daily delivery', () => {
         ['organic.collect', '2026-11-23T18:30:00.000Z'], ['organic.enrich', '2026-11-23T23:30:00.000Z'],
         ['organic.publish', '2026-11-24T00:30:00.000Z'], ['organic.ready', '2026-11-24T01:30:00.000Z'],
       ]);
+      const admin = await db.user.create({ data: {
+        email: key + '@workflow.e2e.test', name: 'Workflow admin', role: 'SUPER_ADMIN',
+      }, include: { organization: true } });
+      const headers = auth((await app.get(AuthService).issue(admin)).accessToken);
+      const workflow = '/api/admin/organic/executions';
+      await api().get(workflow).expect(401);
+      await api().post(workflow + '/steps/' + jobs[0].id + '/retry').set(headers).expect(409);
+      await db.job.update({ where: { id: jobs[0].id }, data: { status: 'FAILED', attempts: 5, lastError: 'External private payload' } });
+      const queued = (await api().get(workflow).set(headers).expect(200)).body.executions.find(({ key }: { key: string }) => key === runKey);
+      expect(queued).toMatchObject({ kind: 'SUPPLY', status: 'FAILED', runId: null,
+        steps: expect.arrayContaining([expect.objectContaining({ type: 'organic.collect', status: 'FAILED', canRetry: true })]) });
+      expect(queued.steps).toHaveLength(4);
+      expect(queued.steps[0]).not.toHaveProperty('lastError');
+      await api().post(workflow + '/steps/' + jobs[0].id + '/retry').set(headers).expect(201);
+      expect(await db.job.findUnique({ where: { id: jobs[0].id } })).toMatchObject({ status: 'PENDING', attempts: 0 });
       await service['collectScheduled']('SUPPLY', runKey, day);
       await service['collectScheduled']('SUPPLY', runKey, day);
       expect(fetch).toHaveBeenCalledTimes(2);
@@ -87,6 +102,11 @@ describe('Organic daily delivery', () => {
       const batch = await db.organicSourceBatch.findFirstOrThrow({ where: { runId: run.id, sourceId: source.id } });
       expect(batch).toMatchObject({ status: 'PUBLISHED', processed: 1, inserted: 1, rows: null });
       expect(await db.organicRun.findUnique({ where: { id: run.id } })).toMatchObject({ status: 'PARTIAL', report: { records: 1, failed: 1 } });
+      const completed = (await api().get(workflow).set(headers).expect(200)).body.executions.find(({ key }: { key: string }) => key === runKey);
+      expect(completed.sourceBatches).toEqual(expect.arrayContaining([
+        expect.objectContaining({ sourceId: source.id, inserted: 1, status: 'PUBLISHED' }),
+        expect.objectContaining({ sourceId: broken.id, status: 'FAILED' }),
+      ]));
     } finally {
       fetch.mockRestore();
       readSettings.mockRestore();
