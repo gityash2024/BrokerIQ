@@ -27,7 +27,11 @@ import android.telecom.VideoProfile
 import android.telephony.PhoneNumberUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,6 +41,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -296,6 +307,10 @@ class ConnectPhoneActivity : ComponentActivity() {
                 while (true) { now = System.currentTimeMillis(); delay(1000) }
             } else if (receivedCall) finish()
         }
+        if (current?.phase == Call.STATE_RINGING) {
+            IncomingCall(current)
+            return
+        }
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
@@ -354,7 +369,6 @@ class ConnectPhoneActivity : ComponentActivity() {
                 val call = current.call
                 val phase = current.phase
                 Text(when (phase) {
-                    Call.STATE_RINGING -> "Incoming call"
                     Call.STATE_HOLDING -> "On hold"
                     Call.STATE_ACTIVE -> if (current.connectedAt > 0) {
                         val elapsed = ((now - current.connectedAt) / 1000L).coerceAtLeast(0)
@@ -371,40 +385,80 @@ class ConnectPhoneActivity : ComponentActivity() {
                         selectedCall = other.id
                     }) { Text(other.name ?: other.number ?: "Other call") }
                 }
-                if (phase == Call.STATE_RINGING) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = { call.reject(false, null) }) { Text("Decline") }
-                        Button(onClick = { call.answer(VideoProfile.STATE_AUDIO_ONLY) }) { Text("Answer") }
-                    }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = muted, onClick = ConnectInCallService::changeMute, label = { Text("Mute") })
-                        if (call.details.can(Call.Details.CAPABILITY_HOLD)) FilterChip(selected = phase == Call.STATE_HOLDING, onClick = {
-                            if (phase == Call.STATE_HOLDING) call.unhold() else call.hold()
-                        }, label = { Text(if (phase == Call.STATE_HOLDING) "Resume" else "Hold") })
-                        Box {
-                            FilterChip(selected = routeMenu, onClick = { routeMenu = true }, enabled = routes.isNotEmpty(), label = { Text("Audio") })
-                            DropdownMenu(expanded = routeMenu, onDismissRequest = { routeMenu = false }) {
-                                routes.forEach { route ->
-                                    DropdownMenuItem(text = { Text(route.label) }, onClick = { routeMenu = false; route.select() })
-                                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = muted, onClick = ConnectInCallService::changeMute, label = { Text("Mute") })
+                    if (call.details.can(Call.Details.CAPABILITY_HOLD)) FilterChip(selected = phase == Call.STATE_HOLDING, onClick = {
+                        if (phase == Call.STATE_HOLDING) call.unhold() else call.hold()
+                    }, label = { Text(if (phase == Call.STATE_HOLDING) "Resume" else "Hold") })
+                    Box {
+                        FilterChip(selected = routeMenu, onClick = { routeMenu = true }, enabled = routes.isNotEmpty(), label = { Text("Audio") })
+                        DropdownMenu(expanded = routeMenu, onDismissRequest = { routeMenu = false }) {
+                            routes.forEach { route ->
+                                DropdownMenuItem(text = { Text(route.label) }, onClick = { routeMenu = false; route.select() })
                             }
                         }
-                        FilterChip(selected = showKeypad, onClick = { showKeypad = !showKeypad }, label = { Text("Keypad") })
                     }
-                    if (showKeypad && phase == Call.STATE_ACTIVE) {
-                        var tone by remember { mutableStateOf<Char?>(null) }
-                        LaunchedEffect(tone) {
-                            tone?.let { digit ->
-                                call.playDtmfTone(digit)
-                                try { delay(120) } finally { call.stopDtmfTone() }
-                                tone = null
-                            }
+                    FilterChip(selected = showKeypad, onClick = { showKeypad = !showKeypad }, label = { Text("Keypad") })
+                }
+                if (showKeypad && phase == Call.STATE_ACTIVE) {
+                    var tone by remember { mutableStateOf<Char?>(null) }
+                    LaunchedEffect(tone) {
+                        tone?.let { digit ->
+                            call.playDtmfTone(digit)
+                            try { delay(120) } finally { call.stopDtmfTone() }
+                            tone = null
                         }
-                        DialKeys { tone = it }
                     }
+                    DialKeys { tone = it }
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun IncomingCall(current: LiveCall) {
+        val background = Brush.verticalGradient(listOf(Color(0xFF161C35), Color(0xFF101422), Color(0xFF251C58)))
+        Column(Modifier.fillMaxSize().background(background).statusBarsPadding().navigationBarsPadding()
+            .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Spacer(Modifier.height(34.dp))
+            Image(painterResource(R.drawable.biq_brand), null, Modifier.size(72.dp))
+            Text("BrokerIQ Connect", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(26.dp))
+            Text("Incoming call", color = Color(0xFFC9C0FF), style = MaterialTheme.typography.titleMedium)
+            Text(current.name ?: current.number ?: "Unknown caller", color = Color.White, textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, maxLines = 3)
+            if (current.name != null && current.number != null) Text(current.number, color = Color.White)
+            current.simLabel?.let { Text(it, color = Color(0xFFC9C0FF), style = MaterialTheme.typography.labelLarge) }
+            Canvas(Modifier.size(width = 124.dp, height = 60.dp)) {
+                val bars = listOf(.16f, .36f, .58f, .82f, .58f, .36f, .16f)
+                bars.forEachIndexed { index, height ->
+                    val x = size.width * (index + 1) / (bars.size + 1)
+                    val half = size.height * height / 2
+                    drawLine(Color(0xFF846BFA), Offset(x, center.y - half), Offset(x, center.y + half), 4.dp.toPx(), StrokeCap.Round)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                IncomingAction("Decline", Color(0xFFFF686D), Color(0xFF161C35), rotate = 135f) {
+                    current.call.reject(false, null)
+                }
+                IncomingAction("Answer", Color(0xFF9BDFB3), Color(0xFF161C35)) {
+                    current.call.answer(VideoProfile.STATE_AUDIO_ONLY)
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun IncomingAction(label: String, background: Color, foreground: Color, rotate: Float = 0f, action: () -> Unit) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = action, modifier = Modifier.size(68.dp).semantics { contentDescription = label },
+                colors = ButtonDefaults.buttonColors(containerColor = background, contentColor = foreground),
+                contentPadding = PaddingValues(0.dp), shape = CircleShape) {
+                Icon(Icons.Filled.Call, contentDescription = null, Modifier.size(28.dp).rotate(rotate))
+            }
+            Text(label, color = Color.White, style = MaterialTheme.typography.labelLarge)
         }
     }
 

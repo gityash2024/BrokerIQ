@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.CallLog
+import android.provider.ContactsContract
 import android.provider.Settings
 import android.telecom.TelecomManager
 import android.util.Base64
@@ -535,43 +536,43 @@ class MainActivity : ComponentActivity() {
         val wifi by model.wifiAudio.collectAsState()
         val lastSync by model.lastSync.collectAsState()
         val update by model.updateUrl.collectAsState()
-        var tab by rememberSaveable(account) { mutableStateOf(ConnectTab.OVERVIEW) }
+        var tab by rememberSaveable(account) { mutableStateOf(ConnectTab.CALLS) }
         var search by rememberSaveable(account) { mutableStateOf("") }
         var missedOnly by rememberSaveable(account) { mutableStateOf(false) }
         var advanced by rememberSaveable(account) { mutableStateOf(false) }
         var consentToRecording by remember(recording) { mutableStateOf(false) }
         val scroll = ConnectTab.entries.associateWith { rememberScrollState() }
-        BackHandler(tab != ConnectTab.OVERVIEW) { tab = ConnectTab.OVERVIEW }
+        BackHandler(tab != ConnectTab.CALLS) { tab = if (tab == ConnectTab.INBOX) ConnectTab.SYNC else ConnectTab.CALLS }
         Scaffold(
             bottomBar = { ConnectNavigation(tab) { tab = it } },
             contentWindowInsets = WindowInsets.systemBars,
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(scroll.getValue(tab)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ConnectWorkspaceHeader(tab.label, settings.optBoolean("consent"))
+                ConnectWorkspaceHeader(tab.label, settings.optBoolean("consent")) {
+                    tab = if (tab == ConnectTab.SETUP) ConnectTab.CALLS else ConnectTab.SETUP
+                }
                 SessionFeedback(feedback, busy)
                 when (tab) {
-                    ConnectTab.OVERVIEW -> {
-                        ConnectCard("Connected") {
-                            Text(if (settings.flag("backgroundSync")) "Business capture syncs automatically." else "Background sync is paused.")
-                            Text("Last sync " + (lastSync?.let {
-                                runCatching { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
-                                    .withZone(ZoneId.systemDefault()).format(Instant.parse(it)) }.getOrDefault(it)
-                            } ?: "pending"))
-                            if (outbox.isNotEmpty()) {
-                                Text("${outbox.count { it.state == "PENDING" }} pending · ${outbox.count { it.state == "FAILED" }} need retry")
-                            }
-                            Button(onClick = {
-                                startActivity(Intent(Intent.ACTION_DIAL).setClass(this@MainActivity, ConnectPhoneActivity::class.java))
-                            }, modifier = Modifier.fillMaxWidth()) { Text("Open keypad") }
-                            OutlinedButton(onClick = { tab = ConnectTab.SYNC }, modifier = Modifier.fillMaxWidth()) { Text("View activity") }
-                            update?.let { url -> TextButton(onClick = { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }) {
-                                Text("Update available")
-                            } }
+                    ConnectTab.CONTACTS -> {
+                        var contacts by remember { mutableStateOf<List<PhoneContact>>(emptyList()) }
+                        var contactQuery by rememberSaveable(account) { mutableStateOf("") }
+                        LaunchedEffect(accessRevision) {
+                            contacts = withContext(Dispatchers.IO) { loadContacts() }
                         }
-                        if (settings.flag("recordings") && !hasFolder) ConnectCard("Sync call recordings") {
-                            Text("Connect can match new recordings in a folder created by your phone. Availability depends on your device.")
-                            OutlinedButton(onClick = { openRecordingFolder.launch(null) }, enabled = !busy) { Text("Choose folder and enable recording sync") }
+                        OutlinedTextField(contactQuery, { contactQuery = it.take(80) }, label = { Text("Search contacts") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        val entries = (leads.map { PhoneContact(it.name, it.phone, true) } + contacts)
+                            .distinctBy { mobile(it.number) ?: it.number.filter(Char::isDigit) }
+                            .filter { it.name.contains(contactQuery, true) || it.number.contains(contactQuery) }
+                        ConnectCard("Contacts") {
+                            if (entries.isEmpty()) Text("No matching contacts.")
+                            entries.take(60).forEach { contact ->
+                                ConnectContactRow(contact.name, contact.number + if (contact.lead) " · BrokerIQ lead" else "") {
+                                    dial(contact.number)
+                                }
+                            }
+                            if (entries.size > 60) Text("Search by name or number to see more contacts.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     ConnectTab.CALLS -> {
@@ -601,12 +602,9 @@ class MainActivity : ComponentActivity() {
                                 if (matching.isEmpty()) Text("No matching recent calls.")
                                 val formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault())
                                 matching.forEach { call ->
-                                    Column(Modifier.fillMaxWidth()) {
-                                        Text(call.name ?: call.number ?: "Unknown caller", style = MaterialTheme.typography.titleSmall)
-                                        Text(listOf(call.kind, formatter.format(Instant.ofEpochMilli(call.time)), "${call.duration} s").joinToString(" · "),
-                                            style = MaterialTheme.typography.bodySmall)
-                                        if (!call.number.isNullOrBlank()) TextButton(onClick = { dial(call.number) }) { Text("Call back") }
-                                    }
+                                    val action: (() -> Unit)? = call.number?.takeIf(String::isNotBlank)?.let { number -> { dial(number) } }
+                                    ConnectContactRow(call.name ?: call.number ?: "Unknown caller",
+                                        listOf(call.kind, formatter.format(Instant.ofEpochMilli(call.time)), "${call.duration} s").joinToString(" · "), action)
                                     HorizontalDivider()
                                 }
                             }
@@ -659,7 +657,18 @@ class MainActivity : ComponentActivity() {
                         ConnectCard("Synchronization") {
                             if (outbox.isEmpty()) Text("No pending uploads.")
                             else outbox.forEach { Text(it.kind + " · " + it.state) }
+                            Text(if (settings.flag("backgroundSync")) "Background sync enabled" else "Background sync paused")
+                            lastSync?.let { stamp ->
+                                val date = runCatching { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+                                    .withZone(ZoneId.systemDefault()).format(Instant.parse(stamp)) }.getOrDefault(stamp)
+                                Text("Last sync " + date, style = MaterialTheme.typography.bodySmall)
+                            }
                             OutlinedButton(onClick = model::sync, enabled = !busy) { Text("Sync now") }
+                        }
+                        ConnectCard("Message capture") {
+                            Text(if (settings.flag("whatsapp")) "WhatsApp notification capture enabled" else "WhatsApp capture paused")
+                            Text(if (settings.flag("smsNotifications")) "SMS notification capture enabled" else "SMS capture paused")
+                            OutlinedButton(onClick = { tab = ConnectTab.INBOX }) { Text("Manage messages") }
                         }
                         if (calls.isNotEmpty()) ConnectCard("Matched calls") {
                             calls.take(25).forEach { row ->
@@ -683,6 +692,9 @@ class MainActivity : ComponentActivity() {
                                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
                             }) { Text("Android permissions") }
                             Text("Version " + BuildConfig.VERSION_NAME, style = MaterialTheme.typography.bodySmall)
+                            update?.let { url -> TextButton(onClick = { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }) {
+                                Text("Update available")
+                            } }
                         }
                         ConnectCard("Capture preferences") {
                             Toggle("Enable business capture", settings.optBoolean("consent"), !busy) { model.toggle("consent", it) }
@@ -732,6 +744,24 @@ class MainActivity : ComponentActivity() {
         if (isConnectDialer()) action.setClass(this, ConnectPhoneActivity::class.java)
         else getSystemService(TelecomManager::class.java)?.defaultDialerPackage?.let(action::setPackage)
         runCatching { startActivity(action) }
+    }
+
+    private data class PhoneContact(val name: String, val number: String, val lead: Boolean = false)
+
+    private fun loadContacts(): List<PhoneContact> {
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return emptyList()
+        val phone = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+        val projection = arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY, ContactsContract.CommonDataKinds.Phone.NUMBER)
+        return runCatching {
+            contentResolver.query(phone, projection, null, null, projection[0] + " COLLATE NOCASE")?.use { cursor ->
+                buildList {
+                    while (cursor.moveToNext() && size < 3000) {
+                        val number = cursor.getString(1)?.takeIf { it.any(Char::isDigit) } ?: continue
+                        add(PhoneContact(cursor.getString(0)?.takeIf(String::isNotBlank) ?: number, number))
+                    }
+                }
+            }.orEmpty()
+        }.getOrDefault(emptyList())
     }
 
     private data class HandsetCall(val name: String?, val number: String?, val kind: String, val time: Long, val duration: Long)

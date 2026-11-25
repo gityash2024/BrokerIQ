@@ -13,7 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -202,18 +202,18 @@ internal fun SessionFeedback(message: String, busy: Boolean) {
     }
 }
 
-internal enum class ConnectTab(val label: String) { OVERVIEW("Home"), CALLS("Calls"), INBOX("Messages"), SYNC("Activity"), SETUP("Settings") }
+internal enum class ConnectTab(val label: String) { CALLS("Calls"), CONTACTS("Contacts"), SYNC("Activity"), INBOX("Messages"), SETUP("Settings") }
 
 @Composable
 internal fun ConnectNavigation(selected: ConnectTab, select: (ConnectTab) -> Unit) {
     NavigationBar {
-        for (tab in ConnectTab.entries) {
+        for (tab in listOf(ConnectTab.CALLS, ConnectTab.CONTACTS, ConnectTab.SYNC)) {
             NavigationBarItem(
                 selected = tab == selected,
                 onClick = { select(tab) },
                 icon = {
                     Icon(when (tab) {
-                        ConnectTab.OVERVIEW -> Icons.Filled.Home
+                        ConnectTab.CONTACTS -> Icons.Filled.Person
                         ConnectTab.CALLS -> Icons.Filled.Call
                         ConnectTab.INBOX -> Icons.Filled.Email
                         ConnectTab.SYNC -> Icons.AutoMirrored.Filled.List
@@ -227,7 +227,7 @@ internal fun ConnectNavigation(selected: ConnectTab, select: (ConnectTab) -> Uni
 }
 
 @Composable
-internal fun ConnectWorkspaceHeader(title: String, connected: Boolean) {
+internal fun ConnectWorkspaceHeader(title: String, connected: Boolean, onSettings: (() -> Unit)? = null) {
     Surface(color = Ink, contentColor = Color.White, shape = RoundedCornerShape(22.dp)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -237,7 +237,27 @@ internal fun ConnectWorkspaceHeader(title: String, connected: Boolean) {
                 Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             }
             Box(Modifier.size(8.dp).background(if (connected) Mint else Color(0xFFF3C474), CircleShape))
+            if (onSettings != null) IconButton(onClick = onSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
         }
+    }
+}
+
+@Composable
+internal fun ConnectContactRow(title: String, detail: String, call: (() -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(42.dp)) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(title.firstOrNull { it.isLetter() }?.uppercase() ?: "#", fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 2)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+        }
+        if (call != null) IconButton(onClick = call) { Icon(Icons.Filled.Call, contentDescription = "Call " + title) }
     }
 }
 
