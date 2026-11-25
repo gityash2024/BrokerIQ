@@ -732,3 +732,36 @@ export function propertyGalleryDraft(message: string, url: string): string {
   const reference = link.pathname.slice(-8).toUpperCase();
   return `${message}\n\nView all property photos · Ref ${reference}:\n${link.href}`;
 }
+
+export const INVENTORY_BULK_LIMIT = 2000;
+export const inventoryBulkActions = {
+  available: 'Move to Available',
+  rented: 'Move to Rented out',
+  draft: 'Mark Draft',
+  inactive: 'Mark Inactive',
+  sold: 'Mark Sold',
+  unavailable: 'Mark Unavailable',
+  unknown: 'Availability Unknown',
+} as const;
+export const inventoryBulkAction = z.enum(Object.keys(inventoryBulkActions) as (keyof typeof inventoryBulkActions)[]);
+export const inventoryBulkPreview = z.object({
+  action: inventoryBulkAction,
+  selection: z.discriminatedUnion('mode', [
+    z.object({ mode: z.literal('ids'), ids: z.array(z.string().min(1).max(80)).min(1).max(INVENTORY_BULK_LIMIT) }),
+    z.object({ mode: z.literal('filtered'), filters: inventoryFilterSchema }),
+  ]),
+});
+const inventoryBulkRow = z.object({ id: z.string().min(1).max(80), revision: z.number().int().nonnegative() });
+export const inventoryBulkApply = z.object({
+  action: inventoryBulkAction, rows: z.array(inventoryBulkRow).min(1).max(INVENTORY_BULK_LIMIT),
+  confirmWithdrawal: z.boolean().default(false),
+});
+export type InventoryBulkAction = keyof typeof inventoryBulkActions;
+export type InventoryBulkPreviewInput = z.infer<typeof inventoryBulkPreview>;
+export type InventoryBulkApplyInput = z.infer<typeof inventoryBulkApply>;
+export type InventoryBulkPreview = {
+  rows: z.infer<typeof inventoryBulkRow>[];
+  selected: number;
+  skipped: number;
+  withdrawals: number;
+};

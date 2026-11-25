@@ -7,6 +7,10 @@ import {
   createInventoryFolderSchema,
   inventoryUnitBatchSchema,
   inventoryFilterSchema,
+  inventoryBulkPreview,
+  inventoryBulkApply,
+  type InventoryBulkPreviewInput,
+  type InventoryBulkApplyInput,
   availabilitySchema,
   inventoryPublishSchema,
   surveyPhotoInputSchema,
@@ -179,6 +183,16 @@ export class InventoryController {
   reopenSurvey(@Param('id') id: string, @Body(new ZodPipe(surveyReopenInputSchema)) input: SurveyReopenInput, @CurrentUser() user: RequestUser) {
     return this.inventory.reopenSurvey(id, input, user);
   }
+  @Post('bulk/preview')
+  previewBulk(@Body(new ZodPipe(inventoryBulkPreview)) input: InventoryBulkPreviewInput, @CurrentUser() user: RequestUser) {
+    return this.inventory.previewBulk(input, user);
+  }
+
+  @Patch('bulk/apply')
+  applyBulk(@Body(new ZodPipe(inventoryBulkApply)) input: InventoryBulkApplyInput, @CurrentUser() user: RequestUser) {
+    return this.inventory.applyBulk(input, user);
+  }
+
   @Patch('bulk/update') bulkUpdate(
     @Body(
       new ZodPipe(

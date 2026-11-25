@@ -464,6 +464,31 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     expect(sectors.body.folders).toEqual([{ key: unit.sector, label: unit.sector, count: 1 }]);
   });
 
+  it('previews eligible Survey transitions and preserves concurrent changes during bulk moves', async () => {
+    const group = 'bulk-' + randomUUID();
+    const complete = (await api().post('/api/inventory').set(headers(agent))
+      .send({ ...unit, houseNo: group, survey: true, details: { possessionDate: '2027-01-01' } }).expect(201)).body;
+    const incomplete = (await api().post('/api/inventory').set(headers(agent))
+      .send({ sector: unit.sector, houseNo: group + '-incomplete', survey: true, details: { possessionDate: '2027-01-01' } }).expect(201)).body;
+    const preview = '/api/inventory/bulk/preview';
+    const apply = '/api/inventory/bulk/apply';
+    const find = () => api().post(preview).set(headers(delegate)).send({
+      selection: { mode: 'filtered', filters: { folderMode: 'SURVEY', search: group } }, action: 'available',
+    }).expect(201);
+    const before = (await find()).body;
+    expect(before).toMatchObject({ selected: 2, skipped: 1, withdrawals: 0, rows: [{ id: complete.id, revision: complete.revision }] });
+    await api().patch(apply).set(headers(outsider)).send({ action: 'available', rows: before.rows }).expect(403);
+    await db.inventoryItem.update({ where: { id: complete.id }, data: { notes: 'Concurrent change', revision: { increment: 1 } } });
+    await api().patch(apply).set(headers(delegate)).send({ action: 'available', rows: before.rows }).expect(200)
+      .expect(({ body }) => expect(body).toEqual({ count: 0, skipped: 1 }));
+    await api().patch(apply).set(headers(delegate)).send({ action: 'available', rows: (await find()).body.rows }).expect(200)
+      .expect(({ body }) => expect(body).toEqual({ count: 1, skipped: 0 }));
+    expect(await db.inventoryItem.findUnique({ where: { id: complete.id } })).toMatchObject({ status: 'ACTIVE', availability: 'AVAILABLE', notes: 'Concurrent change' });
+    expect(await db.inventoryItem.findUnique({ where: { id: incomplete.id } })).toMatchObject({ status: 'DRAFT', availability: 'UNKNOWN' });
+    await api().delete('/api/inventory/' + complete.id).set(headers()).expect(200);
+    await api().delete('/api/inventory/' + incomplete.id).set(headers()).expect(200);
+  });
+
   it('rejects partial capture approval atomically and saves one inventory record per reviewed unit across retries', async () => {
     const batch = await db.importBatch.create({
       data: {

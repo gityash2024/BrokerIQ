@@ -1,4 +1,5 @@
 'use client';
+import { ListJump } from '@/components/ui/list-jump';
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -178,6 +179,7 @@ export default function PdfInventoryPage() {
         {bulkRun.data?.status === 'FAILED' && <Button size="sm" variant="secondary" disabled={bulkBusy} onClick={() => void retryBulk()}>Retry update</Button>}
         {bulkRun.error && <ApiErrorState error={bulkRun.error} onRetry={() => bulkRun.refetch()} />}
       </div>}
+      <ListJump page={page} totalPages={Math.max(1, Math.ceil((data.data?.total ?? 0) / 30))} onPage={setPage} />
       {canEdit && bulkPreview && <Dialog open onOpenChange={(open) => { if (!open && !bulkBusy) setBulkPreview(null); }} title="Preview PDF update"
         footer={<Button disabled={!bulkPreview.token || bulkBusy} onClick={() => void bulk(true)}>Apply update</Button>}>
         <p>{bulkPreview.selected} selected · {bulkPreview.eligible} eligible · {bulkPreview.skipped} skipped</p>

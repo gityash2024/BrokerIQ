@@ -18,6 +18,7 @@ import { ChoiceField } from '@/launch/form';
 import { NativeAdvancedFilters } from '@/launch/advanced-filters';
 import { PropertyCard } from '@/launch/property-card';
 import { NativeInventoryEntryActions } from '@/launch/inventory-entry-actions';
+import { NativeInventoryBulkActions } from '@/launch/inventory-bulk-actions';
 import { NativeInventoryTabs } from '@/launch/inventory-tabs';
 import { NativeInventoryRecordActions } from '@/launch/inventory-record-actions';
 import { NativeInventoryFolderControls, useInventoryFolderDefinitions } from '@/launch/inventory-folder-controls';
@@ -98,19 +99,6 @@ export function InventoryLedger() {
 
   const rows = query.data?.pages.flatMap((p) => p.items) ?? [];
   const count = Object.values(filters).filter(Boolean).length;
-
-  async function bulk(data: Record<string, string>) {
-    try {
-      await api('/inventory/bulk/update', { method: 'PATCH', body: { ids: selected, data } });
-      setSelected([]);
-      setSelecting(false);
-      await qc.invalidateQueries({ queryKey: ['ledger'] });
-      await qc.invalidateQueries({ queryKey: ['ledger-stats'] });
-      toast.success('Properties updated');
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }
 
   const choices: Record<string, string[]> = {
     sector: sectors.data?.map((s) => s.sector) ?? [],
@@ -473,29 +461,11 @@ export function InventoryLedger() {
         ListFooterComponent={query.isFetchingNextPage ? <InlineLoader style={{ padding: 20 }} /> : null}
       />
 
-      {selected.length > 0 && (
-        <View style={{ padding: 12, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
-          <Txt v="caption">{`${selected.length} selected`}</Txt>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button
-              access={hasDelegatedAccess(user, 'inventory', 'edit', 'publish')}
-              title="Draft"
-              size="sm"
-              variant="secondary"
-              style={{ flex: 1 }}
-              onPress={() => bulk({ status: 'DRAFT' })}
-            />
-            <Button
-              access={hasDelegatedAccess(user, 'inventory', 'edit', 'publish')}
-              title="Inactive"
-              size="sm"
-              variant="secondary"
-              style={{ flex: 1 }}
-              onPress={() => bulk({ status: 'INACTIVE' })}
-            />
-          </View>
-        </View>
-      )}
+      {selecting && <View style={{ padding: 12, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
+        <NativeInventoryBulkActions key={JSON.stringify([term, filters, user?.id, user?.organization?.id])}
+          selected={selected} pageIds={rows.filter((item) => item.canEdit !== false).map(({ id }) => id)}
+          filters={{ search: term, ...filters }} count={query.data?.pages[0]?.total ?? 0} onSelect={setSelected} />
+      </View>}
 
       <Sheet
         open={filterOpen}

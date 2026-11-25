@@ -49,6 +49,7 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
     if (method === 'DELETE') return { module: 'automation', actions: ['view', 'delete'] };
     return { module: 'automation', actions: ['view', 'edit'] };
   }
+  if (['/inventory/bulk/preview', '/inventory/bulk/apply'].includes(path)) return { module: 'inventory', actions: ['view', 'edit'] };
   if (path.startsWith('/inventory-pdf/bulk/')) return { module: 'inventory', actions: ['view', 'edit'] };
   if (/^\/inventory-pdf(?:\/|$)/.test(path)) {
     if (method === 'GET' || method === 'HEAD') return { module: 'inventory', actions: ['view'] };

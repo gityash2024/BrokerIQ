@@ -5,6 +5,11 @@ import { Prisma, PropertyType } from '@prisma/client';
 import {
   inventoryInputSchema,
   inventoryFilterSchema,
+  INVENTORY_BULK_LIMIT,
+  type InventoryBulkAction,
+  type InventoryBulkApplyInput,
+  type InventoryBulkPreview,
+  type InventoryBulkPreviewInput,
   inventoryUnitBatchRows,
   inventoryUnitConfigurationFields,
   type InventoryUnitBatch,
@@ -64,8 +69,11 @@ const surveyCandidate = {
 } as const;
 type SurveyCandidate = Prisma.InventoryItemGetPayload<{ select: typeof surveyCandidate }>;
 const inSurveyQueue = (item: SurveyCandidate) => !!item.surveyReopenedAt || (item.sourceType === 'SURVEY' && item.status === 'DRAFT');
-const hasOpenListing = (item: SurveyCandidate) => !!item.publishedListing && !item.publishedListing.deletedAt &&
+const hasOpenListing = (item: Pick<SurveyCandidate, 'publishedListing'>) => !!item.publishedListing && !item.publishedListing.deletedAt &&
   ['ACTIVE', 'PENDING_REVIEW'].includes(item.publishedListing.status);
+const bulkListing = { publishedListing: { select: { status: true, deletedAt: true } } } as const;
+type BulkProperty = Prisma.InventoryItemGetPayload<{ include: typeof bulkListing }>;
+
 const folderDefinition = { id: true, kind: true, label: true } as const;
 
 function sectorSelection(label: string): Prisma.InventoryItemWhereInput {
@@ -1474,16 +1482,80 @@ export class InventoryService {
     await this.audit.log(user, 'inventory.bulk_create', 'Organization', orgId, { count: items.length });
     return { count: items.length };
   }
+  private bulkChange(item: BulkProperty, action: InventoryBulkAction, user: RequestUser): InventoryInput | null {
+    const open = hasOpenListing(item);
+    if (open && user.delegatedActor && !user.delegatedPermissions?.includes('inventory:publish')) return null;
+    if (action === 'available' || action === 'rented') {
+      if (missingInventoryFolderFields(item).length) return null;
+      if (action === 'available') {
+        if (item.directoryMonth && item.availability === 'AVAILABLE' && item.status === 'ACTIVE' &&
+            item.verificationStatus === 'VERIFIED' && !inSurveyQueue(item)) return null;
+        return { directoryMonth: inventoryDate().slice(0, 7) };
+      }
+      if (item.status === 'RENTED' && item.availability === 'RENTED' && !inSurveyQueue(item)) return null;
+      return { status: 'RENTED', availability: 'RENTED' };
+    }
+    if (inSurveyQueue(item)) return null;
+    if (action === 'draft') return item.status === 'DRAFT' ? null : { status: 'DRAFT' };
+    if (action === 'inactive') return item.status === 'INACTIVE' ? null : { status: 'INACTIVE' };
+    const availability = { sold: 'SOLD', unavailable: 'UNAVAILABLE', unknown: 'UNKNOWN' } as const;
+    return item.availability === availability[action] ? null : { availability: availability[action] };
+  }
+
+  async previewBulk({ selection, action }: InventoryBulkPreviewInput, user: RequestUser): Promise<InventoryBulkPreview> {
+    const ids = selection.mode === 'ids' ? [...new Set(selection.ids)] : null;
+    const where = selection.mode === 'filtered'
+      ? { AND: [this.filterWhere(selection.filters, user), this.scope(user, selection.filters.organizationId)] }
+      : { ...this.scope(user), id: { in: ids! } };
+    const items = await this.prisma.inventoryItem.findMany({ where, include: bulkListing, take: INVENTORY_BULK_LIMIT + 1, orderBy: { id: 'asc' } });
+    if (items.length > INVENTORY_BULK_LIMIT) throw new BadRequestException('Narrow the filters to 2,000 properties per update');
+    if (items.length !== (ids?.length ?? items.length) || new Set(items.map(({ organizationId }) => organizationId)).size > 1)
+      throw new ForbiddenException('Select properties from one authorized firm only');
+    const eligible = items.filter((item) => this.bulkChange(item, action, user));
+    return {
+      rows: eligible.map(({ id, revision }) => ({ id, revision })), selected: items.length, skipped: items.length - eligible.length,
+      withdrawals: new Set(eligible.filter(hasOpenListing).map(({ publishedListingId }) => publishedListingId)).size,
+    };
+  }
+
+  async applyBulk({ rows, action, confirmWithdrawal }: InventoryBulkApplyInput, user: RequestUser) {
+    const expected = new Map(rows.map(({ id, revision }) => [id, revision]));
+    const ids = [...expected.keys()];
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM "InventoryItem" WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`);
+      const items = await tx.inventoryItem.findMany({ where: { ...this.scope(user), id: { in: ids } }, include: bulkListing, orderBy: { id: 'asc' } });
+      if (items.length !== ids.length || new Set(items.map(({ organizationId }) => organizationId)).size !== 1)
+        throw new ForbiddenException('Select properties from one authorized firm only');
+      let count = 0;
+      for (const item of items) {
+        if (item.revision !== expected.get(item.id)) continue;
+        const change = this.bulkChange(item, action, user);
+        if (!change) continue;
+        if (hasOpenListing(item) && !confirmWithdrawal) throw new ConflictException('Confirm withdrawal of the linked listings before applying');
+        await tx.inventoryItem.update({ where: { id: item.id }, data: { ...this.fields(change, item), revision: { increment: 1 } } });
+        if (hasOpenListing(item)) await this.withdrawLinked(tx, item);
+        count++;
+      }
+      if (count) await tx.auditLog.create({ data: {
+        actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role, organizationId: items[0].organizationId,
+        action: 'inventory.bulk_update', entity: 'InventoryItem', entityId: items[0].id, meta: { action, count, skipped: ids.length - count, ids },
+      } });
+      return { count, skipped: ids.length - count };
+    }, { timeout: 30_000 });
+  }
+
   async bulkUpdate(ids: string[], input: Pick<InventoryInput, 'status' | 'availability'>, user: RequestUser) {
     const unique = [...new Set(ids)];
     const count = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw(Prisma.sql`SELECT id FROM "InventoryItem" WHERE id IN (${Prisma.join(unique)}) ORDER BY id FOR UPDATE`);
       const items = await tx.inventoryItem.findMany({
         where: { ...this.scope(user), id: { in: unique }, NOT: pendingSurvey },
-        select: { id: true, organizationId: true, publishedListingId: true },
+        select: { id: true, organizationId: true, publishedListingId: true, ...bulkListing },
       });
       if (items.length !== unique.length || new Set(items.map((i) => i.organizationId)).size !== 1)
         throw new ForbiddenException('Select properties from one authorized firm only');
+      if (user.delegatedActor && !user.delegatedPermissions?.includes('inventory:publish') && items.some(hasOpenListing))
+        throw new ForbiddenException('Editing these properties also requires permission to withdraw their listings');
       for (const item of items) await this.withdrawLinked(tx, item);
       return tx.inventoryItem.updateMany({
         where: { id: { in: unique }, organizationId: items[0].organizationId },

@@ -35,6 +35,7 @@ import { BrokerScreen, NativeCard } from './screen';
 import { NativeInventoryEntryActions } from './inventory-entry-actions';
 import { NativeInventoryTabs } from './inventory-tabs';
 import { NativeInventoryRecordActions } from './inventory-record-actions';
+import { NativeInventoryBulkActions } from '@/launch/inventory-bulk-actions';
 import { NativeInventoryFolderControls } from './inventory-folder-controls';
 
 const initialFilters = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
@@ -118,6 +119,12 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   const rows: (InventoryFolder | LedgerItem)[] = leaf
     ? (records.data?.pages.flatMap((page) => page.items) ?? [])
     : [...(folders.data?.folders ?? []), ...(folders.data?.extraFolders ?? [])].filter((folder) => !survey || !term || folder.label.toLowerCase().includes(term.toLowerCase()));
+
+  const bulkScope = JSON.stringify([user?.id, user?.organization?.id, query]);
+  const [bulkSelection, setBulkSelection] = useState<{ scope: string; ids: string[] }>({ scope: '', ids: [] });
+  const selecting = bulkSelection.scope === bulkScope;
+  const selection = selecting ? bulkSelection.ids : [];
+  const select = (ids: string[]) => setBulkSelection({ scope: bulkScope, ids });
 
   function setShelf(next: Exclude<InventoryFolderMode, 'REVIEW'>) {
     setMode(next);
@@ -266,6 +273,11 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
                 <Chip key={folder.key} label={folder.label} onPress={() => setPath(path.slice(0, index + 1))} />
               ))}
             </Row>
+            {canEdit && leaf && <Button title={selecting ? 'Done selecting' : 'Select properties'} size="sm" variant="secondary"
+              onPress={() => { if (selecting) setBulkSelection({ scope: '', ids: [] }); else select([]); }} />}
+            {canEdit && leaf && selecting && <NativeInventoryBulkActions key={bulkScope} selected={selection} onSelect={select}
+              filters={query} count={records.data?.pages[0]?.total ?? 0}
+              pageIds={rows.flatMap((row) => 'id' in row && row.canEdit !== false ? [row.id] : [])} />}
             {photoCounts && (
               <Row gap={12} wrap>
                 <Txt v="caption">With photos: {photoCounts.withPhotos}</Txt>
@@ -289,6 +301,9 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
         renderItem={({ item }) =>
           'id' in item ? (
             <NativeCard style={{ gap: 8 }}>
+              {selecting && canEdit && item.canEdit !== false && <Button size="sm" variant="secondary"
+                title={selection.includes(item.id) ? 'Deselect ' + item.propertyCode : 'Select ' + item.propertyCode}
+                onPress={() => select(selection.includes(item.id) ? selection.filter((id) => id !== item.id) : [...selection, item.id])} />}
               {!!(item.agentCoverPhotoUrl || item.photoUrls?.[0]) && (
                 <Image source={item.agentCoverPhotoUrl || item.photoUrls?.[0]} contentFit="cover" style={{ height: 138, width: '100%', borderRadius: 12 }} />
               )}

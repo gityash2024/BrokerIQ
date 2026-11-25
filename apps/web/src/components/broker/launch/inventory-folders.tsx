@@ -1,4 +1,6 @@
 'use client';
+import { ListJump } from '@/components/ui/list-jump';
+import { InventoryBulkActions } from './inventory-bulk-actions';
 import { pushRouteView, useRouteState } from '@/lib/navigation';
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 
@@ -110,6 +112,10 @@ export function InventoryFoldersPage({
     refetchInterval: (state) => inventoryAccessRefreshInterval(state.state.data?.items ?? []),
   });
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
+  const bulkScope = JSON.stringify([user?.id, user?.organization?.id, shelf, filter]);
+  const [bulkSelection, setBulkSelection] = useState<{ scope: string; ids: string[] }>({ scope: '', ids: [] });
+  const selection = bulkSelection.scope === bulkScope ? bulkSelection.ids : [];
+  const select = (ids: string[]) => setBulkSelection({ scope: bulkScope, ids });
   const customFolderId = kind === 'CUSTOM' ? path[0].key : undefined;
   const folderMonth = mode === 'AVAILABLE' && path[0] && !kind ? path[0].key : current;
   const sector = kind === 'SECTOR' || (survey && !kind && path[0]?.key !== '__unset__') ? path[0]?.key : undefined;
@@ -333,10 +339,19 @@ export function InventoryFoldersPage({
         <ApiErrorState error={activeQuery.error} onRetry={() => activeQuery.refetch()} />
       ) : leaf ? (
         <>
+          <ListJump page={page} totalPages={records.data?.totalPages ?? 1} onPage={setPage} />
+          {canEdit && <InventoryBulkActions key={bulkScope} selected={selection} onSelect={select}
+            pageIds={records.data?.items.filter((item) => item.canEdit !== false).map(({ id }) => id) ?? []}
+            filters={{ ...filter, ...shelf }} count={records.data?.total ?? 0} />}
           {!records.data?.items.length && <p className="rounded-2xl border border-line p-6 text-muted">No properties match this view.</p>}
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {records.data?.items.map((item) => (
               <article key={item.id} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+                {!!selection.length && item.canEdit !== false && <label className="flex items-center gap-2 px-4 py-2 text-xs">
+                  <input type="checkbox" checked={selection.includes(item.id)} onChange={(event) =>
+                    select(event.target.checked ? [...selection, item.id] : selection.filter((id) => id !== item.id))} />
+                  Select {item.propertyCode}
+                </label>}
                 <Link className="block" href={`/broker/inventory/${encodeURIComponent(item.id)}`}>
                   {item.agentCoverPhotoUrl || item.photoUrls?.[0] ? (
                     // Real property media supplied by the firm.

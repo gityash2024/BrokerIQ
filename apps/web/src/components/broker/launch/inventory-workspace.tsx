@@ -1,7 +1,9 @@
 'use client';
+import { ListJump } from '@/components/ui/list-jump';
 import { useRouteState } from '@/lib/navigation';
 
 import { InventoryStatusActions } from './inventory-status-actions';
+import { InventoryBulkActions } from './inventory-bulk-actions';
 import { InventoryRecordActions } from './inventory-record-actions';
 import { InventoryFolderControls, useInventoryFolderDefinitions } from './inventory-folder-controls';
 import { LoadingArtwork } from '@/components/ui/request-loader';
@@ -320,6 +322,10 @@ function LedgerInner() {
           </button>
         </div>
       )}
+      <ListJump page={page} totalPages={query.data?.totalPages ?? 1} onPage={setPage} />
+      {canBulkEdit && <InventoryBulkActions key={filterKey + (user?.id ?? '')} selected={selected} onSelect={setSelected}
+        pageIds={query.data?.items.filter((item) => !item.deletedAt).map(({ id }) => id) ?? []}
+        filters={{ search: term, ...filters, ...sort }} count={query.data?.total ?? 0} />}
       {!!selected.length && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-800">
           <b>{selected.length} selected</b>

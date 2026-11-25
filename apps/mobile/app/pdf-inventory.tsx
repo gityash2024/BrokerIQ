@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { api, captureAccountContext, errorMessage, qs } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Button, ErrorView, Input, Loader, Row, Sheet, Txt } from '@/ui';
+import { QuickListScroll } from '@/components/list-jump';
 import { ChoiceField } from '@/launch/form';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 
@@ -144,6 +145,7 @@ export default function PdfInventoryScreen() {
 
   return (
     <BrokerScreen title="PDF Inventory" back>
+      <QuickListScroll page={page} totalPages={Math.max(1, Math.ceil((data.data?.total ?? 0) / 30))} onPage={setPage}>
       <View style={{ padding: 14, gap: 10 }}>
         {!allowed ? <Txt>PDF Inventory is available to authorized firm administrators.</Txt> : <>
           {canEdit && <View style={{ gap: 8 }}>
@@ -209,6 +211,7 @@ export default function PdfInventoryScreen() {
           </>}
         </>}
       </View>
+      </QuickListScroll>
       <Sheet open={allowed && filtersOpen} onClose={() => setFiltersOpen(false)} title="PDF filters" full footer={
         <Row gap={8}><Button title="Clear" variant="secondary" onPress={() => setDraft({})} />
           <Button title="Apply filters" onPress={() => { setFilters(draft); setPage(1); setFiltersOpen(false); }} /></Row>
