@@ -81,6 +81,21 @@ describe('AiService', () => {
     expect(calls.map(({ model }) => model)).toEqual(['a:free', 'openrouter/free']);
   });
 
+  it('does not spend more inference attempts while an OpenRouter account daily limit is in effect', async () => {
+    const reset = new Date();
+    reset.setUTCHours(24, 0, 0, 0);
+    respond = () => ({ status: 429, json: {}, headers: new Headers({
+      'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(reset.getTime()),
+    }) });
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
+    const options = { feature: 'organic', openRouterOnly: true, deferWhenRateLimited: true };
+    const query = () => ai.chat([{ role: 'user', content: 'Classify supply' }], options);
+    await expect(query()).rejects.toMatchObject({ daily: true });
+    await expect(query()).rejects.toMatchObject({ daily: true });
+    expect(calls.map(({ model }) => model)).toEqual(['a:free']);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
   it('routes a free-only run through the free router when no model has been configured', async () => {
     respond = (_url, body) => {
       expect(body.model).toBe('openrouter/free');

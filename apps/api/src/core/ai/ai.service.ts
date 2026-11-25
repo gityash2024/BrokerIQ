@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { IntegrationFailedException, IntegrationNotConfiguredException } from '../../common/exceptions';
 import { env } from '../../config/env';
-import { isFreeOpenRouterModel, openRouterFreeRouting } from './openrouter-policy';
+import { isFreeOpenRouterModel, openRouterFreeRouting, OPENROUTER_DAILY_LIMIT } from './openrouter-policy';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -92,6 +92,7 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly cache = new Map<string, { at: number; ttl: number; text: string }>();
   private readonly openRouterRetryAt = new Map<string, number>();
+  private openRouterDailyResetAt = 0;
   private localBusy = false;
   private localRetryAt = 0;
   constructor(
@@ -507,12 +508,15 @@ export class AiService {
       };
     }
     if (p.name === 'openrouter') {
+      if (this.openRouterDailyResetAt > Date.now()) {
+        throw new OpenRouterQuotaDeferred(new Date(this.openRouterDailyResetAt), true);
+      }
       // Count upstream requests, including model fallbacks, retries and diagnostics.
       const reserved = await this.prisma.$queryRaw<{ attempts: number }[]>`
         INSERT INTO "OpenRouterDailyQuota" ("day", "attempts")
         VALUES ((CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date, 1)
         ON CONFLICT ("day") DO UPDATE SET "attempts" = "OpenRouterDailyQuota"."attempts" + 1
-        WHERE "OpenRouterDailyQuota"."attempts" < 1000
+        WHERE "OpenRouterDailyQuota"."attempts" < ${OPENROUTER_DAILY_LIMIT}
         RETURNING "attempts"
       `;
       if (!reserved.length) throw new OpenRouterQuotaDeferred(nextUtcDay(), true);
@@ -526,6 +530,13 @@ export class AiService {
     if (p.name === 'openrouter' && res.status === 429 && typeof body.model === 'string') {
       const retryAfter = res.headers?.get('retry-after');
       const now = Date.now();
+      const resetAt = Number(res.headers?.get('x-ratelimit-reset'));
+      const remaining = res.headers?.get('x-ratelimit-remaining');
+      const resetNearMidnight = Math.abs(resetAt - nextUtcDay().valueOf()) < 60_000;
+      if (remaining === '0' && resetAt > now && resetNearMidnight) {
+        this.openRouterDailyResetAt = Math.max(resetAt, nextUtcDay().valueOf());
+        throw new OpenRouterQuotaDeferred(new Date(this.openRouterDailyResetAt), true);
+      }
       const retryAt = !retryAfter ? NaN : /^\d+$/.test(retryAfter) ? now + Number(retryAfter) * 1000 : Date.parse(retryAfter);
       if (Number.isFinite(retryAt) && retryAt > now) {
         const until = Math.min(retryAt, now + 86_400_000);
@@ -568,11 +579,14 @@ export class AiService {
         const data = await this.post(p, { model, messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 5 }, 20_000);
         const ok = String(data.choices?.[0]?.message?.content ?? '').trim();
         if (!ok) throw new RetryableError('empty diagnostic response');
-        const free = key === 'openrouter' ? await this.freeModels(p.apiKey).catch(() => []) : [];
+        const [free, quota] = key === 'openrouter'
+          ? await Promise.all([this.freeModels(p.apiKey).catch(() => []), this.freeDailyQuota(p.apiKey).catch(() => null)])
+          : [[], null] as const;
         const missing =
           key === 'openrouter' && free.length ? [...p.textModels, ...p.visionModels].filter((m) => m !== 'openrouter/free' && !free.includes(m)) : [];
         return [
           `${model}: ${ok}`,
+          quota ? `OpenRouter free requests today: ${quota.used}/${quota.limit} (UTC). BrokerIQ cap: ${OPENROUTER_DAILY_LIMIT} attempts/day.` : '',
           missing.length ? `⚠️ अभी free list में नहीं: ${missing.join(', ')}` : '',
           free.length ? `Free models (${free.length}): ${free.slice(0, 12).join(', ')}${free.length > 12 ? ' …' : ''}` : '',
         ]
@@ -584,6 +598,17 @@ export class AiService {
       }
     }
     throw new Error(errors.join(' | ') || 'No model configured');
+  }
+
+  private async freeDailyQuota(apiKey: string) {
+    const response = await fetch('https://openrouter.ai/api/v1/key', {
+      headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return null;
+    const data: { data?: { free_model_daily_requests?: { used?: number; limit?: number } } } = await response.json();
+    const quota = data.data?.free_model_daily_requests;
+    if (typeof quota?.used !== 'number' || typeof quota.limit !== 'number') return null;
+    return { used: quota.used, limit: quota.limit };
   }
 
   /** Model ids on OpenRouter that are free right now (ids ending in ":free"). */
