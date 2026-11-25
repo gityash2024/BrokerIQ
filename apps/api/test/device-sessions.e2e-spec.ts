@@ -7,16 +7,16 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { RealtimeGateway } from '../src/core/realtime/realtime.gateway';
+import { env } from '../src/config/env';
 import { sha256 } from '../src/common/utils';
 
 /** Authenticated real database flows; isolated local test database only. */
-describe('Stable device sessions and explicit replacement', () => {
+describe('Stable device sessions without a device cap', () => {
   let app: INestApplication;
   let db: PrismaService;
   let auth: AuthService;
   let user: any;
   let sessions: any[];
-  let challenge: string;
   let replacement: any;
   const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const sid = (token: string) => (app.get(JwtService).decode(token) as any).sid;
@@ -39,31 +39,28 @@ describe('Stable device sessions and explicit replacement', () => {
     await app?.close();
   });
 
-  it('the sixth login returns a short-lived selection and keeps all five sessions alive', async () => {
-    try {
-      await auth.issue(user);
-      throw new Error('Expected session challenge');
-    } catch (error: any) {
-      const body = error.getResponse();
-      expect(body.code).toBe('SESSION_LIMIT_REACHED');
-      expect(body.details.sessions).toHaveLength(5);
-      expect(body.details.sessions[0].tokenHash).toBeUndefined();
-      challenge = body.details.challenge;
-    }
-    expect(await activeCount(user.id)).toBe(5);
+  it('concurrent logins above five keep every existing session alive', async () => {
+    const additional = await Promise.all([auth.issue(user), auth.issue(user), auth.issue(user)]);
+    sessions.push(...additional);
+    expect(await activeCount(user.id)).toBe(8);
+    expect(new Set(sessions.map((session) => sid(session.accessToken))).size).toBe(8);
     for (const session of sessions) await request(app.getHttpServer()).get('/api/auth/me').auth(session.accessToken, { type: 'bearer' }).expect(200);
-    await request(app.getHttpServer()).get('/api/auth/me').auth(challenge, { type: 'bearer' }).expect(401);
   });
 
-  it('only an owned active device can be selected; invalid selection never evicts another device', async () => {
+  it('a previously issued replacement challenge can still revoke only the selected device', async () => {
+    const challenge = app.get(JwtService).sign(
+      { sub: user.id, purpose: 'replace-device-session', sessionVersion: user.sessionVersion, nonce: uid, emailOtpVerified: true },
+      { secret: env().JWT_REFRESH_SECRET, expiresIn: '5m' },
+    );
+    await request(app.getHttpServer()).get('/api/auth/me').auth(challenge, { type: 'bearer' }).expect(401);
     await request(app.getHttpServer()).post('/api/auth/sessions/replace').send({ challenge, sessionId: 'foreign-session' }).expect(409);
-    expect(await activeCount(user.id)).toBe(5);
+    expect(await activeCount(user.id)).toBe(8);
     const result = await request(app.getHttpServer())
       .post('/api/auth/sessions/replace')
       .send({ challenge, sessionId: sid(sessions[0].accessToken) })
       .expect(200);
     replacement = result.body;
-    expect(await activeCount(user.id)).toBe(5);
+    expect(await activeCount(user.id)).toBe(8);
     await request(app.getHttpServer()).get('/api/auth/me').auth(sessions[0].accessToken, { type: 'bearer' }).expect(401);
     for (const session of sessions.slice(1)) await request(app.getHttpServer()).get('/api/auth/me').auth(session.accessToken, { type: 'bearer' }).expect(200);
     const retry = await request(app.getHttpServer())
@@ -71,7 +68,7 @@ describe('Stable device sessions and explicit replacement', () => {
       .send({ challenge, sessionId: sid(sessions[1].accessToken) })
       .expect(200);
     expect(retry.body.refreshToken).toBe(replacement.refreshToken);
-    expect(await activeCount(user.id)).toBe(5);
+    expect(await activeCount(user.id)).toBe(8);
   });
 
   it('concurrent refresh keeps one stable device row and returns the same rotation', async () => {
@@ -79,7 +76,7 @@ describe('Stable device sessions and explicit replacement', () => {
     const results = await Promise.all([auth.refresh(replacement.refreshToken, {}), auth.refresh(replacement.refreshToken, {})]);
     expect(results[0].refreshToken).toBe(results[1].refreshToken);
     expect(sid(results[0].accessToken)).toBe(before.id);
-    expect(await activeCount(user.id)).toBe(5);
+    expect(await activeCount(user.id)).toBe(8);
     const after = await db.refreshToken.findUniqueOrThrow({ where: { id: before.id } });
     expect(after.createdAt).toEqual(before.createdAt);
     expect(after.expiresAt).toEqual(before.expiresAt);
@@ -99,12 +96,6 @@ describe('Stable device sessions and explicit replacement', () => {
     expect(socket.disconnect).toHaveBeenCalledWith(true);
     expect(socket.join).not.toHaveBeenCalled();
     await request(app.getHttpServer()).get('/api/auth/me').auth(sessions[1].accessToken, { type: 'bearer' }).expect(200);
-  });
-
-  it('concurrent logins cannot exceed five devices', async () => {
-    const outcomes = await Promise.allSettled([auth.issue(user), auth.issue(user)]);
-    expect(outcomes.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
-    expect(await activeCount(user.id)).toBe(5);
   });
 
   it('upgrades a legacy refresh row without creating an extra device or requiring password login', async () => {

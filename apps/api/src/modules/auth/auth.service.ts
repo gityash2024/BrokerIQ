@@ -146,7 +146,7 @@ export class AuthService implements OnApplicationBootstrap {
     return response;
   }
 
-  async issue(user: UserWithOrg, meta: ClientMeta = {}, existingSessionId?: string, emailOtpVerified = false): Promise<AuthResponse> {
+  async issue(user: UserWithOrg, meta: ClientMeta = {}, existingSessionId?: string): Promise<AuthResponse> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id + ':sessions'}))`;
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, include: { organization: true } });
@@ -171,29 +171,8 @@ export class AuthService implements OnApplicationBootstrap {
         });
         return response;
       }
-      return this.createSessionWithLimit(tx, current, meta, emailOtpVerified);
+      return this.createSession(tx, current, meta);
     });
-  }
-
-  private async createSessionWithLimit(tx: Prisma.TransactionClient, user: UserWithOrg, meta: ClientMeta, emailOtpVerified: boolean, allowReplacement = true) {
-    const active = await tx.refreshToken.findMany({
-      where: { userId: user.id, sessionVersion: user.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, ip: true, userAgent: true, createdAt: true, lastUsedAt: true, expiresAt: true },
-    });
-    if (active.length >= 5) {
-      if (!allowReplacement)
-        throw new ConflictException('Sign out an unused device from BrokerIQ, then return to Connect.');
-      const challenge = this.jwt.sign(
-        { sub: user.id, purpose: 'replace-device-session', sessionVersion: user.sessionVersion, nonce: randomToken(24), emailOtpVerified },
-        { secret: env().JWT_REFRESH_SECRET, expiresIn: '5m' },
-      );
-      throw new AppException(HttpStatus.CONFLICT, ErrorCode.SESSION_LIMIT_REACHED, 'पाँच devices पर login है। जारी रखने के लिए एक device चुनें।', {
-        challenge,
-        sessions: active,
-      });
-    }
-    return this.createSession(tx, user, meta);
   }
 
   private assertConnectLinkEnabled() {
@@ -252,7 +231,7 @@ export class AuthService implements OnApplicationBootstrap {
         data: { consumedAt: new Date() },
       });
       if (updated.count !== 1) throw new UnauthorizedException('The Connect request has expired or already been used.');
-      const session = await this.createSessionWithLimit(tx, user, meta, true, false);
+      const session = await this.createSession(tx, user, meta);
       await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role, organizationId: user.organizationId, action: 'auth.connect_link',
         entity: 'User', entityId: user.id, meta: { requestId: id } } });
       return session;
@@ -260,6 +239,7 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async replaceSession(challenge: string, sessionId: string, meta: ClientMeta): Promise<AuthResponse> {
+    // Older clients may still have a signed replacement challenge from before the session cap was removed.
     let payload: any;
     try {
       payload = this.jwt.verify(challenge, { secret: env().JWT_REFRESH_SECRET });
@@ -287,11 +267,6 @@ export class AuthService implements OnApplicationBootstrap {
       });
       if (!selected) throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'यह device अब active नहीं है। दोबारा login करें।');
       await tx.refreshToken.update({ where: { id: selected.id }, data: { revokedAt: new Date(), rotationResponse: null } });
-      // Legacy accounts may already have more than five rows. One selection must never silently evict others.
-      const remaining = await tx.refreshToken.count({
-        where: { userId: user.id, sessionVersion: user.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } },
-      });
-      if (remaining >= 5) throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'पहले Sessions में पुराने devices हटाएँ।');
       return this.createSession(tx, user, meta, challengeHash);
     });
     this.realtime.disconnectSession(sessionId);
@@ -518,7 +493,7 @@ export class AuthService implements OnApplicationBootstrap {
       { method: method.toLowerCase() + '+email_otp' },
       meta.ip,
     );
-    return this.issue(user, meta, undefined, true);
+    return this.issue(user, meta);
   }
 
   resendLoginOtp(challenge: string, meta: ClientMeta) {

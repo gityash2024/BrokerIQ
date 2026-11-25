@@ -24,6 +24,7 @@ it('links an approved BrokerIQ session once with its verifier and rejects a revo
     });
     const auth = app.get(AuthService);
     const source = await auth.issue(user);
+    const existing = await Promise.all(Array.from({ length: 5 }, () => auth.issue(user)));
     const http = () => request(app.getHttpServer());
     const verifier = randomToken(32);
     const start = async () =>
@@ -42,6 +43,8 @@ it('links an approved BrokerIQ session once with its verifier and rejects a revo
     const target = exchanges.find((response) => response.status === 200)!.body;
     expect(target.user.id).toBe(user.id);
     expect(target.refreshToken).not.toBe(source.refreshToken);
+    expect(await db.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(7);
+    for (const session of existing) await http().get('/api/auth/me').set('Authorization', 'Bearer ' + session.accessToken).expect(200);
     await http().post('/api/connect/devices').set('Authorization', 'Bearer ' + target.accessToken)
       .send({ installId: randomUUID(), label: 'Android handset', version: 4 }).expect(201)
       .expect(({ body }) => expect(body.settings).toMatchObject({ consent: false }));

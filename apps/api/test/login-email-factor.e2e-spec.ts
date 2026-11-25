@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
@@ -77,25 +78,18 @@ describe('Password/Google/signup followed by an account-bound email factor', () 
     }
   });
 
-  it('lets a verified Property Owner sign in and replace a device without a second email code', async () => {
+  it('lets a verified Property Owner sign in above five sessions without a second email code', async () => {
     const owner = await actor('PROPERTY_OWNER');
     await begin(owner.email);
     await db.user.update({ where: { id: owner.id }, data: { emailVerified: true } });
     await request(app.getHttpServer()).post('/api/auth/login').set(ua).send({ email: owner.email, password: 'Wrong password' }).expect(401);
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const result = await login(owner.email).expect(200);
       expect(result.body.user.role).toBe('PROPERTY_OWNER');
       await request(app.getHttpServer()).get('/api/owner/properties').auth(result.body.accessToken, { type: 'bearer' }).expect(200);
       await request(app.getHttpServer()).get('/api/inventory').auth(result.body.accessToken, { type: 'bearer' }).expect(403);
     }
-    const selection = await login(owner.email).expect(409);
-    expect(selection.body.code).toBe('SESSION_LIMIT_REACHED');
-    const device = await db.refreshToken.findFirstOrThrow({ where: { userId: owner.id, revokedAt: null } });
-    await request(app.getHttpServer())
-      .post('/api/auth/sessions/replace')
-      .set(ua)
-      .send({ challenge: selection.body.details.challenge, sessionId: device.id })
-      .expect(200);
+    expect(await db.refreshToken.count({ where: { userId: owner.id, revokedAt: null } })).toBe(6);
     expect(await db.loginVerification.count({ where: { userId: owner.id } })).toBe(1);
     await db.user.update({ where: { id: owner.id }, data: { status: 'SUSPENDED' } });
     await login(owner.email).expect(403);
@@ -136,30 +130,23 @@ describe('Password/Google/signup followed by an account-bound email factor', () 
     await verify(changed).expect(401);
   });
 
-  it('requires OTP before device selection, while valid persistent refresh remains usable', async () => {
-    const user = await actor(),
-      sessions = [];
-    for (let i = 0; i < 5; i++) sessions.push(await auth.issue(user));
-    let legacySelection = '';
-    try {
-      await auth.issue(user);
-    } catch (error) {
-      legacySelection = (error as { getResponse: () => { details: { challenge: string } } }).getResponse().details.challenge;
-    }
+  it('requires OTP above five sessions and preserves the existing sessions', async () => {
+    const user = await actor();
+    const sessions = await Promise.all(Array.from({ length: 6 }, () => auth.issue(user)));
+    const legacySelection = app.get(JwtService).sign(
+      { sub: user.id, purpose: 'replace-device-session', sessionVersion: user.sessionVersion, nonce: user.id, emailOtpVerified: false },
+      { secret: environment.env().JWT_REFRESH_SECRET, expiresIn: '5m' },
+    );
     const firstSession = await db.refreshToken.findFirstOrThrow({ where: { userId: user.id } });
     await request(app.getHttpServer()).post('/api/auth/sessions/replace').set(ua).send({ challenge: legacySelection, sessionId: firstSession.id }).expect(401);
     const challenge = await begin(user.email);
-    expect(await db.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(5);
-    const selection = await verify(challenge).expect(409);
-    expect(selection.body.code).toBe('SESSION_LIMIT_REACHED');
-    const session = await db.refreshToken.findFirstOrThrow({ where: { userId: user.id } });
-    await request(app.getHttpServer())
-      .post('/api/auth/sessions/replace')
-      .set(ua)
-      .send({ challenge: selection.body.details.challenge, sessionId: session.id })
-      .expect(200);
-    const remaining = sessions.find((s) => sha256(s.refreshToken) !== session.tokenHash)!;
-    await request(app.getHttpServer()).post('/api/auth/refresh').send({ refreshToken: remaining.refreshToken }).expect(200);
+    expect(await db.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(6);
+    const newSession = await verify(challenge).expect(200);
+    expect(await db.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(7);
+    await request(app.getHttpServer()).get('/api/auth/me').auth(newSession.body.accessToken, { type: 'bearer' }).expect(200);
+    for (const session of sessions)
+      await request(app.getHttpServer()).get('/api/auth/me').auth(session.accessToken, { type: 'bearer' }).expect(200);
+    await request(app.getHttpServer()).post('/api/auth/refresh').send({ refreshToken: sessions[0].refreshToken }).expect(200);
   });
 
   it('bounds new factor challenges without rejecting the sixth first-factor attempt', async () => {
