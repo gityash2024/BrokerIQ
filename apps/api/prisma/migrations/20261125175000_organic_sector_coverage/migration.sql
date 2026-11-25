@@ -1,0 +1,1 @@
+ALTER TABLE "OrganicWebSearchQuery" ADD COLUMN "sectors" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

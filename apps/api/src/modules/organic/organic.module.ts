@@ -35,6 +35,12 @@ class OrganicController {
   @Get('executions')
   workflowExecutions() { return this.executions.snapshot(); }
 
+  @Get('sector-coverage')
+  sectorCoverage(@Query('kind', new ZodPipe(organicKind)) kind: 'SUPPLY' | 'DEMAND') { return this.executions.sectorCoverage(kind); }
+
+  @Get('firm-intake')
+  firmIntake() { return this.executions.firmIntake(); }
+
   @Get('executions/:id/search-evidence')
   searchEvidence(@Param('id') id: string) { return this.executions.searchEvidence(id); }
 

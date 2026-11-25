@@ -3154,6 +3154,8 @@ model AssistantConfirmation {
 model OrganicWebSearchQuery {
   runId      String
   label      String
+  provider   String @default("TAVILY")
+  sectors    String[] @default([])
   query      String
   status     String
   startedAt  DateTime?
@@ -3164,6 +3166,7 @@ model OrganicWebSearchQuery {
 
   @@id([runId, label])
   @@index([startedAt])
+  @@index([provider, startedAt])
 }
 
 model WhatsAppBroadcastContact {

@@ -20,7 +20,7 @@ type Kind = 'SUPPLY' | 'DEMAND';
 type DiscoverySettings = { enabled: boolean; time: string; enrichTime?: string; resultsTime?: string; notifyTime: string };
 type WorkflowConfig = { sourceIds: string[] | null; useAi: boolean; revision: number; searchWeb?: boolean };
 const workflowKey = (kind: Kind) => 'organic.workflow.' + kind.toLowerCase();
-const defaultWorkflow: WorkflowConfig = { sourceIds: null, useAi: true, revision: 0, searchWeb: false };
+const defaultWorkflow: WorkflowConfig = { sourceIds: null, useAi: true, revision: 0, searchWeb: true };
 const terminal = ['COMPLETE', 'PARTIAL', 'NO_SOURCE', 'CANCELLED'];
 const defaults: DiscoverySettings = { enabled: false, time: '00:00', notifyTime: '07:00' };
 const day = 24 * 60 * 60_000;
@@ -71,7 +71,7 @@ export class OrganicService {
       if (sourceIds && sourceIds.length !== await tx.organicSource.count({ where: { id: { in: sourceIds }, supports: { has: kind } } })) {
         throw new BadRequestException('Choose sources compatible with this workflow');
       }
-      const workflow = { sourceIds, useAi: input.useAi, searchWeb: input.searchWeb ?? previous?.searchWeb ?? false, revision: input.revision + 1 };
+      const workflow = { sourceIds, useAi: input.useAi, searchWeb: input.searchWeb ?? previous?.searchWeb ?? defaultWorkflow.searchWeb, revision: input.revision + 1 };
       await tx.systemSetting.upsert({ where: { key }, create: { key, value: workflow, updatedById: actorId },
         update: { value: workflow, updatedById: actorId } });
       await tx.auditLog.create({ data: { actorId, actorRole: 'SUPER_ADMIN', action: 'organic.workflow.update',

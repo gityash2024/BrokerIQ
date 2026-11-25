@@ -19,14 +19,20 @@ export function sourceEndpoint(input: string) {
   return url;
 }
 
+export class OrganicSourceHttpError extends Error {
+  constructor(readonly status: number) {
+    super('Source returned HTTP ' + status);
+  }
+}
+
 /** Resolve and pin a public address for this request. Redirects require a new approved endpoint. */
-export async function readOrganicSource(input: string, etag?: string | null) {
+export async function readOrganicSource(input: string, etag?: string | null, timeoutMs = 15_000) {
   const url = sourceEndpoint(input);
   const addresses = await resolve4(url.hostname);
   if (!addresses.length || addresses.some((address) => privateNetwork.check(address))) throw new Error('Source is not on a public network');
   return new Promise<{ text: string | null; etag: string | null }>((resolve, reject) => {
     const req = request(url, {
-      agent: false, family: 4, signal: AbortSignal.timeout(15_000),
+      agent: false, family: 4, signal: AbortSignal.timeout(timeoutMs),
       lookup: (_hostname, _options, callback) => callback(null, addresses[0], 4),
       headers: { 'User-Agent': 'BrokerIQ Organic Discovery', ...(etag ? { 'If-None-Match': etag } : {}) },
     }, (res) => {
@@ -37,7 +43,7 @@ export async function readOrganicSource(input: string, etag?: string | null) {
       }
       if (res.statusCode !== 200) {
         res.resume();
-        reject(new Error('Source returned HTTP ' + res.statusCode));
+        reject(new OrganicSourceHttpError(res.statusCode ?? 502));
         return;
       }
       const parts: Buffer[] = [];

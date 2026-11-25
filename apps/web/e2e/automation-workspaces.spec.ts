@@ -27,6 +27,12 @@ test('the organic workspaces open in Super Admin', async ({ page }) => {
     await page.goto('/admin/organic/' + path);
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
     if (path === 'workflows') {
+      await page.getByRole('button', { name: 'Buyer & tenant leads', exact: true }).click();
+      await page.locator('summary').filter({ hasText: 'Firm CRM intake' }).click();
+      await expect(page.getByRole('link', { name: 'Open firm lead records' })).toHaveAttribute('href', '/admin/business?resource=leads');
+      await expect(page.getByText('Housing.com', { exact: true })).toBeVisible();
+      await expect(page.locator('summary').filter({ hasText: 'Sector search coverage' })).toBeVisible();
+      await page.getByRole('button', { name: 'Property supply', exact: true }).click();
       await page.getByRole('button', { name: 'Configure Classify & validate', exact: true }).click();
       const step = page.getByRole('dialog', { name: 'Configure classification', exact: true });
       const useAi = step.getByRole('checkbox');

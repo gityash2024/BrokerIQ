@@ -118,9 +118,29 @@ export class OrganicExecutionsService {
     };
   }
 
+  sectorCoverage(kind: 'SUPPLY' | 'DEMAND') { return this.webSearch.sectorCoverage(kind); }
+
+  async firmIntake() {
+    const sources = [
+      'HOUSING', 'ACRES99', 'MAGICBRICKS', 'NOBROKER', 'FACEBOOK', 'INSTAGRAM', 'WHATSAPP', 'WEBSITE', 'MICROSITE',
+      'WEBHOOK', 'CSV_IMPORT', 'CALL', 'REFERRAL', 'WALK_IN', 'MANUAL',
+    ] as const;
+    const now = new Date();
+    const previousDay = new Intl.DateTimeFormat('en-CA', { dateStyle: 'short', timeZone: 'Asia/Kolkata' })
+      .format(new Date(now.valueOf() - 86_400_000));
+    const from = new Date(previousDay + 'T00:00:00+05:30');
+    const groups = await this.db.lead.groupBy({
+      by: ['source'],
+      where: { source: { in: [...sources] }, deletedAt: null, createdAt: { gte: from, lte: now } },
+      _count: { _all: true },
+    });
+    const counts = new Map(groups.map(({ source, _count }) => [source, _count._all]));
+    return { from, to: now, sources: sources.map((source) => ({ source, count: counts.get(source) ?? 0 })) };
+  }
+
   async searchEvidence(runId: string) {
     return this.db.organicWebSearchQuery.findMany({ where: { runId }, orderBy: { label: 'asc' },
-      select: { label: true, query: true, status: true, startedAt: true, finishedAt: true, httpStatus: true, pages: true } });
+      select: { label: true, query: true, provider: true, status: true, startedAt: true, finishedAt: true, httpStatus: true, pages: true } });
   }
 
   async retryJob(id: string, actorId: string) {

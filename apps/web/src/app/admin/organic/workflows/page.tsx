@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { LEAD_SOURCE_LABELS } from '@brokeriq/shared';
 import { Activity, ArrowRight, Bell, Building2, Clock, Database, Globe2, Inbox, Play, Radio, Search, Sparkles, Users, Workflow } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/panel/shell';
@@ -28,7 +29,7 @@ type Run = {
   searchQueries?: { label: string; query: string; status: string }[];
   sourceBatches: { sourceId: string; status: string; processed: number; inserted: number; duplicates: number; reviewed: number }[];
 };
-type SearchEvidence = { label: string; query: string; status: string; pages: { url: string; domain: string; indexedDate: string | null }[] | null };
+type SearchEvidence = { provider?: 'TAVILY' | 'GDELT'; label: string; query: string; status: string; pages: { url: string; domain: string; indexedDate: string | null }[] | null };
 type Snapshot = {
   workerEnabled: boolean; webSearchMode?: 'ACCOUNT' | 'KEYLESS'; executions: Run[];
   discovery: Record<Discovery, Schedule & { nextRunAt: string | null }>;
@@ -110,6 +111,19 @@ export default function OrganicWorkflows() {
     queryFn: () => api<SearchEvidence[]>(endpoint + '/executions/' + selected?.runId + '/search-evidence'),
     enabled: Boolean(selected?.runId && selected.searchQueries?.length),
     refetchInterval: selected?.finishedAt ? false : 5_000,
+  });
+  const coverage = useQuery({
+    queryKey: [...queryKey, kind, 'sector-coverage'],
+    queryFn: () => api<{ days: number; total: number; searched: number; pending: string[] }>(endpoint + '/sector-coverage?kind=' + kind),
+    enabled: kind !== 'DELIVERY',
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+  });
+  const intake = useQuery({
+    queryKey: [...queryKey, 'firm-intake'],
+    queryFn: () => api<{ from: string; to: string; sources: { source: keyof typeof LEAD_SOURCE_LABELS; count: number }[] }>(endpoint + '/firm-intake'),
+    enabled: kind === 'DEMAND',
+    staleTime: 60_000,
   });
   const searchState = selected?.searchQueries?.length
     ? selected.searchQueries.some(({ status }) => status === 'SEARCHING') ? 'RUNNING'
@@ -206,6 +220,31 @@ export default function OrganicWorkflows() {
         <p className="text-sm"><strong>No source enabled.</strong> Add an approved {kind === 'SUPPLY' ? 'property' : 'buyer or tenant'} feed for discovery.</p>
         <Link href="/admin/organic/sources" className="text-sm font-semibold text-primary">Manage sources</Link>
       </div>}
+      {kind !== 'DELIVERY' && coverage.data && coverage.data.total > 0 && <details className="card p-4 sm:p-5">
+        <summary className="cursor-pointer text-sm font-semibold">
+          Sector search coverage · {coverage.data.searched}/{coverage.data.total} in {coverage.data.days} IST days
+        </summary>
+        <p className="mt-3 text-sm text-muted">{coverage.data.pending.length
+          ? 'Awaiting a completed search · ' + coverage.data.pending.join(', ')
+          : 'Every active sector in the locality master had a completed search.'}</p>
+      </details>}
+      {kind === 'DEMAND' && <details className="card p-4 sm:p-5">
+        <summary className="cursor-pointer text-sm font-semibold">
+          Firm CRM intake {intake.data ? '· ' + intake.data.sources.reduce((total, entry) => total + entry.count, 0) + ' leads' : ''}
+        </summary>
+        {intake.isPending && <p className="mt-3 text-sm text-muted">Loading intake counts…</p>}
+        {intake.error && <ApiErrorState error={intake.error} onRetry={() => void intake.refetch()} />}
+        {intake.data && <>
+          <p className="mt-3 text-xs text-muted">Enquiries across firm workspaces since {when(intake.data.from)} IST.</p>
+          <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {intake.data.sources.map(({ source, count }) => <div key={source} className="rounded-lg border border-line px-3 py-2 text-xs">
+              <dt className="text-muted">{LEAD_SOURCE_LABELS[source]}</dt>
+              <dd className="font-semibold tabular-nums">{count}</dd>
+            </div>)}
+          </dl>
+          <Link href="/admin/business?resource=leads" className="mt-3 inline-block text-sm font-semibold text-primary">Open firm lead records</Link>
+        </>}
+      </details>}
       {kind === 'DELIVERY' && data.delivery.length > 0 && <section className="card p-4 sm:p-5">
         <h2 className="mb-3 font-semibold">Upcoming firm deliveries</h2>
         <ul className="divide-y divide-line">{data.delivery.map((rule) => <li key={rule.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
@@ -256,9 +295,11 @@ export default function OrganicWorkflows() {
                   <summary className="cursor-pointer text-sm font-medium"><span className="mr-2">{item.label}</span><Status state={item.status} />
                     {item.pages?.length ? <span className="ml-2 text-xs text-muted">{item.pages.length} links</span> : null}</summary>
                   <p className="mt-2 break-words text-xs text-muted">{item.query}</p>
+                  {item.provider === 'GDELT' && <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer"
+                    className="mt-1 inline-block text-xs font-semibold text-primary">Source index · The GDELT Project</a>}
                   {item.pages?.length ? <ul className="mt-2 grid gap-2">{item.pages.map((page) => <li key={page.url} className="min-w-0 rounded-lg bg-surface-2/40 p-2 text-xs">
                     <a href={page.url} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-primary hover:underline">{page.url}</a>
-                    <p className="mt-1 text-muted">{page.indexedDate ? 'Date reported by search · ' + when(page.indexedDate) : 'Publication date unconfirmed'}</p>
+                    <p className="mt-1 text-muted">{page.indexedDate ? (item.provider === 'GDELT' ? 'First seen by the index · ' : 'Date reported by search · ') + when(page.indexedDate) : 'Publication date unconfirmed'}</p>
                   </li>)}</ul> : null}
                   {item.status === 'NEEDS_SETUP' && <Link href="/admin/settings/integrations" className="mt-2 inline-block text-xs font-semibold text-primary">Set up Organic web search</Link>}
                 </details>)}
@@ -291,7 +332,7 @@ export default function OrganicWorkflows() {
       {stepDraft?.step === 'collect' && <div className="grid gap-3">
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={stepDraft.config.searchWeb ?? false}
           onChange={(event) => setStepDraft({ ...stepDraft, config: { ...stepDraft.config, searchWeb: event.target.checked } })} />
-          Find public source links with Tavily. Keyless access is rate-limited.</label>
+          Search property portals, classifieds, public discussions, notices and groups of Gurugram sectors. GDELT adds public news links.</label>
         {stepDraft.config.searchWeb && data?.webSearchMode === 'KEYLESS' && <Link href="/admin/settings/integrations" className="text-sm font-semibold text-primary">Add a free Tavily key for scheduled searches</Link>}
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={stepDraft.config.sourceIds === null}
           onChange={(event) => setStepDraft({ ...stepDraft, config: { ...stepDraft.config, sourceIds: event.target.checked ? null : compatibleSources.filter(({ enabled }) => enabled).map(({ id }) => id) } })} />
