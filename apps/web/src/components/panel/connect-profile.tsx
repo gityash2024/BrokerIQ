@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, apiBlob, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectCall, formatConnectSurveyValue, hasDelegatedAccess,
-  type ConnectActionDraft, type ConnectCallMetadata, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
+import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectCall, formatConnectSurveyValue, formatConnectTimestamp, hasDelegatedAccess,
+  type ConnectActionDraft, type ConnectCallMetadata, type ConnectCapturePreview, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -18,7 +18,7 @@ type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion:
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
 const surveyLabels: Record<string, string> = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
-type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number; recommendedAction?: ConnectActionDraft };
+type EventDetail = Event & ConnectCapturePreview & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number; recommendedAction?: ConnectActionDraft };
   survey?: ConnectSurveySuggestion[];
   call?: ConnectCallMetadata;
   transcript?: { language: string; segments: { start: number; end: number; text: string }[] } } | null };
@@ -128,16 +128,24 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
   const [busy, setBusy] = useState(false);
   const canReview = hasDelegatedAccess(user, 'automation', 'view', 'edit');
   const canDelete = user?.role === 'BROKER_ADMIN';
-  const data = useQuery({
+  const data = useInfiniteQuery({
     queryKey: ['connect-events', user?.id, user?.organization?.id, leadId],
-    queryFn: () => api<{ items: Event[] }>('/connect/events' + (leadId ? '?leadId=' + encodeURIComponent(leadId) : '')),
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams();
+      if (leadId) params.set('leadId', leadId);
+      if (pageParam) params.set('after', pageParam);
+      return api<{ items: Event[]; nextCursor?: string }>('/connect/events?' + params.toString());
+    },
+    getNextPageParam: (page) => page.nextCursor,
     enabled,
   });
+  const entries = data.data?.pages.flatMap((page) => page.items) ?? [];
   const detail = useQuery({ queryKey: ['connect-event', user?.id, user?.organization?.id, eventId],
     queryFn: () => api<EventDetail>('/connect/events/' + eventId), enabled: enabled && !!eventId });
   useEffect(() => () => { if (audio) URL.revokeObjectURL(audio); }, [audio]);
 
-  if (!enabled || (leadId && !data.data?.items.length)) return null;
+  if (!enabled || (leadId && !entries.length && !data.hasNextPage)) return null;
   async function getAudio(id: string) {
     try { setAudio(URL.createObjectURL(await apiBlob('/connect/events/' + id + '/recording'))); }
     catch (error) { toast.error(errorMessage(error)); }
@@ -160,10 +168,11 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
   return <section className="card space-y-2 p-4">
     <h3 className="font-semibold">{leadId ? 'BrokerIQ Connect' : 'Recent Connect activity'}</h3>
     {data.error && <ApiErrorState error={data.error} onRetry={() => data.refetch()} />}
-    {data.data?.items.length === 0 && <p className="text-sm text-muted">No captured activity yet.</p>}
-    {data.data?.items.map((entry) => <button key={entry.id} className="block text-left text-sm text-brand-700 underline" onClick={() => { setAudio(null); setEvent(entry.id); }}>
+    {data.isSuccess && entries.length === 0 && <p className="text-sm text-muted">No captured activity yet.</p>}
+    {entries.map((entry) => <button key={entry.id} className="block text-left text-sm text-brand-700 underline" onClick={() => { setAudio(null); setEvent(entry.id); }}>
       {entry.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : entry.kind} · {entry.status} · {new Date(entry.capturedAt).toLocaleString('en-IN')}
     </button>)}
+    {data.hasNextPage && <Button size="sm" variant="secondary" loading={data.isFetchingNextPage} onClick={() => void data.fetchNextPage()}>Load older captures</Button>}
     <Dialog open={!!eventId} onOpenChange={(open) => { if (!open) { setEvent(null); setAudio(null); } }} title="Connect activity" size="lg" footer={detail.data && <>
       {canReview && detail.data.status === 'REVIEW' && <>
         <Button size="sm" disabled={busy} onClick={() => void update(detail.data!.id, 'REVIEWED')}>Mark reviewed</Button>
@@ -176,10 +185,32 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
       {detail.data && <div className="space-y-3 text-sm">
         <p>{detail.data.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : detail.data.kind} · {detail.data.status}</p>
         {detail.data.details?.call && <p>{formatConnectCall(detail.data.details.call)}</p>}
+        {[detail.data.capturedBy, detail.data.deviceLabel].some(Boolean) && <p className="text-muted">
+          {[detail.data.capturedBy, detail.data.deviceLabel].filter(Boolean).join(' · ')}
+        </p>}
+        {detail.data.capturedMessage && <section className="rounded-lg border border-line p-3">
+          <h4 className="font-semibold">Captured {detail.data.capturedMessage.app} preview</h4>
+          {detail.data.capturedMessage.senderPhone && <p className="text-muted">{detail.data.capturedMessage.senderPhone}</p>}
+          <p className="whitespace-pre-wrap break-words">{detail.data.capturedMessage.text}</p>
+        </section>}
+        <section className="rounded-lg border border-line p-3">
+          <h4 className="font-semibold">Stored in</h4>
+          <p>Private BrokerIQ Connect activity</p>
+          {detail.data.destinations?.map((target) => <p key={target.module + target.recordId}>
+            <strong>{target.module}</strong> · {target.label} · <span className="break-all">{target.recordId}</span>
+          </p>)}
+          {detail.data.status === 'REVIEW' && <p className="text-muted">AI suggestions await review.</p>}
+        </section>
+        {detail.data.recordings?.map((item) => <Button key={item.id} size="sm" variant="secondary" onClick={() => { setAudio(null); setEvent(item.id); }}>
+          Open related recording · {new Date(item.capturedAt).toLocaleString('en-IN')}
+        </Button>)}
         {detail.data.lastError && <p>{detail.data.lastError}</p>}
         {detail.data.recording && (audio ? <audio controls src={audio} className="w-full" /> :
           <Button size="sm" variant="secondary" onClick={() => void getAudio(detail.data!.id)}>Load private recording</Button>)}
-        {detail.data.details?.proposal?.summary && <p>{detail.data.details.proposal.summary}</p>}
+        {detail.data.details?.proposal?.summary && <section>
+          <h4 className="font-semibold">AI decision{detail.data.details.proposal.confidence == null ? '' : ' · ' + detail.data.details.proposal.confidence + '% confidence'}</h4>
+          <p>{detail.data.details.proposal.summary}</p>
+        </section>}
         {detail.data.details?.proposal?.evidence && <blockquote className="border-l-2 border-line pl-3">{detail.data.details.proposal.evidence}</blockquote>}
         {detail.data.details?.proposal?.nextSteps?.map((item) => <p key={item}>{item}</p>)}
         {detail.data.status !== 'DISMISSED' && detail.data.details?.proposal?.recommendedAction && (() => {
@@ -199,7 +230,10 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
           <p className="text-xs text-muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</p>
           {field.evidence && <p className="text-xs">{field.evidence}</p>}
         </div>)}
-        {detail.data.details?.transcript?.segments.map((segment) => <p key={segment.start}><strong>{Math.floor(segment.start)}s</strong> {segment.text}</p>)}
+        {detail.data.details?.transcript && <section className="space-y-1">
+          <h4 className="font-semibold">Full transcript · {detail.data.details.transcript.language}</h4>
+          {detail.data.details.transcript.segments.map((segment) => <p key={segment.start}><strong>{formatConnectTimestamp(segment.start)}</strong> {segment.text}</p>)}
+        </section>}
       </div>}
     </Dialog>
   </section>;

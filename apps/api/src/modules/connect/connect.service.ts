@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { stat } from 'node:fs/promises';
-import { canonicalInventorySector, connectSurveyValuesSchema, normalizeIndianPhone, type ConnectSurveyField } from '@brokeriq/shared';
+import { canonicalInventorySector, connectSurveyValuesSchema, normalizeIndianPhone, hasDelegatedAccess, storedRolePermissions, type ConnectDestination, type ConnectSurveyField } from '@brokeriq/shared';
 import { z } from 'zod';
 import { env } from '../../config/env';
 import type { RequestUser } from '../../common/decorators';
@@ -24,12 +24,14 @@ const privateMessage = /\b(?:otp|password|passcode|one.time (?:code|password)|ve
 const redact = (text: string) => text.replace(/(?:\+?91[\s.-]*)?[6-9](?:[\s.-]*\d){9}\b/g, '[contact]')
   .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[contact]');
 const firmPolicyKey = 'connect.automatic_updates';
+const canViewConnectTarget = (user: RequestUser, module: 'leads' | 'inventory') =>
+  hasDelegatedAccess(user.delegatedActor ? { ...user, role: 'SUB_BROKER_ADMIN' } : user, module, 'view');
 const apkTicket = z.object({
   purpose: z.literal('connect-apk'), sessionId: z.string().min(1), userId: z.string().min(1),
   version: z.number().int().positive(), expiresAt: z.number().int(),
 });
 const eventProjection = {
-  id: true, kind: true, status: true, capturedAt: true, updatedAt: true, leadId: true, callId: true, lastError: true, recordingType: true,
+  id: true, userId: true, kind: true, status: true, capturedAt: true, updatedAt: true, leadId: true, callId: true, lastError: true, recordingType: true,
 } as const;
 const insights = z.object({
   summary: z.string().min(1).max(1400),
@@ -63,6 +65,8 @@ const insights = z.object({
   evidence: z.string().max(500).optional(),
 });
 type Insight = z.infer<typeof insights>;
+type Transcript = Awaited<ReturnType<typeof transcribeConnectRecording>>;
+
 
 @Injectable()
 export class ConnectService {
@@ -184,7 +188,7 @@ export class ConnectService {
   }
 
   private leadScope(user: RequestUser): Prisma.LeadWhereInput {
-    if (user.delegatedActor && !user.delegatedPermissions?.includes('leads:view')) throw new ForbiddenException('Lead viewing access is required');
+    if (!canViewConnectTarget(user, 'leads')) throw new ForbiddenException('Lead viewing access is required');
     return { organizationId: requireOrg(user), deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) };
   }
 
@@ -323,20 +327,28 @@ export class ConnectService {
     return { organizationId: requireOrg(user), leadId, status: { not: 'DELETED' }, ...(user.role === 'BROKER_AGENT' ? { userId: user.id } : {}) };
   }
 
-  async activity(user: RequestUser, leadId?: string) {
+  async activity(user: RequestUser, leadId?: string, after?: string) {
     if (leadId && !(await this.db.lead.findFirst({ where: { id: leadId, ...this.leadScope(user) }, select: { id: true } }))) throw new NotFoundException('Lead not found');
-    const rows = await this.db.connectEvent.findMany({ where: this.eventScope(user, leadId), select: eventProjection, take: 100, orderBy: { capturedAt: 'desc' } });
-    const ids = [...new Set(rows.flatMap(({ leadId: id }) => id ? [id] : []))];
-    const visible = new Set(ids.length ? (await this.db.lead.findMany({
+    const scope = this.eventScope(user, leadId);
+    const cursor = after ? await this.db.connectEvent.findFirst({ where: { ...scope, id: after }, select: { capturedAt: true, id: true } }) : null;
+    if (after && !cursor) throw new NotFoundException('Connect activity page expired. Refresh the list.');
+    const rows = await this.db.connectEvent.findMany({
+      where: { ...scope, ...(cursor ? { OR: [{ capturedAt: { lt: cursor.capturedAt } }, { capturedAt: cursor.capturedAt, id: { lt: cursor.id } }] } : {}) },
+      select: eventProjection, take: 101, orderBy: [{ capturedAt: 'desc' }, { id: 'desc' }],
+    });
+    const batch = rows.slice(0, 100);
+    const ids = [...new Set(batch.flatMap(({ leadId: id }) => id ? [id] : []))];
+    const visible = new Set(ids.length && canViewConnectTarget(user, 'leads') ? (await this.db.lead.findMany({
       where: { id: { in: ids }, ...this.leadScope(user) }, select: { id: true },
     })).map(({ id }) => id) : []);
-    return { items: rows.filter(({ leadId: id }) => !id || visible.has(id))
+    return { nextCursor: rows.length > 100 ? batch.at(-1)?.id : undefined, items: batch.filter(({ leadId: id }) => !id || visible.has(id))
       .map(({ recordingType, ...row }) => ({ ...row, recording: Boolean(recordingType) })) };
   }
 
   private async event(user: RequestUser, id: string) {
     const event = await this.db.connectEvent.findFirst({ where: { id, ...this.eventScope(user) } });
-    if (!event || (event.leadId && !(await this.db.lead.findFirst({ where: { id: event.leadId, ...this.leadScope(user) }, select: { id: true } })))) {
+    if (!event || (event.leadId && (!canViewConnectTarget(user, 'leads') ||
+      !(await this.db.lead.findFirst({ where: { id: event.leadId, ...this.leadScope(user) }, select: { id: true } }))))) {
       throw new NotFoundException('Connect activity not found');
     }
     return event;
@@ -344,9 +356,42 @@ export class ConnectService {
 
   async detail(user: RequestUser, id: string) {
     const row = await this.event(user, id);
-    return { id: row.id, kind: row.kind, status: row.status, capturedAt: row.capturedAt, lastError: row.lastError, recording: !!row.recordingKey,
-      details: row.encryptedResult ? JSON.parse(this.crypto.decrypt(row.encryptedResult))
-        : row.kind === 'UNMATCHED_CALL' && row.encryptedInput ? { call: JSON.parse(this.crypto.decrypt(row.encryptedInput)) } : null };
+    const [owner, device, call, recordings] = await Promise.all([
+      this.db.user.findFirst({ where: { id: row.userId, organizationId: row.organizationId }, select: { name: true } }),
+      this.db.connectDevice.findFirst({ where: { id: row.deviceId, organizationId: row.organizationId }, select: { label: true } }),
+      row.callId ? this.db.call.findFirst({ where: { id: row.callId, organizationId: row.organizationId }, select: {
+        direction: true, status: true, durationSec: true, fromNumber: true, toNumber: true,
+      } }) : null,
+      row.kind === 'CALL' && row.callId ? this.db.connectEvent.findMany({
+        where: { ...this.eventScope(user), callId: row.callId, kind: 'RECORDING', recordingKey: { not: null } },
+        select: { id: true, capturedAt: true, status: true }, orderBy: { capturedAt: 'asc' },
+      }) : [],
+    ]);
+    const stored: Record<string, unknown> = row.encryptedResult ? JSON.parse(this.crypto.decrypt(row.encryptedResult)) : {};
+    const input: Record<string, unknown> = row.encryptedInput ? JSON.parse(this.crypto.decrypt(row.encryptedInput)) : {};
+    const destinations = (Array.isArray(stored.destinations) ? stored.destinations as ConnectDestination[] : [])
+      .filter((target) => target.module === 'Inventory' || target.module === 'Survey'
+        ? canViewConnectTarget(user, 'inventory')
+        : canViewConnectTarget(user, 'leads'));
+    if (row.kind === 'CALL' && call && canViewConnectTarget(user, 'leads')) {
+      destinations.unshift({ module: 'Calls', label: 'Call logged in the lead timeline', recordId: row.callId! });
+    }
+    const direction = call?.direction === 'inbound' ? 'INBOUND' : 'OUTBOUND';
+    return { id: row.id, kind: row.kind, status: row.status, capturedAt: row.capturedAt, lastError: row.lastError,
+      recording: Boolean(row.recordingKey), capturedBy: owner?.name ?? null, deviceLabel: device?.label ?? null, destinations, recordings,
+      capturedMessage: typeof input.text === 'string' ? {
+        text: input.text, senderPhone: typeof input.senderPhone === 'string' ? input.senderPhone : null,
+        app: input.packageName === 'com.whatsapp.w4b' ? 'WhatsApp Business' : row.kind === 'WHATSAPP' ? 'WhatsApp' : 'SMS',
+      } : null,
+      details: {
+        ...stored, destinations: undefined,
+        survey: canViewConnectTarget(user, 'inventory') ? stored.survey : undefined,
+        ...(call ? { call: { direction, outcome: call.status.toUpperCase(),
+          number: direction === 'INBOUND' ? call.fromNumber : call.toNumber,
+          durationSec: call.durationSec ?? undefined, simLabel: input.simLabel } } :
+          row.kind === 'UNMATCHED_CALL' ? { call: input } : {}),
+      },
+    };
   }
 
   async playback(user: RequestUser, id: string) {
@@ -519,12 +564,19 @@ export class ConnectService {
         await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
         return;
       }
-      const transcript = row.recordingKey && row.recordingType ? await transcribeConnectRecording((await this.storage.read(row.recordingKey)).body, row.recordingType) : null;
+      const checkpoint: { transcript?: Transcript | null } = row.encryptedResult ? JSON.parse(this.crypto.decrypt(row.encryptedResult)) : {};
+      const transcript = checkpoint.transcript ?? (row.recordingKey && row.recordingType
+        ? await transcribeConnectRecording((await this.storage.read(row.recordingKey)).body, row.recordingType) : null);
+      if (transcript && !checkpoint.transcript) {
+        const saved = await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' },
+          data: { encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript })) } });
+        if (!saved.count) return;
+      }
       const text = input.text ?? transcript?.segments.map(({ text }) => text).join(' ') ?? '';
       const member = await this.db.user.findFirst({ where: { id: row.userId, organizationId: row.organizationId, status: 'ACTIVE', deletedAt: null },
         select: { role: true, delegatedPermissions: true } });
       if (!member || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role) ||
-        (member.role === 'SUB_BROKER_ADMIN' && !member.delegatedPermissions.includes('automation:view'))) {
+        !hasDelegatedAccess({ ...member, rolePermissions: storedRolePermissions(member.role, member.delegatedPermissions) }, 'automation', 'view')) {
         await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
         return;
       }
@@ -532,7 +584,7 @@ export class ConnectService {
         id: row.leadId, organizationId: row.organizationId, deletedAt: null,
         ...(member.role === 'BROKER_AGENT' ? { assignedToId: row.userId } : {}),
       }, select: { stage: true, requirement: { select: { purpose: true, bedrooms: true, minBudget: true, maxBudget: true, furnishing: true } } } }) : null;
-      if (row.leadId && (!context || (member.role === 'SUB_BROKER_ADMIN' && !member.delegatedPermissions.includes('leads:view')))) {
+      if (row.leadId && (!context || !hasDelegatedAccess({ ...member, rolePermissions: storedRolePermissions(member.role, member.delegatedPermissions) }, 'leads', 'view'))) {
         await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
         return;
       }
@@ -557,17 +609,22 @@ export class ConnectService {
         }
         const actor = await tx.user.findFirst({ where: { id: row.userId, organizationId: row.organizationId, status: 'ACTIVE', deletedAt: null },
           select: { role: true, delegatedPermissions: true } });
-        const isBroker = actor && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(actor.role) &&
-          (actor.role !== 'SUB_BROKER_ADMIN' || actor.delegatedPermissions.includes('automation:view'));
-        const canReadLead = !row.leadId || (isBroker && (actor.role !== 'SUB_BROKER_ADMIN' || actor.delegatedPermissions.includes('leads:view')) &&
+        const currentActor = actor && { ...actor, rolePermissions: storedRolePermissions(actor.role, actor.delegatedPermissions) };
+        const isBroker = currentActor && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(currentActor.role) &&
+          hasDelegatedAccess(currentActor, 'automation', 'view');
+        const canReadLead = !row.leadId || (isBroker && hasDelegatedAccess(currentActor, 'leads', 'view') &&
           await tx.lead.count({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null,
-            ...(actor.role === 'BROKER_AGENT' ? { assignedToId: row.userId } : {}) } }));
+            ...(currentActor.role === 'BROKER_AGENT' ? { assignedToId: row.userId } : {}) } }));
         if (!isBroker || !canReadLead) {
           await tx.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PAUSED' } });
           return;
         }
+        const destinations: ConnectDestination[] = [];
+        const details: { transcript: Transcript | null; proposal: Insight | null; destinations: ConnectDestination[];
+          survey?: Awaited<ReturnType<ConnectService['surveySuggestions']>> } = { transcript, proposal, destinations };
+        const encrypted = () => this.crypto.encrypt(JSON.stringify(details));
         const result = await tx.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: {
-          encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal })), status: 'REVIEW',
+          encryptedResult: encrypted(), status: 'REVIEW',
         } });
         if (!result.count || !proposal) return;
         // Broader inbox capture creates review suggestions. Approved conversations retain existing automation.
@@ -576,47 +633,56 @@ export class ConnectService {
         const policy = await this.firmPolicy(tx, row.organizationId);
         const eligible = proposal.confidence >= 90 && Boolean(proposal.evidence && redact(text).includes(proposal.evidence));
         if (row.leadId && live.fillSurvey) {
-          const survey = await this.surveySuggestions(tx, { ...row, leadId: row.leadId }, proposal, text, eligible && policy.survey, policy.surveyFields);
-          if (survey.length) await tx.connectEvent.update({ where: { id }, data: {
-            encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal, survey })),
-            status: survey.some((field) => field.applied) ? 'APPLIED' : 'REVIEW',
-          } });
+          const survey = await this.surveySuggestions(tx, { ...row, leadId: row.leadId }, proposal, text, eligible && policy.survey && hasDelegatedAccess(currentActor, 'inventory', 'view', 'edit'), policy.surveyFields);
+          if (survey.length) {
+            details.survey = survey;
+            const applied = survey.find((field) => field.applied);
+            if (applied) destinations.push({ module: 'Survey', label: 'Verified fields saved', recordId: applied.inventoryId });
+            await tx.connectEvent.update({ where: { id }, data: { encryptedResult: encrypted(), status: applied ? 'APPLIED' : 'REVIEW' } });
+          }
         }
         if (!eligible) return;
-        if (row.leadId && live.fillSurvey && policy.survey && (actor.role !== 'SUB_BROKER_ADMIN' || actor.delegatedPermissions.includes('leads:edit'))) {
-          await tx.lead.updateMany({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null, aiSummary: null }, data: { aiSummary: proposal.summary } });
-          await tx.activity.create({ data: { organizationId: row.organizationId, leadId: row.leadId,
+        if (row.leadId && live.fillSurvey && policy.survey && hasDelegatedAccess(currentActor, 'leads', 'view', 'edit')) {
+          const summary = await tx.lead.updateMany({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null, aiSummary: null }, data: { aiSummary: proposal.summary } });
+          const activity = await tx.activity.create({ data: { organizationId: row.organizationId, leadId: row.leadId,
             userId: row.userId, type: 'NOTE', content: proposal.summary, meta: { source: 'BROKERIQ_CONNECT', connectEventId: row.id } } });
+          destinations.push({ module: 'Leads', label: summary.count ? 'Lead summary and activity note saved' : 'Lead activity note saved',
+            recordId: row.leadId, relatedId: activity.id });
+          await tx.connectEvent.update({ where: { id }, data: { encryptedResult: encrypted() } });
         }
         if (proposal.intent === 'DEMAND' && live.createLeads && policy.leads && input.senderPhone && proposal.purpose &&
-          (actor.role !== 'SUB_BROKER_ADMIN' || ['leads:view', 'leads:create'].every((grant) => actor.delegatedPermissions.includes(grant)))) {
+          hasDelegatedAccess(currentActor, 'leads', 'view', 'create')) {
           const phone = normalizeIndianPhone(input.senderPhone);
           if (phone) {
             const created = await tx.lead.createMany({ data: [{ organizationId: row.organizationId, name: 'WhatsApp requirement',
               phone, assignedToId: row.userId, source: 'WHATSAPP', sourceRef: row.id, sourceDetail: 'BrokerIQ Connect', notes: proposal.summary }], skipDuplicates: true });
             const lead = await tx.lead.findUnique({ where: { organizationId_phone: { organizationId: row.organizationId, phone } }, select: { id: true, deletedAt: true, assignedToId: true } });
             if (created.count && lead && !lead.deletedAt) {
-              await tx.leadRequirement.create({ data: { leadId: lead.id, purpose: proposal.purpose, bedrooms: proposal.bedrooms ? [proposal.bedrooms] : [],
+              const requirement = await tx.leadRequirement.create({ data: { leadId: lead.id, purpose: proposal.purpose, bedrooms: proposal.bedrooms ? [proposal.bedrooms] : [],
                 maxBudget: proposal.budget, furnishing: proposal.furnishing, notes: proposal.summary } });
-              await tx.connectEvent.update({ where: { id }, data: { leadId: lead.id, status: 'APPLIED' } });
+              destinations.push({ module: 'Leads', label: 'Lead and requirement created', recordId: lead.id, relatedId: requirement.id });
+              await tx.connectEvent.update({ where: { id }, data: { leadId: lead.id, status: 'APPLIED', encryptedResult: encrypted() } });
             }
           }
         }
         if (input.group && proposal.intent === 'OFFER' && live.createInventory && policy.inventory && proposal.purpose && proposal.address &&
           text.toLowerCase().includes(proposal.address.toLowerCase()) &&
-          (actor.role !== 'SUB_BROKER_ADMIN' || ['inventory:view', 'inventory:create'].every((grant) => actor.delegatedPermissions.includes(grant)))) {
+          hasDelegatedAccess(currentActor, 'inventory', 'view', 'create')) {
           const sector = proposal.sector ? canonicalInventorySector(proposal.sector) : undefined;
           if (!sector && !proposal.locality) return;
           const location = sector ?? proposal.locality;
           const duplicate = await tx.inventoryItem.findFirst({ where: { organizationId: row.organizationId, deletedAt: null, sector: location,
             address: { equals: proposal.address, mode: 'insensitive' }, floor: proposal.floor ?? null }, select: { id: true } });
-          if (!duplicate) await tx.inventoryItem.create({ data: { organizationId: row.organizationId, sourceType: 'CONNECT_WHATSAPP',
+          if (!duplicate) {
+            const draft = await tx.inventoryItem.create({ data: { organizationId: row.organizationId, sourceType: 'CONNECT_WHATSAPP',
             createdById: row.userId, assignedToId: row.userId, address: proposal.address, sector: location, purpose: proposal.purpose,
             bhk: proposal.bedrooms, floor: proposal.floor, furnishing: proposal.furnishing, notes: proposal.summary,
             ...(proposal.purpose === 'RENT' ? { monthlyRent: proposal.budget, rent: proposal.budget } : { totalSalePrice: proposal.budget }),
             status: 'DRAFT', verificationStatus: 'NEEDS_REVIEW', availability: 'UNKNOWN', clientMutationId: 'connect:' + id,
-          } });
-          await tx.connectEvent.update({ where: { id }, data: { status: duplicate ? 'DUPLICATE' : 'APPLIED' } });
+            }, select: { id: true } });
+            destinations.push({ module: 'Inventory', label: 'Private property draft created for review', recordId: draft.id });
+          }
+          await tx.connectEvent.update({ where: { id }, data: { status: duplicate ? 'DUPLICATE' : 'APPLIED', encryptedResult: encrypted() } });
         }
       }, { timeout: 30_000 });
     } catch (error) {

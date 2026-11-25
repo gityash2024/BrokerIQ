@@ -129,10 +129,31 @@ class ConnectApi(private val vault: Vault) {
         }
     }
 
-    suspend fun call(path: String, method: String = "GET", body: JSONObject? = null, authenticated: Boolean = true): JSONObject {
+    suspend fun call(path: String, method: String = "GET", body: JSONObject? = null, authenticated: Boolean = true): JSONObject =
+        authorized(authenticated) { token -> request(method, path, body, token) }
+
+    suspend fun recording(id: String): ByteArray = authorized(true) { token ->
+        require(id.matches(Regex("[A-Za-z0-9_-]{1,100}"))) { "Recording unavailable" }
+        withContext(Dispatchers.IO) {
+            val req = Request.Builder().url(BuildConfig.BROKERIQ_API + "connect/events/$id/recording")
+                .header("Authorization", "Bearer " + requireNotNull(token))
+                .build()
+            transport.newCall(req).execute().use { response ->
+                val body = response.body
+                if (!response.isSuccessful) throw ConnectHttpError(response.code, "RECORDING", JSONObject(), "Recording unavailable")
+                check(body != null && body.contentType()?.type == "audio") { "Recording unavailable" }
+                val maximum = 12L * 1024 * 1024
+                val stream = body.source()
+                check(!stream.request(maximum + 1)) { "Recording exceeds the playback limit" }
+                stream.readByteArray()
+            }
+        }
+    }
+
+    private suspend fun <T> authorized(authenticated: Boolean, execute: suspend (String?) -> T): T {
         val session = if (authenticated) vault.json("session") else JSONObject()
         val token = session.optional("accessToken")
-        try { return request(method, path, body, token) } catch (error: ConnectHttpError) {
+        try { return execute(token) } catch (error: ConnectHttpError) {
             if (!authenticated || error.status != 401 || token == null) throw error
         }
         val refreshed = refreshLock.withLock {
@@ -150,7 +171,7 @@ class ConnectApi(private val vault: Vault) {
             vault.write("session", refresh.toString())
             refresh.getString("accessToken")
         }
-        return request(method, path, body, refreshed)
+        return execute(refreshed)
     }
 }
 

@@ -1,10 +1,10 @@
 import { lazy, Suspense, useState } from 'react';
 import { Alert, Linking } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectCall, formatConnectSurveyValue, hasDelegatedAccess,
-  type ConnectActionDraft, type ConnectCallMetadata, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
+import { connectSurveyFieldsSchema, connectSurveyFieldTypes, formatConnectCall, formatConnectSurveyValue, formatConnectTimestamp, hasDelegatedAccess,
+  type ConnectActionDraft, type ConnectCallMetadata, type ConnectCapturePreview, type ConnectSurveyField, type ConnectSurveySuggestion } from '@brokeriq/shared';
 import { toast } from '@/lib/toast';
 import { Button, Chip, Input, Row, Sheet, Txt } from '@/ui';
 import { NativeCard } from './screen';
@@ -18,10 +18,10 @@ type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion:
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
 const surveyLabels: Record<string, string> = { bhk: 'BHK', floor: 'Floor', purpose: 'Purpose' };
-type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; recommendedAction?: ConnectActionDraft };
+type EventDetail = Event & ConnectCapturePreview & { details: { proposal?: { summary?: string; nextSteps?: string[]; evidence?: string; confidence?: number; recommendedAction?: ConnectActionDraft };
   survey?: ConnectSurveySuggestion[];
   call?: ConnectCallMetadata;
-  transcript?: { segments: { start: number; text: string }[] } } | null };
+  transcript?: { language?: string; segments: { start: number; text: string }[] } } | null };
 
 export function NativeConnectProfile() {
   const { user } = useAuth();
@@ -122,11 +122,19 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
   const [busy, setBusy] = useState(false);
   const canReview = hasDelegatedAccess(user, 'automation', 'view', 'edit');
   const canDelete = user?.role === 'BROKER_ADMIN';
-  const events = useQuery({ queryKey: ['connect-events', user?.id, user?.organization?.id, leadId],
-    queryFn: () => api<{ items: Event[] }>('/connect/events' + (leadId ? '?leadId=' + encodeURIComponent(leadId) : '')), enabled });
+  const events = useInfiniteQuery({ queryKey: ['connect-events', user?.id, user?.organization?.id, leadId],
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams();
+      if (leadId) params.set('leadId', leadId);
+      if (pageParam) params.set('after', pageParam);
+      return api<{ items: Event[]; nextCursor?: string }>('/connect/events?' + params.toString());
+    },
+    getNextPageParam: (page) => page.nextCursor, enabled });
+  const entries = events.data?.pages.flatMap((page) => page.items) ?? [];
   const detail = useQuery({ queryKey: ['connect-event', user?.id, user?.organization?.id, id],
     queryFn: () => api<EventDetail>('/connect/events/' + id), enabled: enabled && !!id });
-  if (!enabled || (leadId && !events.data?.items.length)) return null;
+  if (!enabled || (leadId && !entries.length && !events.hasNextPage)) return null;
   async function update(eventId: string, action: 'retry' | 'delete' | 'REVIEWED' | 'DISMISSED', ownerContext = captureAccountContext()) {
     setBusy(true);
     try {
@@ -144,9 +152,11 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
   return <NativeCard>
     <Txt v="bodyStrong">{leadId ? 'BrokerIQ Connect' : 'Recent Connect activity'}</Txt>
     {events.error && <Txt color="danger">{errorMessage(events.error)}</Txt>}
-    {events.data?.items.length === 0 && <Txt color="muted">No captured activity yet.</Txt>}
-    {events.data?.items.map((event) => <Button key={event.id} title={(event.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : event.kind) + ' · ' + event.status} variant="secondary" size="sm"
+    {events.isSuccess && entries.length === 0 && <Txt color="muted">No captured activity yet.</Txt>}
+    {entries.map((event) => <Button key={event.id} title={(event.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : event.kind) + ' · ' + event.status} variant="secondary" size="sm"
       onPress={() => setId(event.id)} />)}
+    {events.hasNextPage && <Button title="Load older captures" variant="secondary" size="sm"
+      loading={events.isFetchingNextPage} onPress={() => void events.fetchNextPage()} />}
     <Sheet open={!!id} title="Connect activity" onClose={() => { if (!busy) setId(null); }} full footer={id && detail.data && <Row wrap gap={8}>
       {canReview && detail.data.status === 'REVIEW' && <>
         <Button title="Mark reviewed" size="sm" disabled={busy} onPress={() => void update(id, 'REVIEWED')} />
@@ -165,11 +175,32 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
       {detail.data && <>
         <Txt>{detail.data.kind === 'UNMATCHED_CALL' ? 'Unmatched call' : detail.data.kind} · {detail.data.status}</Txt>
         {detail.data.details?.call && <Txt>{formatConnectCall(detail.data.details.call)}</Txt>}
+        {[detail.data.capturedBy, detail.data.deviceLabel].some(Boolean) && <Txt color="muted">
+          {[detail.data.capturedBy, detail.data.deviceLabel].filter(Boolean).join(' · ')}
+        </Txt>}
+        {detail.data.capturedMessage && <NativeCard>
+          <Txt v="bodyStrong">Captured {detail.data.capturedMessage.app} preview</Txt>
+          {!!detail.data.capturedMessage.senderPhone && <Txt color="muted">{detail.data.capturedMessage.senderPhone}</Txt>}
+          <Txt>{detail.data.capturedMessage.text}</Txt>
+        </NativeCard>}
+        <NativeCard>
+          <Txt v="bodyStrong">Stored in</Txt>
+          <Txt>Private BrokerIQ Connect activity</Txt>
+          {detail.data.destinations?.map((target) => <Txt key={target.module + target.recordId}>
+            {target.module} · {target.label} · {target.recordId}
+          </Txt>)}
+          {detail.data.status === 'REVIEW' && <Txt color="muted">AI suggestions await review.</Txt>}
+        </NativeCard>
+        {detail.data.recordings?.map((item) => <Button key={item.id} title="Open related recording" variant="secondary" size="sm"
+          onPress={() => setId(item.id)} />)}
         {detail.data.lastError && <Txt>{detail.data.lastError}</Txt>}
         {id && detail.data.recording && <Suspense fallback={<Txt>Loading private player…</Txt>}>
           <ConnectRecordingPlayer key={id} eventId={id} />
         </Suspense>}
-        {detail.data.details?.proposal?.summary && <Txt>{detail.data.details.proposal.summary}</Txt>}
+        {detail.data.details?.proposal?.summary && <NativeCard>
+          <Txt v="bodyStrong">AI decision{detail.data.details.proposal.confidence == null ? '' : ' · ' + detail.data.details.proposal.confidence + '% confidence'}</Txt>
+          <Txt>{detail.data.details.proposal.summary}</Txt>
+        </NativeCard>}
         {detail.data.details?.proposal?.evidence && <Txt v="caption" color="muted">{detail.data.details.proposal.evidence}</Txt>}
         {detail.data.details?.proposal?.nextSteps?.map((item) => <Txt key={item}>{item}</Txt>)}
         {detail.data.status !== 'DISMISSED' && detail.data.details?.proposal?.recommendedAction && (() => {
@@ -189,7 +220,10 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
           <Txt v="caption" color="muted">{field.applied ? 'Applied' : field.conflict ? 'Conflicts with current value' : 'Needs review'} · {field.confidence}% confidence</Txt>
           {!!field.evidence && <Txt v="small">{field.evidence}</Txt>}
         </NativeCard>)}
-        {detail.data.details?.transcript?.segments.map((segment) => <Txt key={segment.start}>{Math.floor(segment.start)}s · {segment.text}</Txt>)}
+        {detail.data.details?.transcript && <NativeCard>
+          <Txt v="bodyStrong">Full transcript{detail.data.details.transcript.language ? ' · ' + detail.data.details.transcript.language : ''}</Txt>
+          {detail.data.details.transcript.segments.map((segment) => <Txt key={segment.start}>{formatConnectTimestamp(segment.start)} · {segment.text}</Txt>)}
+        </NativeCard>}
       </>}
     </Sheet>
   </NativeCard>;

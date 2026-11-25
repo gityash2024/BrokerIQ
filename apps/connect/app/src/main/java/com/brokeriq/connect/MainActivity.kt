@@ -62,6 +62,9 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val settings = MutableStateFlow(app.vault.json("settings"))
     val directory = MutableStateFlow(app.vault.directory())
     val events = MutableStateFlow<List<JSONObject>>(emptyList())
+    val eventCursor = MutableStateFlow<String?>(null)
+    val captureDetail = MutableStateFlow<JSONObject?>(null)
+    val playback = MutableStateFlow<ByteArray?>(null)
     val pending = MutableStateFlow<List<OutboxEvent>>(emptyList())
     val conversations = MutableStateFlow(app.vault.json("conversations"))
     val approved = MutableStateFlow(app.vault.json("approvedAt"))
@@ -273,7 +276,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         app.vault.write("directory", directoryData.toString())
         directory.value = app.vault.directory()
         showCallReviews()
-        events.value = app.api.call("connect/events").optJSONArray("items")?.objects() ?: emptyList()
+        readCaptures(null)
         recentCalls.value = if (settings.value.flag("calls") || settings.value.flag("recordings")) {
             try {
                 app.api.call("connect/calls").optJSONArray("items")?.objects().orEmpty()
@@ -290,6 +293,32 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         approved.value = app.vault.json("approvedAt")
         lastSync.value = app.vault.read("lastSync")
     }
+    private suspend fun readCaptures(after: String?) {
+        val response = app.api.call("connect/events" + (after?.let { "?after=" + Uri.encode(it) } ?: ""))
+        val page = response.optJSONArray("items")?.objects().orEmpty()
+        events.value = if (after == null) page else (events.value + page).distinctBy { it.optString("id") }
+        eventCursor.value = response.optional("nextCursor")
+    }
+
+    fun olderCaptures() = run { eventCursor.value?.let { readCaptures(it) } }
+
+    fun openCapture(id: String) = run {
+        require(id.matches(Regex("[A-Za-z0-9_-]{1,100}"))) { "Capture unavailable" }
+        playback.value = null
+        captureDetail.value = app.api.call("connect/events/$id")
+    }
+
+    fun loadPlayback() = run {
+        val capture = captureDetail.value ?: return@run
+        playback.value = app.api.recording(capture.getString("id"))
+    }
+
+    fun closeCapture() {
+        if (busy.value) return
+        captureDetail.value = null
+        playback.value = null
+    }
+
     fun refresh() = run { if (app.captureReady()) readActivity() }
     fun activateCapture() = run {
         val owner = account.value ?: return@run
@@ -426,6 +455,9 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         settings.value = JSONObject()
         directory.value = emptyList()
         events.value = emptyList()
+        captureDetail.value = null
+        playback.value = null
+        eventCursor.value = null
         pending.value = emptyList()
         recentCalls.value = emptyList()
         callReviews.value = emptyList()
@@ -524,6 +556,9 @@ class MainActivity : ComponentActivity() {
         }
         val leads by model.directory.collectAsState()
         val events by model.events.collectAsState()
+        val eventCursor by model.eventCursor.collectAsState()
+        val captureDetail by model.captureDetail.collectAsState()
+        val playback by model.playback.collectAsState()
         val outbox by model.pending.collectAsState()
         val groups by model.conversations.collectAsState()
         val approved by model.approved.collectAsState()
@@ -678,10 +713,13 @@ class MainActivity : ComponentActivity() {
                         }
                         ConnectCard("Recent captures") {
                             if (events.isEmpty()) Text("New captures will appear here.")
-                            events.forEach {
-                                Text(it.optString("kind") + " · " + it.optString("status"))
-                                it.optional("lastError")?.let { message -> Text(message, style = MaterialTheme.typography.bodySmall) }
+                            events.forEach { event ->
+                                TextButton(enabled = !busy, onClick = { model.openCapture(event.getString("id")) }) {
+                                    Text(event.optString("kind").replace('_', ' ') + " · " + event.optString("status"))
+                                }
+                                event.optional("lastError")?.let { message -> Text(message, style = MaterialTheme.typography.bodySmall) }
                             }
+                            if (eventCursor != null) OutlinedButton(enabled = !busy, onClick = model::olderCaptures) { Text("Load older captures") }
                         }
                     }
                     ConnectTab.SETUP -> {
@@ -714,6 +752,9 @@ class MainActivity : ComponentActivity() {
                             OutlinedButton(enabled = !busy, onClick = model::logout) { Text("Revoke this device and sign out") }
                         }
                     }
+                }
+                captureDetail?.let { detail ->
+                    ConnectCaptureDialog(detail, playback, busy, feedback, model::closeCapture, model::loadPlayback, model::openCapture)
                 }
                 if (recording != null && settings.flag("recordings")) {
                     Text("Associate shared recording with a synchronized call")

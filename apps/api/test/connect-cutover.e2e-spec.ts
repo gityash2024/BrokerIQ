@@ -59,6 +59,11 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     const recent = { ...event, capturedAt: new Date(Date.now() + 20).toISOString() };
     const stored = (await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201)).body;
     await http().post('/api/connect/events').set(broker.headers).send(recent).expect(201).expect(({ body }) => expect(body.id).toBe(stored.id));
+    await http().get('/api/connect/events/' + stored.id).set(broker.headers).expect(200).expect('Cache-Control', 'private, no-store')
+      .expect(({ body }) => expect(body).toMatchObject({
+        capturedBy: broker.user.name, deviceLabel: 'Test handset', destinations: [],
+        capturedMessage: { app: 'WhatsApp Business', text: recent.text },
+      }));
     await http().get('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
     const unmatched = { kind: 'UNMATCHED_CALL', capturedAt: recent.capturedAt, direction: 'OUTBOUND',
       number: '+911244567890', durationSec: 32, outcome: 'COMPLETED', simLabel: 'Work SIM' };
@@ -131,6 +136,7 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     await http().get('/api/connect/calls').set(second).expect(200)
       .expect(({ body }) => expect(body.items).toMatchObject([{ ...row, sameDevice: false }]));
     await db.lead.update({ where: { id: lead.id }, data: { assignedToId: null } });
+    await http().get('/api/connect/events/' + sent.id).set(first).expect(404);
     for (const path of ['/api/connect/calls', '/api/connect/events']) {
       await http().get(path).set(first).expect(200).expect(({ body }) => expect(body.items).toEqual([]));
     }

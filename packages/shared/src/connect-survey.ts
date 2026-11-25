@@ -47,3 +47,24 @@ export function formatConnectCall(call: ConnectCallMetadata): string {
     call.durationSec === undefined ? undefined : call.durationSec + ' s',
   ].filter(Boolean).join(' · ');
 }
+
+
+export type ConnectDestination = {
+  module: 'Calls' | 'Leads' | 'Inventory' | 'Survey';
+  label: string;
+  recordId: string;
+  relatedId?: string;
+};
+
+export type ConnectCapturePreview = {
+  capturedBy?: string | null;
+  deviceLabel?: string | null;
+  destinations?: ConnectDestination[];
+  capturedMessage?: { text: string; senderPhone: string | null; app: string } | null;
+  recordings?: { id: string; capturedAt: string; status: string }[];
+};
+
+export function formatConnectTimestamp(seconds: number) {
+  const elapsed = Math.max(0, Math.floor(seconds));
+  return [Math.floor(elapsed / 60), elapsed % 60].map((value) => String(value).padStart(2, '0')).join(':');
+}

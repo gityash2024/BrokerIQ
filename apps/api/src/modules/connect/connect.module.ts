@@ -67,12 +67,15 @@ class ConnectController {
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('events')
-  activity(@CurrentUser() user: RequestUser, @Query(new ZodPipe(z.object({ leadId: optionalId }))) { leadId }: { leadId?: string }) {
-    return this.connect.activity(user, leadId);
+  @Header('Cache-Control', 'private, no-store')
+  activity(@CurrentUser() user: RequestUser, @Query(new ZodPipe(z.object({ leadId: optionalId, after: optionalId })))
+    { leadId, after }: { leadId?: string; after?: string }) {
+    return this.connect.activity(user, leadId, after);
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('events/:id')
+  @Header('Cache-Control', 'private, no-store')
   details(@CurrentUser() user: RequestUser, @Param('id') id: string) { return this.connect.detail(user, id); }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
