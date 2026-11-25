@@ -82,7 +82,7 @@ export function NativeConnectProfile() {
             title={firmOptions[key] + (data.data!.policy![key] ? ' · Enabled' : ' · Review only')} onPress={() => void updatePolicy({ [key]: !data.data!.policy![key] })} />)}
           <Txt>Keep captures {data.data.policy.retentionDays ? 'for ' + data.data.policy.retentionDays + ' days' : 'until manually deleted'}</Txt>
           <Row wrap gap={6}>
-            {[30, 90, 180, 365, null].map((days) => <Button key={days ?? 'manual'} size="sm" variant="secondary"
+            {[90, 180, 365, null].map((days) => <Button key={days ?? 'manual'} size="sm" variant="secondary"
               title={days ? days + ' days' : 'Manual deletion'} disabled={policyBusy || (data.data!.policy!.retentionDays ?? null) === days}
               onPress={() => {
                 const context = captureAccountContext();
@@ -121,8 +121,7 @@ export function NativeConnectLeadActivity({ leadId, enabled, draftAction }: { le
   const [id, setId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canReview = hasDelegatedAccess(user, 'automation', 'view', 'edit');
-  const canDelete = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN'].includes(user?.role ?? '') &&
-    hasDelegatedAccess(user, 'automation', 'view', 'delete');
+  const canDelete = user?.role === 'BROKER_ADMIN';
   const events = useQuery({ queryKey: ['connect-events', user?.id, user?.organization?.id, leadId],
     queryFn: () => api<{ items: Event[] }>('/connect/events' + (leadId ? '?leadId=' + encodeURIComponent(leadId) : '')), enabled });
   const detail = useQuery({ queryKey: ['connect-event', user?.id, user?.organization?.id, id],

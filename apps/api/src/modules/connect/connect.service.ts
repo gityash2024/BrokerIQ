@@ -368,13 +368,19 @@ export class ConnectService {
   }
 
   async remove(user: RequestUser, id: string) {
+    if (user.role !== 'BROKER_ADMIN' || user.delegatedActor) {
+      throw new ForbiddenException('Only the firm Broker Admin can delete Connect captures');
+    }
     const event = await this.db.connectEvent.findFirst({ where: { id, organizationId: requireOrg(user) } });
     if (!event) throw new NotFoundException('Connect activity not found');
     if (event.status !== 'DELETED') await this.event(user, id);
     await this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id} FOR SHARE`;
+      if (!(await tx.user.count({ where: { id: user.id, organizationId: event.organizationId,
+        role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null } }))) throw new ForbiddenException('Firm membership changed');
       const removed = await tx.connectEvent.updateMany({ where: { id, organizationId: event.organizationId, status: { not: 'DELETED' } },
         data: { status: 'DELETED', encryptedInput: null, encryptedResult: null, lastError: null } });
-      if (removed.count) await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role,
+      if (removed.count) await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role,
         organizationId: event.organizationId, action: 'connect.event.delete', entity: 'ConnectEvent', entityId: id } });
     });
     if (event.recordingKey) await this.jobs.enqueue('connect.purge', { id, orgId: event.organizationId }, { key: 'connect-purge:' + id, repeat: true });

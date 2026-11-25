@@ -89,6 +89,13 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     await http().patch(reviewPath).set(broker.headers).send({ decision: 'REVIEWED' }).expect(200);
     await http().patch(reviewPath).set(broker.headers).send({ decision: 'DISMISSED' }).expect(400);
     await http().delete('/api/connect/events/' + stored.id).set(outsider.headers).expect(404);
+    const delegate = await db.user.create({ data: {
+      name: 'Delegated Connect reviewer', email: key + '@delegate.e2e.test', role: 'SUB_BROKER_ADMIN',
+      organizationId: broker.user.organizationId, delegatedPermissions: ['automation:view', 'automation:edit', 'automation:delete'],
+    }, include: { organization: true } });
+    const delegated = bearer((await app.get(AuthService).issue(delegate)).accessToken);
+    await http().delete('/api/connect/events/' + stored.id).set(delegated).expect(403);
+    await http().patch('/api/connect/firm-policy').set(delegated).send({ retentionDays: 90 }).expect(403);
     await http().delete('/api/connect/events/' + stored.id).set(broker.headers).expect(200);
     await http().get('/api/connect/events/' + stored.id).set(broker.headers).expect(404);
     expect(await db.connectEvent.findUnique({ where: { id: stored.id } })).toMatchObject({ status: 'DELETED', encryptedInput: null, encryptedResult: null });

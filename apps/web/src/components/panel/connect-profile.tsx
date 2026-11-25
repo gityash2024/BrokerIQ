@@ -92,7 +92,7 @@ export function ConnectProfile() {
                 }
               }}>
               <option value="">Until manually deleted</option>
-              {[30, 90, 180, 365].map((days) => <option key={days} value={days}>{days} days</option>)}
+              {(data.data.policy.retentionDays === 30 ? [30, 90, 180, 365] : [90, 180, 365]).map((days) => <option key={days} value={days}>{days} days</option>)}
             </select>
           </label>
           <div className="space-y-2 border-t border-line pt-2">
@@ -127,8 +127,7 @@ export function ConnectLeadActivity({ leadId, enabled, draftAction }: { leadId?:
   const [audio, setAudio] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canReview = hasDelegatedAccess(user, 'automation', 'view', 'edit');
-  const canDelete = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN'].includes(user?.role ?? '') &&
-    hasDelegatedAccess(user, 'automation', 'view', 'delete');
+  const canDelete = user?.role === 'BROKER_ADMIN';
   const data = useQuery({
     queryKey: ['connect-events', user?.id, user?.organization?.id, leadId],
     queryFn: () => api<{ items: Event[] }>('/connect/events' + (leadId ? '?leadId=' + encodeURIComponent(leadId) : '')),
