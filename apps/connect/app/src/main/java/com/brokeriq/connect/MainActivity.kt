@@ -373,9 +373,11 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     fun chooseFolder(uri: Uri) = run {
         check(settings.value.flag("recordings"))
         app.recordingFolder.choose(uri)
+        app.recordingFolder.auto(true)
         folderGranted.value = true
-        automaticRecordings.value = false
-        folderDocuments.value = app.recordingFolder.files()
+        automaticRecordings.value = true
+        folderDocuments.value = emptyList()
+        app.syncNow()
     }
     fun removeFolder() = run {
         app.recordingFolder.remove()
@@ -447,6 +449,7 @@ class MainActivity : ComponentActivity() {
     private val askCallLog = registerForActivityResult(ActivityResultContracts.RequestPermission()) { accessRevision++ }
     private val askContacts = registerForActivityResult(ActivityResultContracts.RequestPermission()) { accessRevision++ }
     private val requestRole = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { accessRevision++ }
+    private val askPhone = registerForActivityResult(ActivityResultContracts.RequestPermission()) { accessRevision++ }
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { accessRevision++ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -488,6 +491,8 @@ class MainActivity : ComponentActivity() {
                 requestRole.launch(roles.createRequestRoleIntent(RoleManager.ROLE_DIALER))
             }
             SetupGrant.CALLS -> askCallLog.launch(Manifest.permission.READ_CALL_LOG)
+            SetupGrant.PLACE_CALLS -> askPhone.launch(Manifest.permission.CALL_PHONE)
+            SetupGrant.SIM -> askPhone.launch(Manifest.permission.READ_PHONE_STATE)
             SetupGrant.CONTACTS -> askContacts.launch(Manifest.permission.READ_CONTACTS)
             SetupGrant.ALERTS -> if (Build.VERSION.SDK_INT >= 33) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
             SetupGrant.FULL_SCREEN -> if (Build.VERSION.SDK_INT >= 34) {
@@ -566,7 +571,7 @@ class MainActivity : ComponentActivity() {
                         }
                         if (settings.flag("recordings") && !hasFolder) ConnectCard("Sync call recordings") {
                             Text("Connect can match new recordings in a folder created by your phone. Availability depends on your device.")
-                            OutlinedButton(onClick = { openRecordingFolder.launch(null) }, enabled = !busy) { Text("Choose recording folder") }
+                            OutlinedButton(onClick = { openRecordingFolder.launch(null) }, enabled = !busy) { Text("Choose folder and enable recording sync") }
                         }
                     }
                     ConnectTab.CALLS -> {
@@ -608,7 +613,7 @@ class MainActivity : ComponentActivity() {
                         }
                         if (settings.flag("recordings")) ConnectCard("Recordings") {
                             Button(onClick = { openRecording.launch(arrayOf("audio/*")) }) { Text("Choose recording") }
-                            OutlinedButton(onClick = { openRecordingFolder.launch(null) }) { Text("Choose recording folder") }
+                            OutlinedButton(onClick = { openRecordingFolder.launch(null) }) { Text("Choose folder and enable recording sync") }
                             if (hasFolder) {
                                 Toggle("Auto-sync new recordings matched to one business call", automaticRecordings, !busy, model::autoRecordings)
                                 OutlinedButton(onClick = model::scanFolder, enabled = !busy) { Text("Browse recording folder") }

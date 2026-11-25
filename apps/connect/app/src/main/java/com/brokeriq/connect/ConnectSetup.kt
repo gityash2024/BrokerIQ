@@ -23,6 +23,10 @@ internal enum class SetupGrant(val title: String, val message: String, val actio
         "Android will ask you to select BrokerIQ Connect. Your phone handles SIM choice and emergency calls.", "Choose Phone app"),
     CALLS("Allow recent calls",
         "Use call status, time and duration to match new business calls to your leads.", "Allow call history"),
+    PLACE_CALLS("Allow placing calls",
+        "Place calls from the Connect keypad through Android’s phone service.", "Allow calls"),
+    SIM("Allow SIM access",
+        "Identify active SIMs so you can choose which line to use for outgoing calls.", "Allow SIM access"),
     CONTACTS("Allow contacts",
         "Show saved names in the dialer and identify matching lead numbers.", "Allow contacts"),
     ALERTS("Allow call alerts",
@@ -41,6 +45,8 @@ internal fun Context.missingSetupGrants(): List<SetupGrant> {
         if (roles?.isRoleAvailable(RoleManager.ROLE_DIALER) == true) {
             if (!isConnectDialer()) add(SetupGrant.PHONE)
             if (!granted(Manifest.permission.READ_CALL_LOG)) add(SetupGrant.CALLS)
+            if (!granted(Manifest.permission.CALL_PHONE)) add(SetupGrant.PLACE_CALLS)
+            if (!granted(Manifest.permission.READ_PHONE_STATE)) add(SetupGrant.SIM)
         }
         if (!granted(Manifest.permission.READ_CONTACTS)) add(SetupGrant.CONTACTS)
         if (Build.VERSION.SDK_INT >= 33 && !granted(Manifest.permission.POST_NOTIFICATIONS)) add(SetupGrant.ALERTS)
@@ -50,6 +56,8 @@ internal fun Context.missingSetupGrants(): List<SetupGrant> {
         }
     }
 }
+
+private val runtimeGrants = setOf(SetupGrant.CALLS, SetupGrant.PLACE_CALLS, SetupGrant.SIM, SetupGrant.CONTACTS, SetupGrant.ALERTS)
 
 @Composable
 internal fun ConnectSetupScreen(
@@ -80,7 +88,7 @@ internal fun ConnectSetupScreen(
             SessionFeedback(feedback, busy)
             if (grant != null) {
                 Button(onClick = { onGrant(grant) }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(grant.action) }
-                if (grant in setOf(SetupGrant.CALLS, SetupGrant.CONTACTS, SetupGrant.ALERTS)) {
+                if (grant in runtimeGrants) {
                     TextButton(onClick = onSettings) { Text("Open Android app permissions") }
                 }
             } else {
