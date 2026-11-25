@@ -105,8 +105,12 @@ export class MeController {
   @Post('uploads/sign')
   sign(@CurrentUser() user: RequestUser, @Body() body: { kind?: UploadKind; contentType?: string }) {
     if (body?.kind === 'whatsappattachment') {
-      if (!user.orgId || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) || !canUseBrokerChat(user) ||
-        !hasDelegatedAccess(user.delegatedActor ? { ...user, role: 'SUB_BROKER_ADMIN' } : user, 'inbox', 'view', 'send'))
+      if (
+        !user.orgId ||
+        !['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) ||
+        !canUseBrokerChat(user) ||
+        !hasDelegatedAccess(user.delegatedActor ? { ...user, role: 'SUB_BROKER_ADMIN' } : user, 'inbox', 'view', 'send')
+      )
         throw new BadRequestException('WhatsApp attachment permission is required');
       return this.media.sign('whatsappattachment', body.contentType ?? '', user.id);
     }

@@ -55,7 +55,12 @@ export class LocalStorageService {
   /** Same contract as the S3 branch of MediaService.sign: client PUTs the bytes, then uses publicUrl. */
   presign(kind: UploadKind, contentType: string, ownerId: string) {
     const key = this.newKey(kind, ownerId);
-    const claims: UploadClaims = { key, ct: contentType, max: kind === 'whatsappattachment' ? (contentType.startsWith('image/') ? 5 : 16) * MB : maxBytesFor(contentType), exp: Date.now() + 10 * 60_000 };
+    const claims: UploadClaims = {
+      key,
+      ct: contentType,
+      max: kind === 'whatsappattachment' ? (contentType.startsWith('image/') ? 5 : 16) * MB : maxBytesFor(contentType),
+      exp: Date.now() + 10 * 60_000,
+    };
     const api = apiBase();
     return {
       provider: 'local' as const,

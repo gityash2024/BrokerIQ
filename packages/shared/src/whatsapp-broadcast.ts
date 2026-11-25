@@ -12,9 +12,14 @@ export const broadcastGroupInput = z.object({
 });
 export const broadcastMessage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string().trim().min(1).max(4096) }),
-  z.object({ type: z.enum(['image', 'document', 'video', 'audio']), url: z.url().startsWith('https://').max(1800), caption: z.string().trim().max(1024).optional() }),
   z.object({
-    type: z.literal('template'), name: z.string().regex(/^[a-z0-9_]{1,100}$/),
+    type: z.enum(['image', 'document', 'video', 'audio']),
+    url: z.url().startsWith('https://').max(1800),
+    caption: z.string().trim().max(1024).optional(),
+  }),
+  z.object({
+    type: z.literal('template'),
+    name: z.string().regex(/^[a-z0-9_]{1,100}$/),
     language: z.string().regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/),
     params: z.array(z.string().trim().min(1).max(1000)).max(25),
     header: z.object({ type: z.enum(['image', 'document', 'video']), url: z.url().startsWith('https://').max(1800) }).optional(),
@@ -30,9 +35,25 @@ export type BroadcastDraftInput = z.infer<typeof broadcastDraftInput>;
 export const META_WHATSAPP_BILLING = 'https://business.facebook.com/latest/billing_hub/payment_methods/';
 export const META_WHATSAPP_PRICING = 'https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing';
 
-export interface BroadcastContact { id: string; name: string; phone: string; consentAt: string | null; optedOutAt: string | null }
-export interface BroadcastGroup { id: string; name: string; contactIds: string[] }
-export interface BroadcastTemplate { name: string; language: string; category: string; body: string | null; components?: unknown }
+export interface BroadcastContact {
+  id: string;
+  name: string;
+  phone: string;
+  consentAt: string | null;
+  optedOutAt: string | null;
+}
+export interface BroadcastGroup {
+  id: string;
+  name: string;
+  contactIds: string[];
+}
+export interface BroadcastTemplate {
+  name: string;
+  language: string;
+  category: string;
+  body: string | null;
+  components?: unknown;
+}
 export interface BroadcastWorkspace {
   contacts: BroadcastContact[];
   next: string | null;
@@ -56,7 +77,11 @@ export interface BroadcastQuote {
 export const BROADCAST_API = '/whatsapp/broadcast';
 
 export function parseBroadcastContacts(text: string) {
-  const lines = text.replace(/^\uFEFF/, '').trim().split(/\r?\n/).filter((line) => line.trim());
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.trim());
   return lines.flatMap((line, index) => {
     const delimiter = line.includes('\t') ? '\t' : ',';
     let quoted = false;
@@ -82,7 +107,7 @@ export function parseBroadcastContacts(text: string) {
 export function broadcastHeaderType(template?: BroadcastTemplate) {
   if (!Array.isArray(template?.components)) return undefined;
   const type = template.components.find((component) => component?.type === 'HEADER')?.format?.toLowerCase();
-  return type === 'image' || type === 'video' || type === 'document' ? type as 'image' | 'video' | 'document' : undefined;
+  return type === 'image' || type === 'video' || type === 'document' ? (type as 'image' | 'video' | 'document') : undefined;
 }
 
 export function broadcastMediaType(mime: string) {

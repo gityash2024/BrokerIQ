@@ -114,8 +114,12 @@ export function AssistantWidget() {
     setBusy(true);
     try {
       const r = await api<any>('/assistant/confirm', { method: 'POST', body: { token: p.token, lang } });
-      const receipt = r.receipt ? Object.entries(r.receipt).map(([label, value]) => label + ' ' + value).join(' · ') : '';
-    setMsgs((m) => [...m, { role: 'assistant', content: [r.reply, receipt].filter(Boolean).join('\n'), cards: r.cards }]);
+      const receipt = r.receipt
+        ? Object.entries(r.receipt)
+            .map(([label, value]) => label + ' ' + value)
+            .join(' · ')
+        : '';
+      setMsgs((m) => [...m, { role: 'assistant', content: [r.reply, receipt].filter(Boolean).join('\n'), cards: r.cards }]);
       say(r.reply);
     } catch (e) {
       setMsgs((m) => [...m, { role: 'assistant', content: `⚠️ ${errorMessage(e)}` }]);

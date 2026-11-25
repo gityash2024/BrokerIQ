@@ -77,9 +77,11 @@ describe('AI assistant (e2e)', () => {
     other = await reg('other');
     const onboard = async (key: string, firmName: string) => {
       const token = await reg(key, { accountType: 'BROKER', firmName });
-      const response = await http.post('/api/broker/onboarding')
+      const response = await http
+        .post('/api/broker/onboarding')
         .set({ Authorization: `Bearer ${token}` })
-        .send({ firmName, phone: '9876500999', localityIds: [localityId] }).expect(201);
+        .send({ firmName, phone: '9876500999', localityIds: [localityId] })
+        .expect(201);
       return response.body.accessToken as string;
     };
     broker = await onboard('broker', 'Assist Realty');
@@ -158,23 +160,24 @@ describe('AI assistant (e2e)', () => {
   });
 
   it('confirms contact edits only for leads the acting firm can access', async () => {
-    const lead = (await http.post('/api/leads').set(auth(broker))
-      .send({ name: 'Contact to edit', phone: '9811100557' }).expect(201)).body;
+    const lead = (await http.post('/api/leads').set(auth(broker)).send({ name: 'Contact to edit', phone: '9811100557' }).expect(201)).body;
     const proposal = async (token: string, id: string) => {
       script.push(toolCall('edit_lead_contact', { id, name: 'Updated contact' }));
-      return (await http.post('/api/assistant/chat').set(auth(token))
-        .send({ messages: [{ role: 'user', content: 'Update the contact' }], lang: 'en' })
-        .expect(201)).body;
+      return (
+        await http
+          .post('/api/assistant/chat')
+          .set(auth(token))
+          .send({ messages: [{ role: 'user', content: 'Update the contact' }], lang: 'en' })
+          .expect(201)
+      ).body;
     };
     expect((await proposal(broker, '..')).pending).toBeUndefined();
     const external = await proposal(otherBroker, lead.id);
-    const rejected = await http.post('/api/assistant/confirm').set(auth(otherBroker))
-      .send({ token: external.pending.token }).expect(201);
+    const rejected = await http.post('/api/assistant/confirm').set(auth(otherBroker)).send({ token: external.pending.token }).expect(201);
     expect(rejected.body.used).toEqual([]);
     const allowed = await proposal(broker, lead.id);
     expect((await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } })).name).toBe('Contact to edit');
-    const updated = await http.post('/api/assistant/confirm').set(auth(broker))
-      .send({ token: allowed.pending.token }).expect(201);
+    const updated = await http.post('/api/assistant/confirm').set(auth(broker)).send({ token: allowed.pending.token }).expect(201);
     expect(updated.body.receipt.name).toBe('Updated contact');
     expect((await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } })).name).toBe('Updated contact');
   });
@@ -182,12 +185,18 @@ describe('AI assistant (e2e)', () => {
   it('persists an inventory proposal and consumes it only once under the confirmed account', async () => {
     const address = 'Assistant inventory draft ' + uniq;
     script.push(toolCall('create_inventory', { sector: 'Sector 65', purpose: 'RENT', address, monthlyRent: 48000 }));
-    const draft = (await http.post('/api/assistant/chat').set(auth(broker))
-      .send({ messages: [{ role: 'user', content: 'Save an inventory draft' }], lang: 'en' }).expect(201)).body;
+    const draft = (
+      await http
+        .post('/api/assistant/chat')
+        .set(auth(broker))
+        .send({ messages: [{ role: 'user', content: 'Save an inventory draft' }], lang: 'en' })
+        .expect(201)
+    ).body;
     expect(draft.pending.summary).toContain('48000');
     expect(await prisma.inventoryItem.count({ where: { address } })).toBe(0);
-    const concurrent = await Promise.all([1, 2].map(() => http.post('/api/assistant/confirm').set(auth(broker))
-      .send({ token: draft.pending.token, lang: 'en' })));
+    const concurrent = await Promise.all(
+      [1, 2].map(() => http.post('/api/assistant/confirm').set(auth(broker)).send({ token: draft.pending.token, lang: 'en' })),
+    );
     expect(concurrent.map(({ status }) => status).sort()).toEqual([201, 400]);
     expect(concurrent.find(({ status }) => status === 201)?.body).toMatchObject({ used: ['create_inventory'], receipt: { status: 'DRAFT' } });
     expect(await prisma.inventoryItem.count({ where: { address } })).toBe(1);

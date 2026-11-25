@@ -5,5 +5,10 @@ import { WhatsAppBroadcastService } from './whatsapp-broadcast.service';
 import { WhatsAppService } from './whatsapp.service';
 import { LeadsModule } from '../leads/leads.module';
 
-@Module({ imports: [LeadsModule], controllers: [WhatsAppController, WhatsAppBroadcastController], providers: [WhatsAppService, WhatsAppBroadcastService], exports: [WhatsAppService] })
+@Module({
+  imports: [LeadsModule],
+  controllers: [WhatsAppController, WhatsAppBroadcastController],
+  providers: [WhatsAppService, WhatsAppBroadcastService],
+  exports: [WhatsAppService],
+})
 export class WhatsAppModule {}

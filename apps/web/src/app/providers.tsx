@@ -72,7 +72,9 @@ function OptionalWidgets() {
 
   return (
     <>
-      {user && hasDelegatedAccess(user, 'assistant', 'view') && moduleAllowed(config.modules, 'assistant', assistantRole) && <AssistantWidget key={assistantScope} />}
+      {user && hasDelegatedAccess(user, 'assistant', 'view') && moduleAllowed(config.modules, 'assistant', assistantRole) && (
+        <AssistantWidget key={assistantScope} />
+      )}
       {moduleAllowed(config.modules, 'web_push', role) && <WebPushPrompt />}
       {moduleAllowed(config.modules, 'legacy', role) && <FeedbackWidget />}
     </>

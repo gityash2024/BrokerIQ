@@ -1,6 +1,17 @@
 import type { Role } from '@prisma/client';
 import { workspaceTools } from './workspace-actions';
-import { formatPriceShort, moveInCost, rentAffordability, inventoryInputSchema, BROADCAST_API, broadcastContactInput, broadcastGroupInput, broadcastDraftInput, parseBroadcastContacts, type BroadcastWorkspace } from '@brokeriq/shared';
+import {
+  formatPriceShort,
+  moveInCost,
+  rentAffordability,
+  inventoryInputSchema,
+  BROADCAST_API,
+  broadcastContactInput,
+  broadcastGroupInput,
+  broadcastDraftInput,
+  parseBroadcastContacts,
+  type BroadcastWorkspace,
+} from '@brokeriq/shared';
 
 /**
  * AI-assistant tools. Each one maps to an existing API endpoint and is executed **as the
@@ -94,12 +105,29 @@ const propertyFields = {
   notes: str('Non-sensitive property notes supplied by the user'),
 };
 const propertyInput = (args: Record<string, unknown>) =>
-  inventoryInputSchema.parse(Object.fromEntries(Object.keys(propertyFields).filter((key) => args[key] !== undefined).map((key) => [key, args[key]])));
+  inventoryInputSchema.parse(
+    Object.fromEntries(
+      Object.keys(propertyFields)
+        .filter((key) => args[key] !== undefined)
+        .map((key) => [key, args[key]]),
+    ),
+  );
 const slimInventory = (r: any) => ({
-  id: r.id, propertyCode: r.propertyCode, revision: r.revision, sector: r.sector,
-  houseNo: r.houseNo, floor: r.floor, purpose: r.purpose, size: r.area, sizeUnit: r.areaUnit,
-  propertyType: r.propertyType, bhk: r.bhk, furnishing: r.furnishing,
-  monthlyRent: r.monthlyRent, totalSalePrice: r.totalSalePrice, availability: r.availability,
+  id: r.id,
+  propertyCode: r.propertyCode,
+  revision: r.revision,
+  sector: r.sector,
+  houseNo: r.houseNo,
+  floor: r.floor,
+  purpose: r.purpose,
+  size: r.area,
+  sizeUnit: r.areaUnit,
+  propertyType: r.propertyType,
+  bhk: r.bhk,
+  furnishing: r.furnishing,
+  monthlyRent: r.monthlyRent,
+  totalSalePrice: r.totalSalePrice,
+  availability: r.availability,
   status: r.status,
 });
 
@@ -109,9 +137,18 @@ export const TOOLS: Tool[] = [
     name: 'search_inventory',
     description: 'Search inventory the signed-in broker account can view. Returns record IDs, current availability and prices.',
     roles: BROKERS,
-    parameters: obj({ search: str('Search by property code, locality or property text'), sector: str('Sector or locality'), purpose: str('RENT or SALE'), maxBudget: num('Maximum budget in INR'), page: num('Results page starting at 1') }),
+    parameters: obj({
+      search: str('Search by property code, locality or property text'),
+      sector: str('Sector or locality'),
+      purpose: str('RENT or SALE'),
+      maxBudget: num('Maximum budget in INR'),
+      page: num('Results page starting at 1'),
+    }),
     run: async (args, { call }) => {
-      const r = await call({ method: 'GET', path: `/inventory${qs({ search: args.search, sector: args.sector, purpose: args.purpose, maxBudget: args.maxBudget, page: args.page, pageSize: 10 })}` });
+      const r = await call({
+        method: 'GET',
+        path: `/inventory${qs({ search: args.search, sector: args.sector, purpose: args.purpose, maxBudget: args.maxBudget, page: args.page, pageSize: 10 })}`,
+      });
       return { total: r.total, items: (r.items ?? []).map(slimInventory) };
     },
   },
@@ -124,7 +161,8 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'create_inventory',
-    description: 'Convert supplied property facts into one private inventory draft. Ask for a location and transaction purpose if either is missing. Never infer prices or units.',
+    description:
+      'Convert supplied property facts into one private inventory draft. Ask for a location and transaction purpose if either is missing. Never infer prices or units.',
     roles: BROKERS,
     write: true,
     parameters: obj(propertyFields, ['sector', 'purpose']),
@@ -142,8 +180,8 @@ export const TOOLS: Tool[] = [
     write: true,
     parameters: obj({ id: str('Exact inventory record ID'), revision: num('Current inventory revision'), ...propertyFields }, ['id', 'revision']),
     summary: (args) => `Update property ${args.id} • ${JSON.stringify(propertyInput(args))}`,
-    run: async (args, { call }) => slimInventory(await call({ method: 'PATCH', path: `/inventory/${id(args.id)}`,
-      body: { ...propertyInput(args), expectedRevision: args.revision } })),
+    run: async (args, { call }) =>
+      slimInventory(await call({ method: 'PATCH', path: `/inventory/${id(args.id)}`, body: { ...propertyInput(args), expectedRevision: args.revision } })),
   },
   {
     name: 'list_requirements',
@@ -152,9 +190,17 @@ export const TOOLS: Tool[] = [
     parameters: obj({ search: str('Requirement or location search'), page: num('Results page starting at 1') }),
     run: async (args, { call }) => {
       const r = await call({ method: 'GET', path: `/broker-requirements${qs({ search: args.search, page: args.page })}` });
-      return { total: r.total, items: (r.items ?? []).slice(0, 10).map((item: any) => ({
-        id: item.id, title: item.title, intent: item.intent, sector: item.sector, propertyType: item.propertyType, convertedAt: item.convertedAt,
-      })) };
+      return {
+        total: r.total,
+        items: (r.items ?? []).slice(0, 10).map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          intent: item.intent,
+          sector: item.sector,
+          propertyType: item.propertyType,
+          convertedAt: item.convertedAt,
+        })),
+      };
     },
   },
   {
@@ -172,12 +218,21 @@ export const TOOLS: Tool[] = [
     description: 'Send the user’s exact WhatsApp text to a known CRM lead or inbox conversation using the existing firm send policy.',
     roles: BROKERS,
     write: true,
-    parameters: obj({ leadId: str('Exact lead ID from search_leads'), conversationId: str('Exact inbox conversation ID'), text: str('Exact message text to send') }, ['text']),
+    parameters: obj(
+      { leadId: str('Exact lead ID from search_leads'), conversationId: str('Exact inbox conversation ID'), text: str('Exact message text to send') },
+      ['text'],
+    ),
     summary: (args) => `WhatsApp to ${args.conversationId ?? args.leadId} • ${args.text}`,
     run: async (args, { call }) => {
-      const sent = await call({ method: 'POST', path: '/whatsapp/send', body: {
-        leadId: args.leadId, conversationId: args.conversationId, text: args.text,
-      } });
+      const sent = await call({
+        method: 'POST',
+        path: '/whatsapp/send',
+        body: {
+          leadId: args.leadId,
+          conversationId: args.conversationId,
+          text: args.text,
+        },
+      });
       return { id: sent.id, status: sent.status };
     },
   },
@@ -198,9 +253,17 @@ export const TOOLS: Tool[] = [
     parameters: obj({}),
     run: async (_args, { call }) => {
       const r = await call({ method: 'GET', path: '/admin/organic/executions' });
-      return { searchMode: r.webSearchMode, workerEnabled: r.workerEnabled, runs: (r.executions ?? []).slice(0, 10).map((run: any) => ({
-        id: run.runId, kind: run.kind, status: run.status, startedAt: run.createdAt, counts: run.report,
-      })) };
+      return {
+        searchMode: r.webSearchMode,
+        workerEnabled: r.workerEnabled,
+        runs: (r.executions ?? []).slice(0, 10).map((run: any) => ({
+          id: run.runId,
+          kind: run.kind,
+          status: run.status,
+          startedAt: run.createdAt,
+          counts: run.report,
+        })),
+      };
     },
   },
   {
@@ -225,7 +288,11 @@ export const TOOLS: Tool[] = [
       return `Save ${rows.length} contacts • ${rows.map(({ name, phone }) => name + ' ' + phone).join(', ')}`;
     },
     run: async (args, { call }) => {
-      const rows = broadcastContactInput.array().min(1).max(500).parse(parseBroadcastContacts(String(args.csv ?? '')).map(({ name, phone }) => ({ name, phone })));
+      const rows = broadcastContactInput
+        .array()
+        .min(1)
+        .max(500)
+        .parse(parseBroadcastContacts(String(args.csv ?? '')).map(({ name, phone }) => ({ name, phone })));
       const result = await call({ method: 'POST', path: BROADCAST_API + '/contacts', body: { contacts: rows } });
       return { status: 'SAVED', saved: result.contacts.length };
     },
@@ -241,13 +308,22 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'prepare_whatsapp_broadcast',
-    description: 'Calculate a preview for a service reply in eligible open sessions. Use the user’s exact text and specified groups. Paid promotional campaigns are prepared in the Broadcast workspace.',
+    description:
+      'Calculate a preview for a service reply in eligible open sessions. Use the user’s exact text and specified groups. Paid promotional campaigns are prepared in the Broadcast workspace.',
     roles: ['BROKER_ADMIN'],
     write: true,
-    parameters: obj({ name: str('Broadcast name'), groupIds: { type: 'array', items: str('Exact group ID') }, text: str('Exact service reply') }, ['name', 'groupIds', 'text']),
+    parameters: obj({ name: str('Broadcast name'), groupIds: { type: 'array', items: str('Exact group ID') }, text: str('Exact service reply') }, [
+      'name',
+      'groupIds',
+      'text',
+    ]),
     summary: (args) => `Prepare broadcast to ${args.groupIds} • ${args.text}`,
-    run: (args, { call }) => call({ method: 'POST', path: BROADCAST_API + '/preview',
-      body: broadcastDraftInput.parse({ name: args.name, groupIds: args.groupIds, message: { type: 'text', text: args.text }, allowMetaCharges: false }) }),
+    run: (args, { call }) =>
+      call({
+        method: 'POST',
+        path: BROADCAST_API + '/preview',
+        body: broadcastDraftInput.parse({ name: args.name, groupIds: args.groupIds, message: { type: 'text', text: args.text }, allowMetaCharges: false }),
+      }),
   },
   {
     name: 'queue_whatsapp_broadcast',
@@ -676,7 +752,9 @@ export const TOOLS: Tool[] = [
         call({ method: 'GET', path: `/visits${qs({ from: start.toISOString(), to: end.toISOString() })}` }),
       ]);
       return {
-        followUps: (f as any[]).slice(0, 15).map((x) => ({ id: x.id, lead: x.lead?.name, leadId: x.lead?.id, dueAt: x.dueAt, updatedAt: x.updatedAt, type: x.type, note: x.note })),
+        followUps: (f as any[])
+          .slice(0, 15)
+          .map((x) => ({ id: x.id, lead: x.lead?.name, leadId: x.lead?.id, dueAt: x.dueAt, updatedAt: x.updatedAt, type: x.type, note: x.note })),
         visits: (v as any[]).slice(0, 15).map((x) => ({ id: x.id, lead: x.lead?.name, at: x.scheduledAt, listing: x.listing?.title, status: x.status })),
       };
     },

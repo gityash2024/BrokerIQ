@@ -25,7 +25,11 @@ export class MediaService {
 
   async sign(kind: UploadKind, contentType = 'image/jpeg', ownerId = 'anon') {
     if (kind === 'whatsappattachment') {
-      if (!/^(?:image\/(?:jpeg|png|webp|heic|avif)|audio\/(?:mpeg|mp4|aac|ogg|amr)|video\/(?:mp4|3gpp)|application\/(?:pdf|vnd\.openxmlformats-officedocument\.(?:wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text\/plain)$/.test(contentType))
+      if (
+        !/^(?:image\/(?:jpeg|png|webp|heic|avif)|audio\/(?:mpeg|mp4|aac|ogg|amr)|video\/(?:mp4|3gpp)|application\/(?:pdf|vnd\.openxmlformats-officedocument\.(?:wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text\/plain)$/.test(
+          contentType,
+        )
+      )
         throw new BadRequestException('Choose a supported WhatsApp attachment');
       if (!this.local.enabled) throw new IntegrationNotConfiguredException('private_storage');
       return this.local.presign(kind, contentType, ownerId);

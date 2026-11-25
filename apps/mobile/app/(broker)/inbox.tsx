@@ -81,8 +81,9 @@ export default function Inbox() {
           ]}
         />
 
-        {channel === 'WHATSAPP' && user?.role === 'BROKER_ADMIN' && hasDelegatedAccess(user, 'inbox', 'view') &&
-          <Button title="WhatsApp Broadcast" variant="secondary" size="sm" onPress={() => router.push('/whatsapp-broadcast')} />}
+        {channel === 'WHATSAPP' && user?.role === 'BROKER_ADMIN' && hasDelegatedAccess(user, 'inbox', 'view') && (
+          <Button title="WhatsApp Broadcast" variant="secondary" size="sm" onPress={() => router.push('/whatsapp-broadcast')} />
+        )}
         {/* Search & Status Bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View

@@ -71,7 +71,9 @@ export class IntegrationTesterService {
         return `AI response — ${await this.ai.test(key, v)}`;
       case 'organic_web_search': {
         const response = await fetch('https://api.tavily.com/search', {
-          method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
+          method: 'POST',
+          redirect: 'error',
+          signal: AbortSignal.timeout(10_000),
           headers: { Authorization: 'Bearer ' + v.apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: 'Gurugram district Haryana official website', search_depth: 'basic', max_results: 1, auto_parameters: false }),
         });

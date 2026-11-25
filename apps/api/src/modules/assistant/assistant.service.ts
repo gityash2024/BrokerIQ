@@ -32,7 +32,6 @@ const PENDING_TTL = 5 * 60_000;
  */
 @Injectable()
 export class AssistantService {
-
   constructor(
     private readonly ai: AiService,
     private readonly audit: AuditService,
@@ -98,9 +97,24 @@ export class AssistantService {
   }
 
   private availableTools(user: RequestUser) {
-    const tools = toolsFor(user.role).filter((tool) => (!user.delegatedActor || !/broadcast/.test(tool.name)) && (user.agentChatEnabled !== false || tool.name !== 'send_whatsapp') &&
-      (user.role !== 'PROPERTY_OWNER' || ['my_workspace', 'owner_properties', 'report_owner_availability', 'search_properties', 'search_rentals', 'get_listing', 'list_localities', 'rent_budget', 'move_in_cost'].includes(tool.name)));
-    const grants = user.delegatedActor ? user.delegatedPermissions ?? [] : user.rolePermissions;
+    const tools = toolsFor(user.role).filter(
+      (tool) =>
+        (!user.delegatedActor || !/broadcast/.test(tool.name)) &&
+        (user.agentChatEnabled !== false || tool.name !== 'send_whatsapp') &&
+        (user.role !== 'PROPERTY_OWNER' ||
+          [
+            'my_workspace',
+            'owner_properties',
+            'report_owner_availability',
+            'search_properties',
+            'search_rentals',
+            'get_listing',
+            'list_localities',
+            'rent_budget',
+            'move_in_cost',
+          ].includes(tool.name)),
+    );
+    const grants = user.delegatedActor ? (user.delegatedPermissions ?? []) : user.rolePermissions;
     if (!grants) return tools;
     const requirements: Record<string, string[]> = {
       list_localities: [],
@@ -135,7 +149,9 @@ export class AssistantService {
       assign_lead: ['leads:assign'],
       team_members: ['team:view'],
     };
-    return tools.filter((tool) => (tool.grants ?? requirements[tool.name])?.every((grant) => grants.includes(grant)) && (!tool.write || grants.includes('assistant:edit')));
+    return tools.filter(
+      (tool) => (tool.grants ?? requirements[tool.name])?.every((grant) => grants.includes(grant)) && (!tool.write || grants.includes('assistant:edit')),
+    );
   }
 
   async chat(
@@ -182,10 +198,15 @@ export class AssistantService {
           const token = randomBytes(18).toString('base64url');
           await this.db.$transaction([
             this.db.assistantConfirmation.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
-            this.db.assistantConfirmation.create({ data: {
-              ...this.confirmationOwner(user), tokenHash: sha256(token), tool: tool.name, expiresAt: new Date(Date.now() + PENDING_TTL),
-              encryptedArgs: this.crypto.encrypt(JSON.stringify(args)),
-            } }),
+            this.db.assistantConfirmation.create({
+              data: {
+                ...this.confirmationOwner(user),
+                tokenHash: sha256(token),
+                tool: tool.name,
+                expiresAt: new Date(Date.now() + PENDING_TTL),
+                encryptedArgs: this.crypto.encrypt(JSON.stringify(args)),
+              },
+            }),
           ]);
           const reply = (m.content ?? '').trim() || `${summary} — क्या मैं यह कर दूँ?`;
           return { reply, pending: { token, tool: tool.name, summary }, cards, used };
@@ -225,9 +246,16 @@ export class AssistantService {
     }
     await this.audit.log(user, `assistant.${tool.name}`, 'Assistant', null, { ok }, ip);
     const reply = ok ? (_lang === 'hi' ? 'हो गया।' : 'Confirmed action completed.') : `⚠️ ${(result as { error: string }).error}`;
-    const receipt = ok && result && typeof result === 'object'
-      ? Object.fromEntries(Object.entries(result).filter(([key, value]) => ['id', 'name', 'status', 'canQueue', 'queued', 'estimatedCost', 'saved'].includes(key) &&
-        (value === null || ['number', 'string', 'boolean'].includes(typeof value)))) as AssistantReply['receipt'] : undefined;
+    const receipt =
+      ok && result && typeof result === 'object'
+        ? (Object.fromEntries(
+            Object.entries(result).filter(
+              ([key, value]) =>
+                ['id', 'name', 'status', 'canQueue', 'queued', 'estimatedCost', 'saved'].includes(key) &&
+                (value === null || ['number', 'string', 'boolean'].includes(typeof value)),
+            ),
+          ) as AssistantReply['receipt'])
+        : undefined;
     return { reply, used: ok ? [tool.name] : [], cards: this.cardsFor(tool.name, result), receipt };
   }
 
@@ -251,5 +279,4 @@ export class AssistantService {
     if (leads?.length) return { type: 'leads', items: leads.slice(0, 8) };
     return undefined;
   }
-
 }
