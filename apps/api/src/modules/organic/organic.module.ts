@@ -14,6 +14,11 @@ const transferInput = z.object({
   targets: z.array(organicTarget).min(1).max(10),
 }).refine((input) => Boolean(input.ids) !== Boolean(input.query), 'Choose either records or filtered selection');
 const time = organicDeliveryInput.shape.time;
+const workflowInput = z.object({
+  revision: z.number().int().min(0).max(2_000_000_000),
+  sourceIds: z.array(z.string().min(1).max(80)).max(100).nullable(),
+  useAi: z.boolean(),
+}).strict();
 const schedule = z.object({ enabled: z.boolean(), time, enrichTime: time.optional(), resultsTime: time.optional(), notifyTime: time })
   .refine(({ time, enrichTime, resultsTime, notifyTime }) =>
     !enrichTime && !resultsTime || !!enrichTime && !!resultsTime && time < enrichTime && enrichTime < resultsTime && resultsTime < notifyTime,
@@ -27,6 +32,12 @@ class OrganicController {
 
   @Get('executions')
   workflowExecutions() { return this.executions.snapshot(); }
+
+  @Patch('workflows/:kind')
+  saveWorkflow(@CurrentUser() user: RequestUser, @Param('kind', new ZodPipe(organicKind)) kind: 'SUPPLY' | 'DEMAND',
+    @Body(new ZodPipe(workflowInput)) input: z.infer<typeof workflowInput>) {
+    return this.records.saveWorkflow(kind, input, user.id);
+  }
 
   @Post('executions/steps/:id/retry')
   retryStep(@CurrentUser() user: RequestUser, @Param('id') id: string) { return this.executions.retryJob(id, user.id); }

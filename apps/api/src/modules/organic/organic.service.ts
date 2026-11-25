@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { Prisma, type OrganicRun, type OrganicSource } from '@prisma/client';
 import { brokerRequirementSchema, canonicalInventorySector, inventoryInputSchema, ledgerMatch, organicRecordInput, realeGurugramSource,
@@ -17,6 +17,9 @@ import { discoveryPhases, nextOrganicTime, normalizeOrganicRecord, pastOrganicTi
 
 type Kind = 'SUPPLY' | 'DEMAND';
 type DiscoverySettings = { enabled: boolean; time: string; enrichTime?: string; resultsTime?: string; notifyTime: string };
+type WorkflowConfig = { sourceIds: string[] | null; useAi: boolean; revision: number };
+const workflowKey = (kind: Kind) => 'organic.workflow.' + kind.toLowerCase();
+const defaultWorkflow: WorkflowConfig = { sourceIds: null, useAi: true, revision: 0 };
 const terminal = ['COMPLETE', 'PARTIAL', 'NO_SOURCE', 'CANCELLED'];
 const defaults: DiscoverySettings = { enabled: false, time: '00:00', notifyTime: '07:00' };
 const day = 24 * 60 * 60_000;
@@ -30,8 +33,8 @@ export class OrganicService {
   constructor(private readonly db: PrismaService, private readonly jobs: JobsService, private readonly settings: SettingsService,
     private readonly ai: AiService, private readonly notifications: NotificationsService) {
     jobs.register('organic.discovery', (job) => this.discover(job.kind, job.key, job.day, job.sourceId));
-    jobs.register('organic.collect', (job) => this.collectScheduled(job.kind, job.key, job.day, job.sourceId));
-    jobs.register('organic.enrich', (job) => this.enrichScheduled(job.kind, job.key));
+    jobs.register('organic.collect', (job) => this.collectScheduled(job.kind, job.key, job.day, job.sourceId, job.workflow));
+    jobs.register('organic.enrich', (job) => this.enrichScheduled(job.kind, job.key, job.workflow));
     jobs.register('organic.publish', (job) => this.publishScheduled(job.kind, job.key));
     jobs.register('organic.ready', (job) => this.notifyReady(job.kind, job.day));
   }
@@ -48,6 +51,31 @@ export class OrganicService {
   async updateSettings(kind: Kind, input: DiscoverySettings, actorId: string) {
     await this.settings.setJson(this.settingsKey(kind), input, actorId);
     return input;
+  }
+
+  async workflowFor(kind: Kind): Promise<WorkflowConfig> {
+    const row = await this.db.systemSetting.findUnique({ where: { key: workflowKey(kind) }, select: { value: true } });
+    return { ...defaultWorkflow, ...(row?.value as Partial<WorkflowConfig> | undefined) };
+  }
+
+  async saveWorkflow(kind: Kind, input: WorkflowConfig, actorId: string) {
+    const key = workflowKey(kind);
+    const sourceIds = input.sourceIds && [...new Set(input.sourceIds)];
+    return this.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+      const saved = await tx.systemSetting.findUnique({ where: { key } });
+      const previous = saved?.value as WorkflowConfig | undefined;
+      if ((previous?.revision ?? 0) !== input.revision) throw new ConflictException('Workflow changed. Reload the steps before saving.');
+      if (sourceIds && sourceIds.length !== await tx.organicSource.count({ where: { id: { in: sourceIds }, supports: { has: kind } } })) {
+        throw new BadRequestException('Choose sources compatible with this workflow');
+      }
+      const workflow = { sourceIds, useAi: input.useAi, revision: input.revision + 1 };
+      await tx.systemSetting.upsert({ where: { key }, create: { key, value: workflow, updatedById: actorId },
+        update: { value: workflow, updatedById: actorId } });
+      await tx.auditLog.create({ data: { actorId, actorRole: 'SUPER_ADMIN', action: 'organic.workflow.update',
+        entity: 'OrganicWorkflow', entityId: kind, meta: workflow } });
+      return workflow;
+    });
   }
 
   async sources() {
@@ -95,10 +123,11 @@ export class OrganicService {
     const discoveryDay = dayKey(scheduled);
     const key = 'organic-discovery:' + kind + ':' + discoveryDay;
     const legacy = await this.db.job.findUnique({ where: { key }, select: { id: true } });
-    const payload = { kind, key, day: discoveryDay };
+    let payload = { kind, key, day: discoveryDay, workflow: await this.workflowFor(kind) };
     const notifyAt = nextOrganicTime(config.notifyTime, scheduled);
     if (!legacy) {
-      await this.jobs.enqueue('organic.collect', payload, { key: key + ':collect', runAt: scheduled });
+      const collect = await this.jobs.enqueue('organic.collect', payload, { key: key + ':collect', runAt: scheduled });
+      payload = collect.payload as unknown as typeof payload;
       const enrichAt = nextOrganicTime(config.enrichTime, new Date(scheduled.valueOf() - 1));
       await this.jobs.enqueue('organic.enrich', payload, { key: key + ':enrich', runAt: enrichAt });
       const publishAt = nextOrganicTime(config.resultsTime, new Date(enrichAt.valueOf() - 1));
@@ -111,7 +140,7 @@ export class OrganicService {
     return digest(JSON.stringify([source.url, source.format, source.itemsPath, source.permissionUrl, source.contactRedistribution, source.supports]));
   }
 
-  private async collectScheduled(kind: Kind, key: string, discoveryDay: string, sourceId?: string) {
+  private async collectScheduled(kind: Kind, key: string, discoveryDay: string, sourceId?: string, workflow = defaultWorkflow) {
     const manual = key.startsWith('organic-manual:');
     const cutoff = new Date(discoveryDay + 'T00:00:00+05:30');
     const run = await this.db.organicRun.upsert({ where: { key }, update: {}, create: {
@@ -119,7 +148,7 @@ export class OrganicService {
       ...(manual ? {} : { windowFrom: new Date(cutoff.valueOf() - day), windowTo: cutoff }),
     } });
     if (run.status !== 'COLLECTING' || !(await this.continueScheduled(kind, run))) return;
-    const sources = await this.db.organicSource.findMany({ where: { id: sourceId, enabled: true, supports: { has: kind } },
+    const sources = await this.db.organicSource.findMany({ where: { id: sourceId ?? (workflow.sourceIds !== null ? { in: workflow.sourceIds } : undefined), enabled: true, supports: { has: kind } },
       orderBy: [{ priority: 'desc' }, { id: 'asc' }] });
     const localities = await this.localityNames();
     const attemptField = kind === 'SUPPLY' ? 'supplyAttemptAt' : 'demandAttemptAt';
@@ -153,7 +182,7 @@ export class OrganicService {
     await this.db.organicRun.update({ where: { id: run.id }, data: { status: 'COLLECTED', report } });
   }
 
-  private async enrichScheduled(kind: Kind, key: string) {
+  private async enrichScheduled(kind: Kind, key: string, workflow = defaultWorkflow) {
     const run = await this.db.organicRun.findUnique({ where: { key } });
     if (!run || run.status === 'COLLECTING') {
       await this.waitForPhase(key, 'collect', run, 'Source collection is still running');
@@ -176,7 +205,7 @@ export class OrganicService {
       for (const row of rows) {
         const normalized = normalizeOrganicRecord(row, localities, source.contactRedistribution);
         if (!normalized) continue;
-        const enrich = normalized.priority === 'REVIEW' && !row.registryReference && row.description && attempts++ < 5;
+        const enrich = workflow.useAi && normalized.priority === 'REVIEW' && !row.registryReference && row.description && attempts++ < 5;
         enriched.push(enrich ? await this.extractFields(normalized.data, true) : normalized.data);
       }
       await this.db.organicSourceBatch.update({ where, data: { status: 'ENRICHED', rows: enriched as Prisma.InputJsonValue } });
@@ -294,10 +323,11 @@ export class OrganicService {
     if (legacy) return legacy;
     if (sourceId && !(await this.db.organicSource.count({ where: { id: sourceId, enabled: true, supports: { has: kind } } })))
       throw new NotFoundException('This source is unavailable for the selected workflow');
-    const payload = { kind, key, day: dayKey(now), sourceId };
+    const payload = { kind, key, day: dayKey(now), sourceId, workflow: await this.workflowFor(kind) };
     const collect = await this.jobs.enqueue('organic.collect', payload, { key: key + ':collect', runAt: now });
-    await this.jobs.enqueue('organic.enrich', payload, { key: key + ':enrich', runAt: new Date(now.valueOf() + 1000) });
-    await this.jobs.enqueue('organic.publish', payload, { key: key + ':publish', runAt: new Date(now.valueOf() + 2000) });
+    const saved = collect.payload as unknown as typeof payload;
+    await this.jobs.enqueue('organic.enrich', saved, { key: key + ':enrich', runAt: new Date(now.valueOf() + 1000) });
+    await this.jobs.enqueue('organic.publish', saved, { key: key + ':publish', runAt: new Date(now.valueOf() + 2000) });
     return collect;
   }
 

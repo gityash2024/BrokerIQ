@@ -16,19 +16,21 @@ const endpoint = '/admin/organic';
 const queryKey = ['organic-executions'];
 type Kind = 'SUPPLY' | 'DEMAND' | 'DELIVERY';
 type Discovery = Exclude<Kind, 'DELIVERY'>;
+type WorkflowConfig = { sourceIds: string[] | null; useAi: boolean; revision: number };
 type Schedule = { enabled: boolean; time: string; enrichTime: string; resultsTime: string; notifyTime: string };
 type Step = {
   id: string; type: string; status: string; attempts: number; maxAttempts: number;
   runAt: string; updatedAt: string; deferred: boolean; canRetry: boolean;
 };
 type Run = {
-  key: string; runId: string | null; kind: Kind | 'MANUAL'; status: string; createdAt: string; finishedAt: string | null;
+  key: string; runId: string | null; kind: Kind | 'MANUAL'; status: string; revision: number | null; createdAt: string; finishedAt: string | null;
   report: Record<string, number> | null; steps: Step[];
   sourceBatches: { sourceId: string; status: string; processed: number; inserted: number; duplicates: number; reviewed: number }[];
 };
 type Snapshot = {
   workerEnabled: boolean; executions: Run[];
   discovery: Record<Discovery, Schedule & { nextRunAt: string | null }>;
+  workflows: Record<Discovery, WorkflowConfig>;
   sources: { id: string; name: string; enabled: boolean; supports: string[]; format: string }[];
   delivery: { id: string; firmName: string; nextRunAt: string | null; leadType: string }[];
 };
@@ -79,6 +81,7 @@ export default function OrganicWorkflows() {
   const [kind, setKind] = useRouteState<Kind>('organic-workflow.pipeline', 'SUPPLY');
   const [chosenRun, setChosenRun] = useRouteState<string | null>('organic-workflow.run', null);
   const [draft, setDraft] = useState<Schedule | null>(null);
+  const [stepDraft, setStepDraft] = useState<{ step: 'collect' | 'enrich'; config: WorkflowConfig } | null>(null);
   const snapshot = useQuery({ queryKey, queryFn: () => api<Snapshot>(endpoint + '/executions'), refetchInterval: 5000 });
   const mutate = useMutation({
     mutationFn: ({ path, method = 'POST', body }: { path: string; method?: 'POST' | 'PATCH'; body?: unknown }) =>
@@ -91,9 +94,11 @@ export default function OrganicWorkflows() {
   });
   const data = snapshot.data;
   const schedule = kind === 'DELIVERY' ? undefined : data?.discovery[kind];
+  const workflow = kind === 'DELIVERY' ? undefined : data?.workflows[kind];
   const runs = data?.executions.filter((run) => run.kind === kind) ?? [];
   const selected = runs.find(({ key }) => key === chosenRun) ?? runs[0];
-  const sources = data?.sources.filter((source) => source.enabled && source.supports.includes(kind)) ?? [];
+  const compatibleSources = data?.sources.filter((source) => source.supports.includes(kind)) ?? [];
+  const sources = compatibleSources.filter(({ id, enabled }) => enabled && (workflow?.sourceIds === null || workflow?.sourceIds.includes(id)));
   const timeline = kind === 'DELIVERY' ? deliveryPhases : phases;
 
   function patchSchedule(next: Schedule) {
@@ -118,7 +123,7 @@ export default function OrganicWorkflows() {
       <nav aria-label="Organic workflows" className="grid gap-2 sm:grid-cols-3">
         {(Object.entries(pipelines) as [Kind, (typeof pipelines)[Kind]][]).map(([id, { name, icon: Icon }]) =>
           <button key={id} type="button" aria-pressed={kind === id} onClick={() => {
-            setKind(id); setChosenRun(null); setDraft(null);
+            setKind(id); setChosenRun(null); setDraft(null); setStepDraft(null);
           }} className={'card flex items-center gap-3 p-4 text-left text-sm font-semibold ' + (kind === id ? 'ring-2 ring-primary' : 'hover:border-primary')}>
             <Icon className="size-5 text-primary" />{name}
           </button>)}
@@ -167,8 +172,12 @@ export default function OrganicWorkflows() {
                   {step && <Status state={step.deferred ? 'WAITING_TO_RETRY' : step.status} />}
                 </div>
                 <h3 className="mt-3 text-sm font-semibold">{title}</h3>
-                <p className="mt-1 text-xs text-muted">{note}</p>
-                {schedule && at && <p className="mt-3 text-xs font-semibold text-muted">{schedule[at]} IST</p>}
+                <p className="mt-1 text-xs text-muted">{id === 'enrich' && workflow && !workflow.useAi ? 'Rules and evidence checks' : note}</p>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  {schedule && at && <p className="text-xs font-semibold text-muted">{schedule[at]} IST</p>}
+                  {workflow && (id === 'collect' || id === 'enrich') && <button type="button" onClick={() => setStepDraft({ step: id, config: workflow })}
+                    className="text-xs font-semibold text-primary hover:underline" aria-label={'Configure ' + title}>Configure</button>}
+                </div>
               </li>;
             })}
           </ol>
@@ -202,6 +211,7 @@ export default function OrganicWorkflows() {
           {selected && <>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted"><Status state={selected.status} />
               <span>{when(selected.createdAt)}</span>
+              {selected.revision !== null && <span>Workflow version {selected.revision + 1}</span>}
               {selected.finishedAt && <span>Finished {when(selected.finishedAt)}</span>}
             </div>
             {selected.report && <dl className="my-4 flex flex-wrap gap-2">
@@ -234,6 +244,35 @@ export default function OrganicWorkflows() {
         </section>
       </div>
     </div>}
+    <Dialog open={!!stepDraft} title={stepDraft?.step === 'collect' ? 'Configure discovery sources' : 'Configure classification'}
+      onOpenChange={(open) => { if (!open && !mutate.isPending) setStepDraft(null); }}
+      footer={<Button disabled={!stepDraft || mutate.isPending} onClick={() => {
+        if (!stepDraft) return;
+        mutate.mutate({ path: '/workflows/' + kind, method: 'PATCH', body: stepDraft.config }, {
+          onSuccess: () => { setStepDraft(null); toast.success('Workflow updated'); },
+        });
+      }}>Save step</Button>}>
+      {stepDraft?.step === 'collect' && <div className="grid gap-3">
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={stepDraft.config.sourceIds === null}
+          onChange={(event) => setStepDraft({ ...stepDraft, config: { ...stepDraft.config, sourceIds: event.target.checked ? null : compatibleSources.filter(({ enabled }) => enabled).map(({ id }) => id) } })} />
+          Use all enabled sources</label>
+        {stepDraft.config.sourceIds !== null && <div className="grid gap-2 rounded-xl border border-line p-3">
+          {compatibleSources.length === 0 && <p className="text-sm text-muted">No compatible sources registered.</p>}
+          {compatibleSources.map((source) => <label key={source.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={stepDraft.config.sourceIds?.includes(source.id) ?? false} onChange={(event) => setStepDraft({
+              ...stepDraft, config: { ...stepDraft.config, sourceIds: event.target.checked
+                ? [...(stepDraft.config.sourceIds ?? []), source.id] : (stepDraft.config.sourceIds ?? []).filter((id) => id !== source.id) },
+            })} />
+            {source.name}{source.enabled ? '' : ' (disabled)'}
+          </label>)}
+        </div>}
+      </div>}
+      {stepDraft?.step === 'enrich' && <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" checked={stepDraft.config.useAi} onChange={(event) =>
+          setStepDraft({ ...stepDraft, config: { ...stepDraft.config, useAi: event.target.checked } })} />
+        Use OpenRouter free models to suggest fields for ambiguous records.
+      </label>}
+    </Dialog>
     <Dialog open={!!draft} title="Edit discovery schedule" onOpenChange={(open) => { if (!open && !mutate.isPending) setDraft(null); }}
       footer={<Button disabled={!draft || mutate.isPending} onClick={() => {
         if (!draft) return;

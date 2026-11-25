@@ -38,7 +38,7 @@ export class OrganicExecutionsService {
   constructor(private readonly db: PrismaService, private readonly organic: OrganicService) {}
 
   async snapshot() {
-    const [recent, active, sources, rules, supply, demand] = await Promise.all([
+    const [recent, active, sources, rules, supply, demand, supplyWorkflow, demandWorkflow] = await Promise.all([
       this.db.organicRun.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 25, select: runSelect }),
       this.db.job.findMany({ where: { type: { in: jobTypes }, status: { in: ['PENDING', 'RUNNING', 'FAILED'] },
         OR: [{ createdAt: { gte: new Date(Date.now() - 48 * 60 * 60_000) } }, { status: { in: ['PENDING', 'RUNNING'] } }] },
@@ -49,6 +49,8 @@ export class OrganicExecutionsService {
         select: { id: true, organizationId: true, nextRunAt: true, leadType: true } }),
       this.organic.settingsFor('SUPPLY'),
       this.organic.settingsFor('DEMAND'),
+      this.organic.workflowFor('SUPPLY'),
+      this.organic.workflowFor('DEMAND'),
     ]);
     const keyByRunId = new Map(recent.map(({ id, key }) => [id, key]));
     const runs = new Map<string, Run | null>(recent.map((run) => [run.key, run]));
@@ -93,7 +95,8 @@ export class OrganicExecutionsService {
         : jobs.some((job) => job.status === 'FAILED') ? 'FAILED'
         : run?.status ?? 'PENDING';
       return [{
-        key, runId: run?.id ?? null, kind, status, scheduleId: run?.scheduleId ?? null, createdAt: run?.createdAt ?? first.createdAt,
+        key, runId: run?.id ?? null, kind, status,
+        revision: (first?.payload as { workflow?: { revision?: number } } | undefined)?.workflow?.revision ?? null, scheduleId: run?.scheduleId ?? null, createdAt: run?.createdAt ?? first.createdAt,
         finishedAt: run?.finishedAt ?? null, report: run?.report ?? null, sourceBatches: run?.sourceBatches ?? [],
         steps: jobs.map(({ id, type, status, runAt, lockedAt, updatedAt, attempts, maxAttempts, lastError }) => ({
           canRetry: status === 'FAILED' && canRetryStep(type, run?.status),
@@ -106,6 +109,7 @@ export class OrganicExecutionsService {
     return {
       workerEnabled: env().JOBS_ENABLED, sources, executions,
       discovery: { SUPPLY: schedule(supply), DEMAND: schedule(demand) },
+      workflows: { SUPPLY: supplyWorkflow, DEMAND: demandWorkflow },
       delivery: rules.map((rule) => ({ ...rule, firmName: firms.find(({ id }) => id === rule.organizationId)?.name ?? 'Firm unavailable' })),
     };
   }

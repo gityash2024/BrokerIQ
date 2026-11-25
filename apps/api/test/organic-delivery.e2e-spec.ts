@@ -164,6 +164,34 @@ describe('Organic daily delivery', () => {
     }
   });
 
+  it('pins the saved workflow version into a new daily run and rejects stale editor saves', async () => {
+    const service = app.get(OrganicService);
+    const admin = await db.user.create({ data: { email: randomUUID() + '@flow.e2e.test', name: 'Workflow admin', role: 'SUPER_ADMIN' },
+      include: { organization: true } });
+    const headers = auth((await app.get(AuthService).issue(admin)).accessToken);
+    const path = '/api/admin/organic/workflows/DEMAND';
+    const initial = await service.workflowFor('DEMAND');
+    const when = new Date('2026-11-19T18:30:00.000Z');
+    const key = 'organic-discovery:DEMAND:2026-11-20';
+    try {
+      const draft = { revision: initial.revision, sourceIds: [], useAi: false };
+      const saved = (await api().patch(path).set(headers).send(draft).expect(200)).body;
+      expect(saved).toEqual({ ...draft, revision: initial.revision + 1 });
+      await api().patch(path).set(headers).send(draft).expect(409);
+      await api().patch(path).set(headers).send({ ...saved, sourceIds: ['invalid-source'] }).expect(400);
+      const schedule = { enabled: true, time: '00:00', enrichTime: '05:00', resultsTime: '06:00', notifyTime: '07:00' };
+      await service['scheduleRun']('DEMAND', schedule, when);
+      await api().patch(path).set(headers).send({ ...saved, sourceIds: null, useAi: true }).expect(200);
+      await service['scheduleRun']('DEMAND', schedule, when);
+      const steps = await db.job.findMany({ where: { key: { startsWith: key + ':' } } });
+      expect(steps).toHaveLength(3);
+      for (const step of steps) expect(step.payload).toMatchObject({ workflow: saved });
+    } finally {
+      await db.job.deleteMany({ where: { OR: [{ key: { startsWith: key + ':' } }, { key: 'organic-ready:DEMAND:2026-11-20' }] } });
+      await db.systemSetting.deleteMany({ where: { key: 'organic.workflow.demand' } });
+    }
+  });
+
   it('transfers each qualifying lead only once, preserves firm scope, and rejects a foreign recipient', async () => {
     const key = randomUUID();
     const identity = async (name: string, role: 'SUPER_ADMIN' | 'BROKER_ADMIN', organizationId?: string) => {

@@ -26,6 +26,20 @@ test('the organic workspaces open in Super Admin', async ({ page }) => {
   ]) {
     await page.goto('/admin/organic/' + path);
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    if (path === 'workflows') {
+      await page.getByRole('button', { name: 'Configure Classify & validate', exact: true }).click();
+      const step = page.getByRole('dialog', { name: 'Configure classification', exact: true });
+      const useAi = step.getByRole('checkbox');
+      const initial = await useAi.isChecked();
+      await useAi.setChecked(!initial);
+      await step.getByRole('button', { name: 'Save step', exact: true }).click();
+      await expect(step).toHaveCount(0);
+      if (initial) await expect(page.getByText('Rules and evidence checks', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Configure Classify & validate', exact: true }).click();
+      await useAi.setChecked(initial);
+      await step.getByRole('button', { name: 'Save step', exact: true }).click();
+      await expect(step).toHaveCount(0);
+    }
     if (path === 'supply' || path === 'demand') {
       const recommended = page.getByRole('button', { name: path === 'supply' ? 'Direct owners' : 'Genuine demand', exact: true });
       await expect(recommended).toHaveAttribute('aria-pressed', 'true');
