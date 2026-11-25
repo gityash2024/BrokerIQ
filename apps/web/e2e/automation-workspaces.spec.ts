@@ -5,7 +5,7 @@ import { API, browserAdminSession, createBrokerFixture } from './fixtures';
 
 const { PrismaClient } = createRequire(resolve(__dirname, '../../api/package.json'))('@prisma/client');
 
-test('the four organic workspaces open in Super Admin', async ({ page }) => {
+test('the organic workspaces open in Super Admin', async ({ page }) => {
   const db = new PrismaClient();
   const recordTitle = 'Sector 30 rental';
   const values = { title: recordTitle, kind: 'SUPPLY', ownership: 'OWNER_CONFIRMED', availability: 'AVAILABLE', sectors: ['Sector 30'] };
@@ -21,6 +21,7 @@ test('the four organic workspaces open in Super Admin', async ({ page }) => {
     ['supply', 'Organic Property Supply'],
     ['demand', 'Organic Buyer & Tenant Leads'],
     ['sources', 'Discovery sources'],
+    ['workflows', 'Organic Automation'],
     ['delivery', 'Daily Lead Delivery'],
   ]) {
     await page.goto('/admin/organic/' + path);
