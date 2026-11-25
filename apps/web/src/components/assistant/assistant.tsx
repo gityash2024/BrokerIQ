@@ -23,7 +23,6 @@ type Msg = {
   resolved?: 'done' | 'cancelled';
 };
 const HIDDEN = ['/login', '/signup', '/forgot'];
-const storeKey = (uid: string) => `biq.assistant.${uid}`;
 
 function useLang() {
   const [lang, setLang] = useState('hi');
@@ -63,28 +62,9 @@ export function AssistantWidget() {
   const recRef = useRef<MediaRecorder | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  // restore this user's conversation for the tab session
   useEffect(() => {
-    if (!user) {
-      setMsgs([]);
-      return;
-    }
-    try {
-      setMsgs(JSON.parse(sessionStorage.getItem(storeKey(user.id)) || '[]'));
-    } catch {
-      setMsgs([]);
-    }
-  }, [user]);
-  useEffect(() => {
-    if (!user) return;
-    try {
-      sessionStorage.setItem(storeKey(user.id), JSON.stringify(msgs.slice(-30)));
-    } catch {
-      /* ignore */
-    }
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [msgs, user]);
-
+  }, [msgs]);
   if (!ready || HIDDEN.includes(pathname)) return null;
 
   const say = (content: string) => {
@@ -117,7 +97,7 @@ export function AssistantWidget() {
       const notConfigured = e instanceof ApiError && e.isNotConfigured;
       setMsgs((m) => [
         ...m,
-        { role: 'assistant', content: notConfigured ? 'AI assistant अभी setup नहीं है — admin को Groq/Gemini key जोड़नी होगी।' : `⚠️ ${errorMessage(e)}` },
+        { role: 'assistant', content: notConfigured ? 'AI assistant के लिए Admin → Settings → Integrations में OpenRouter जाँचें।' : `⚠️ ${errorMessage(e)}` },
       ]);
     } finally {
       setBusy(false);
@@ -134,7 +114,8 @@ export function AssistantWidget() {
     setBusy(true);
     try {
       const r = await api<any>('/assistant/confirm', { method: 'POST', body: { token: p.token, lang } });
-      setMsgs((m) => [...m, { role: 'assistant', content: r.reply, cards: r.cards }]);
+      const receipt = r.receipt ? Object.entries(r.receipt).map(([label, value]) => label + ' ' + value).join(' · ') : '';
+    setMsgs((m) => [...m, { role: 'assistant', content: [r.reply, receipt].filter(Boolean).join('\n'), cards: r.cards }]);
       say(r.reply);
     } catch (e) {
       setMsgs((m) => [...m, { role: 'assistant', content: `⚠️ ${errorMessage(e)}` }]);
@@ -191,7 +172,7 @@ export function AssistantWidget() {
         aria-label="AI assistant"
         className={cn(
           'fixed right-4 z-40 grid size-14 place-items-center rounded-full bg-gradient-to-br from-brand-600 to-violet-600 text-white shadow-2xl shadow-brand-600/40 transition hover:scale-105',
-          onProperty ? 'bottom-24 md:bottom-6' : 'bottom-4 md:bottom-20',
+          onProperty ? 'bottom-24 md:bottom-6' : 'bottom-40 lg:bottom-24',
           open && 'pointer-events-none opacity-0',
         )}
       >

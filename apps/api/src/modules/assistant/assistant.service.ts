@@ -1,7 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import type { Role } from '@prisma/client';
+import type { Prisma, Role } from '@prisma/client';
 import { languageOf } from '@brokeriq/shared';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CryptoService } from '../../core/settings/crypto.service';
+import { sha256 } from '../../common/utils';
 import { AiService } from '../../core/ai/ai.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { env } from '../../config/env';
@@ -10,20 +13,13 @@ import type { RequestUser } from '../../common/decorators';
 import { toOpenAi, toolsFor, type Call, type ToolCtx } from './tools';
 import { assistantSystem } from '../../core/ai/prompts';
 
-interface Pending {
-  userId: string;
-  tool: string;
-  args: any;
-  auth: string;
-  ip?: string;
-  expires: number;
-}
 export interface AssistantReply {
   reply: string;
   pending?: { token: string; tool: string; summary: string };
   /** Structured results for rich UI cards (listings, leads). */
   cards?: { type: 'listings' | 'leads'; items: any[] };
   used?: string[];
+  receipt?: Record<string, string | number | boolean | null>;
 }
 
 const MAX_ROUNDS = 5;
@@ -36,12 +32,12 @@ const PENDING_TTL = 5 * 60_000;
  */
 @Injectable()
 export class AssistantService {
-  private readonly logger = new Logger(AssistantService.name);
-  private readonly pending = new Map<string, Pending>();
 
   constructor(
     private readonly ai: AiService,
     private readonly audit: AuditService,
+    private readonly db: PrismaService,
+    private readonly crypto: CryptoService,
   ) {}
 
   private base() {
@@ -53,6 +49,8 @@ export class AssistantService {
     const call = async (c: Call) => {
       const res = await fetch(this.base() + c.path, {
         method: c.method,
+        redirect: 'error',
+        signal: AbortSignal.timeout(15_000),
         headers: {
           Authorization: auth,
           'Content-Type': 'application/json',
@@ -100,11 +98,29 @@ export class AssistantService {
   }
 
   private availableTools(user: RequestUser) {
-    const tools = toolsFor(user.role);
-    if (!user.delegatedActor) return tools;
-    const grants = new Set(user.delegatedPermissions);
+    const tools = toolsFor(user.role).filter((tool) => (!user.delegatedActor || !/broadcast/.test(tool.name)) && (user.agentChatEnabled !== false || tool.name !== 'send_whatsapp') &&
+      (user.role !== 'PROPERTY_OWNER' || ['owner_properties', 'search_properties', 'search_rentals', 'get_listing', 'list_localities', 'rent_budget', 'move_in_cost'].includes(tool.name)));
+    const grants = user.delegatedActor ? user.delegatedPermissions ?? [] : user.rolePermissions;
+    if (!grants) return tools;
     const requirements: Record<string, string[]> = {
       list_localities: [],
+      search_rentals: [],
+      search_properties: [],
+      get_listing: [],
+      broker_dashboard: ['today:view'],
+      search_inventory: ['inventory:view'],
+      get_inventory: ['inventory:view'],
+      create_inventory: ['inventory:view', 'inventory:create'],
+      edit_inventory: ['inventory:view', 'inventory:edit'],
+      list_requirements: ['leads:view'],
+      send_whatsapp: ['inbox:view', 'inbox:send'],
+      list_broadcast_groups: ['inbox:view'],
+      import_broadcast_contacts: ['inbox:view', 'inbox:create'],
+      create_broadcast_group: ['inbox:view', 'inbox:create'],
+      prepare_whatsapp_broadcast: ['inbox:view', 'inbox:send'],
+      queue_whatsapp_broadcast: ['inbox:view', 'inbox:send'],
+      list_pdf_inventory: ['inventory:view'],
+      lead_matches: ['leads:view', 'inventory:view'],
       rent_budget: [],
       move_in_cost: [],
       my_notifications: [],
@@ -119,7 +135,7 @@ export class AssistantService {
       assign_lead: ['leads:assign'],
       team_members: ['team:view'],
     };
-    return tools.filter((tool) => requirements[tool.name]?.every((grant) => grants.has(grant)) && (!tool.write || grants.has('assistant:edit')));
+    return tools.filter((tool) => requirements[tool.name]?.every((grant) => grants.includes(grant)) && (!tool.write || grants.includes('assistant:edit')));
   }
 
   async chat(
@@ -135,14 +151,15 @@ export class AssistantService {
     let cards: AssistantReply['cards'];
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
-      const m = await this.ai.chatWithTools(msgs, toOpenAi(allowed), { feature: 'assistant', orgId: user.orgId, userId: user.id });
+      const m = await this.ai.chatWithTools(msgs, toOpenAi(allowed), { feature: 'assistant', openRouterOnly: true, orgId: user.orgId, userId: user.id });
       if (!m.tool_calls?.length) return { reply: (m.content ?? '').trim() || '🙂', cards, used };
       msgs.push({ role: 'assistant', content: m.content ?? '', tool_calls: m.tool_calls });
       for (const tc of m.tool_calls) {
         const tool = allowed.find((t) => t.name === tc.function.name);
-        let args: any = {};
+        let args: Record<string, unknown> | undefined;
         try {
-          args = JSON.parse(tc.function.arguments || '{}');
+          const parsed: unknown = JSON.parse(tc.function.arguments || '{}');
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed as Record<string, unknown>;
         } catch {
           /* model sent bad JSON */
         }
@@ -150,11 +167,26 @@ export class AssistantService {
           msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: 'This action is not available for this user.' }) });
           continue;
         }
+        if (!args) {
+          msgs.push({ role: 'tool', tool_call_id: tc.id, content: '{"error":"Provide a valid argument object."}' });
+          continue;
+        }
         if (tool.write) {
+          let summary: string;
+          try {
+            summary = tool.summary?.(args) ?? tool.name;
+          } catch {
+            msgs.push({ role: 'tool', tool_call_id: tc.id, content: '{"error":"Some required fields are missing or invalid."}' });
+            continue;
+          }
           const token = randomBytes(18).toString('base64url');
-          this.pending.set(token, { userId: user.id, tool: tool.name, args, auth, ip, expires: Date.now() + PENDING_TTL });
-          this.gc();
-          const summary = tool.summary?.(args) ?? tool.name;
+          await this.db.$transaction([
+            this.db.assistantConfirmation.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
+            this.db.assistantConfirmation.create({ data: {
+              ...this.confirmationOwner(user), tokenHash: sha256(token), tool: tool.name, expiresAt: new Date(Date.now() + PENDING_TTL),
+              encryptedArgs: this.crypto.encrypt(JSON.stringify(args)),
+            } }),
+          ]);
           const reply = (m.content ?? '').trim() || `${summary} — क्या मैं यह कर दूँ?`;
           return { reply, pending: { token, tool: tool.name, summary }, cards, used };
         }
@@ -173,46 +205,39 @@ export class AssistantService {
   }
 
   /** Runs a confirmed write action, then lets the model phrase the outcome in the user's language. */
-  async confirm(user: RequestUser & { name?: string }, token: string, lang: string, ip?: string): Promise<AssistantReply> {
-    const p = this.pending.get(token);
-    if (!p || p.expires < Date.now()) throw new BadRequestException('यह request expire हो गई — दोबारा बोलें');
-    if (p.userId !== user.id) throw new ForbiddenException();
-    this.pending.delete(token);
-    const tool = this.availableTools(user).find((t) => t.name === p.tool);
+  async confirm(user: RequestUser & { name?: string }, auth: string, token: string, _lang: string, ip?: string): Promise<AssistantReply> {
+    const where = { ...this.confirmationOwner(user), tokenHash: sha256(token), expiresAt: { gt: new Date() } };
+    const pending = await this.db.assistantConfirmation.findUnique({ where: { tokenHash: where.tokenHash } });
+    if (!pending || pending.expiresAt <= new Date()) throw new BadRequestException('यह request expire हो गई — दोबारा बोलें');
+    if (pending.userId !== user.id || pending.organizationId !== user.orgId || pending.role !== where.role) throw new ForbiddenException();
+    const tool = this.availableTools(user).find((item) => item.name === pending.tool && item.write);
     if (!tool) throw new ForbiddenException();
+    const consumed = await this.db.assistantConfirmation.deleteMany({ where });
+    if (!consumed.count) throw new BadRequestException('यह confirmation पहले इस्तेमाल हो चुका है');
+    const args: unknown = JSON.parse(this.crypto.decrypt(pending.encryptedArgs));
     let result: unknown;
     let ok = true;
     try {
-      result = await tool.run(p.args, this.ctx(p.auth, ip ?? p.ip));
+      result = await tool.run(args, this.ctx(auth, ip));
     } catch (e) {
       ok = false;
       result = { error: (e as Error).message };
     }
-    await this.audit.log(user, `assistant.${tool.name}`, 'Assistant', null, { ok, args: p.args }, ip);
-    let reply = ok ? '✅ हो गया' : `⚠️ ${(result as any).error}`;
-    try {
-      const m = await this.ai.chatWithTools(
-        [
-          {
-            role: 'system',
-            content: `${this.system(user, lang)}\nThe user confirmed and the action "${tool.name}" was executed. Tell them the outcome in one or two short sentences.`,
-          },
-          { role: 'user', content: `Result: ${JSON.stringify(result).slice(0, 3000)}` },
-        ],
-        [],
-        { feature: 'assistant', orgId: user.orgId, userId: user.id, maxTokens: 300 },
-      );
-      if (m.content?.trim()) reply = m.content.trim();
-    } catch (e) {
-      this.logger.warn(`confirm phrasing failed: ${(e as Error).message}`);
-    }
-    return { reply, used: [tool.name], cards: this.cardsFor(tool.name, result) };
+    await this.audit.log(user, `assistant.${tool.name}`, 'Assistant', null, { ok }, ip);
+    const reply = ok ? (_lang === 'hi' ? 'हो गया।' : 'Confirmed action completed.') : `⚠️ ${(result as { error: string }).error}`;
+    const receipt = ok && result && typeof result === 'object'
+      ? Object.fromEntries(Object.entries(result).filter(([key, value]) => ['id', 'name', 'status', 'canQueue', 'queued', 'estimatedCost', 'saved'].includes(key) &&
+        (value === null || ['number', 'string', 'boolean'].includes(typeof value)))) as AssistantReply['receipt'] : undefined;
+    return { reply, used: ok ? [tool.name] : [], cards: this.cardsFor(tool.name, result), receipt };
   }
 
-  cancel(user: RequestUser, token: string) {
-    const p = this.pending.get(token);
-    if (p && p.userId === user.id) this.pending.delete(token);
+  async cancel(user: RequestUser, token: string) {
+    await this.db.assistantConfirmation.deleteMany({ where: { ...this.confirmationOwner(user), tokenHash: sha256(token) } });
     return { ok: true };
+  }
+
+  private confirmationOwner(user: RequestUser): Pick<Prisma.AssistantConfirmationUncheckedCreateInput, 'userId' | 'organizationId' | 'role'> {
+    return { userId: user.id, organizationId: user.orgId, role: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role };
   }
 
   transcribe(user: RequestUser, audio: string, mime: string, lang?: string) {
@@ -227,8 +252,4 @@ export class AssistantService {
     return undefined;
   }
 
-  private gc() {
-    const now = Date.now();
-    for (const [k, v] of this.pending) if (v.expires < now) this.pending.delete(k);
-  }
 }

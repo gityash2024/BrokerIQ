@@ -3137,6 +3137,19 @@ model PropertyVideoExtraction {
   @@index([userId, expiresAt])
 }
 
+/// Single-use, encrypted assistant confirmation under the current user's authorization.
+model AssistantConfirmation {
+  tokenHash      String   @id
+  userId         String
+  organizationId String?
+  role           Role
+  tool           String
+  encryptedArgs  String
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+}
+
 /// Search citations are evidence for source discovery, outside the lead transfer flow.
 model OrganicWebSearchQuery {
   runId      String

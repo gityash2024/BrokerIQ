@@ -1,3 +1,4 @@
+import { AssistantButton } from '@/components/assistant';
 import { RequestLoader } from '@/components/request-loader';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import '@/lib/background-shift-tracking';
@@ -87,6 +88,10 @@ export default function RootLayout() {
   });
   const ready = useSession((s) => s.ready);
   const loggedInUserId = useSession((s) => s.session?.user.id);
+  const assistantScope = useSession((s) => {
+    const user = s.session?.user;
+    return JSON.stringify([user?.id, user?.role, user?.organization?.id, user?.delegatedPermissions, user?.rolePermissions]);
+  });
   const { c, isDark } = useTheme();
   useEffect(() => {
     installGlobalErrorHandler();
@@ -200,6 +205,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
                 <Stack.Screen name="agent-assignments/[id]" options={{ presentation: 'transparentModal', animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' } }} />
               </Stack>
+              <AssistantButton key={assistantScope} />
             </Gate>
             <NotificationNavigation />
             <DraftPump />

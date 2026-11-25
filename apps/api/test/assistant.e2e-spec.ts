@@ -155,6 +155,20 @@ describe('AI assistant (e2e)', () => {
     expect(g.body.reply).toBe('नहीं मिली');
   });
 
+  it('persists an inventory proposal and consumes it only once under the confirmed account', async () => {
+    const address = 'Assistant inventory draft ' + uniq;
+    script.push(toolCall('create_inventory', { sector: 'Sector 65', purpose: 'RENT', address, monthlyRent: 48000 }));
+    const draft = (await http.post('/api/assistant/chat').set(auth(broker))
+      .send({ messages: [{ role: 'user', content: 'Save an inventory draft' }], lang: 'en' }).expect(201)).body;
+    expect(draft.pending.summary).toContain('48000');
+    expect(await prisma.inventoryItem.count({ where: { address } })).toBe(0);
+    const concurrent = await Promise.all([1, 2].map(() => http.post('/api/assistant/confirm').set(auth(broker))
+      .send({ token: draft.pending.token, lang: 'en' })));
+    expect(concurrent.map(({ status }) => status).sort()).toEqual([201, 400]);
+    expect(concurrent.find(({ status }) => status === 201)?.body).toMatchObject({ used: ['create_inventory'], receipt: { status: 'DRAFT' } });
+    expect(await prisma.inventoryItem.count({ where: { address } })).toBe(1);
+  });
+
   it('keeps Gmail message and timeline content outside model requests while retaining the CRM timeline', async () => {
     const lead = (await http.post('/api/leads').set(auth(broker)).send({ name: 'Email privacy check', phone: '9811100556' }).expect(201)).body;
     const { organizationId } = await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } });

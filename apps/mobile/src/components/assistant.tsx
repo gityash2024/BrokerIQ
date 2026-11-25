@@ -8,9 +8,10 @@ import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
 import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, X } from 'lucide-react-native';
-import { languageOf } from '@brokeriq/shared';
+import { hasDelegatedAccess, languageOf, moduleAllowed } from '@brokeriq/shared';
 import { ApiError, errorMessage, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useConfig } from '@/lib/config';
 import { useLang } from '@/lib/lang';
 import { fonts, useTheme } from '@/lib/theme';
 import { tr } from '@/lib/i18n';
@@ -32,14 +33,18 @@ const HIDDEN = ['/login', '/onboarding', '/data-consent', '/scanner', '/post-pro
 export function AssistantButton() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const config = useConfig();
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  if (user?.role === 'SUB_BROKER_ADMIN' && !user.delegatedPermissions?.includes('assistant:view')) return null;
+  const role = user?.role === 'PROPERTY_OWNER' ? 'USER' : user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user?.role ?? '';
+  if (!config.loaded || !moduleAllowed(config.modules, 'assistant', role) || !hasDelegatedAccess(user, 'assistant', 'view')) return null;
+
   if (!user || HIDDEN.some((p) => pathname.startsWith(p)) || pathname.startsWith('/chat/') || pathname.startsWith('/wa/')) return null;
   return (
     <>
       <PressableScale
+        accessibilityLabel="AI assistant"
         onPress={() => setOpen(true)}
         style={{
           position: 'absolute',
@@ -120,7 +125,8 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
     setBusy(true);
     try {
       const r = await post<any>('/assistant/confirm', { token: p.token, lang });
-      append({ role: 'assistant', content: r.reply, cards: r.cards });
+      const receipt = r.receipt ? Object.entries(r.receipt).map(([label, value]) => label + ' ' + value).join(' · ') : '';
+      append({ role: 'assistant', content: [r.reply, receipt].filter(Boolean).join('\n'), cards: r.cards });
       say(r.reply);
     } catch (e) {
       append({ role: 'assistant', content: `⚠️ ${errorMessage(e)}` });

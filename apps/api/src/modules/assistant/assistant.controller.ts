@@ -41,10 +41,12 @@ export class AssistantController {
   @Post('confirm')
   async confirm(
     @CurrentUser() user: RequestUser,
+    @Req() req: Request,
     @Body(new ZodPipe(assistantConfirmSchema)) body: z.infer<typeof assistantConfirmSchema>,
     @ClientIp() ip?: string,
   ) {
-    return this.assistant.confirm(await this.withName(user), body.token, body.lang, ip);
+    await this.access.assertAllowed(user, 'ai');
+    return this.assistant.confirm(await this.withName(user), String(req.headers.authorization ?? ''), body.token, body.lang, ip);
   }
 
   @Post('cancel')

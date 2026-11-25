@@ -1,5 +1,5 @@
 import type { Role } from '@prisma/client';
-import { formatPriceShort, moveInCost, rentAffordability } from '@brokeriq/shared';
+import { formatPriceShort, moveInCost, rentAffordability, inventoryInputSchema, BROADCAST_API, broadcastContactInput, broadcastGroupInput, broadcastDraftInput, parseBroadcastContacts, type BroadcastWorkspace } from '@brokeriq/shared';
 
 /**
  * AI-assistant tools. Each one maps to an existing API endpoint and is executed **as the
@@ -24,7 +24,7 @@ export interface Tool {
   run: (a: any, ctx: ToolCtx) => Promise<unknown>;
 }
 
-const ALL: Role[] = ['USER', 'BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN'];
+const ALL: Role[] = ['USER', 'PROPERTY_OWNER', 'BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT'];
 const BROKERS: Role[] = ['BROKER_ADMIN', 'BROKER_AGENT'];
 const LISTERS: Role[] = ['USER', 'BROKER_ADMIN', 'BROKER_AGENT'];
 const id = (v: unknown) => encodeURIComponent(String(v ?? '').slice(0, 80));
@@ -73,7 +73,185 @@ const slimLead = (l: any) => ({
   url: `/broker/leads/${l.id}`,
 });
 
+const propertyFields = {
+  sector: str('Sector or known locality'),
+  houseNo: str('Verified house or plot number'),
+  address: str('Property address as provided by the user'),
+  propertyType: str('Property type from the source'),
+  purpose: str('RENT or SALE'),
+  bhk: num('Bedroom count'),
+  furnishing: str('UNFURNISHED, SEMI_FURNISHED or FULLY_FURNISHED'),
+  floor: str('Exact floor label'),
+  monthlyRent: num('Monthly rent in INR'),
+  totalSalePrice: num('Total sale price in INR'),
+  area: num('Area, with the exact unit supplied separately'),
+  areaUnit: str('Exact supported area unit'),
+  notes: str('Non-sensitive property notes supplied by the user'),
+};
+const propertyInput = (args: Record<string, unknown>) =>
+  inventoryInputSchema.parse(Object.fromEntries(Object.keys(propertyFields).filter((key) => args[key] !== undefined).map((key) => [key, args[key]])));
+const slimInventory = (r: any) => ({
+  id: r.id, propertyCode: r.propertyCode, revision: r.revision, sector: r.sector,
+  houseNo: r.houseNo, floor: r.floor, purpose: r.purpose, size: r.area, sizeUnit: r.areaUnit,
+  propertyType: r.propertyType, bhk: r.bhk, furnishing: r.furnishing,
+  monthlyRent: r.monthlyRent, totalSalePrice: r.totalSalePrice, availability: r.availability,
+  status: r.status,
+});
+
 export const TOOLS: Tool[] = [
+  {
+    name: 'search_inventory',
+    description: 'Search inventory the signed-in broker account can view. Returns record IDs, current availability and prices.',
+    roles: BROKERS,
+    parameters: obj({ search: str('Search by property code, locality or property text'), sector: str('Sector or locality'), purpose: str('RENT or SALE'), maxBudget: num('Maximum budget in INR'), page: num('Results page starting at 1') }),
+    run: async (args, { call }) => {
+      const r = await call({ method: 'GET', path: `/inventory${qs({ search: args.search, sector: args.sector, purpose: args.purpose, maxBudget: args.maxBudget, page: args.page, pageSize: 10 })}` });
+      return { total: r.total, items: (r.items ?? []).map(slimInventory) };
+    },
+  },
+  {
+    name: 'get_inventory',
+    description: 'Retrieve a property in the authorized firm inventory, including its current revision for editing.',
+    roles: BROKERS,
+    parameters: obj({ id: str('Exact inventory record ID') }, ['id']),
+    run: async (args, { call }) => slimInventory(await call({ method: 'GET', path: `/inventory/${id(args.id)}` })),
+  },
+  {
+    name: 'create_inventory',
+    description: 'Convert supplied property facts into one private inventory draft. Ask for a location and transaction purpose if either is missing. Never infer prices or units.',
+    roles: BROKERS,
+    write: true,
+    parameters: obj(propertyFields, ['sector', 'purpose']),
+    summary: (args) => `Create an inventory draft • ${JSON.stringify(propertyInput(args))}`,
+    run: async (args, { call }) => {
+      const property = propertyInput(args);
+      if (!property.sector?.trim() || !property.purpose) throw new Error('Sector and transaction purpose are required');
+      return slimInventory(await call({ method: 'POST', path: '/inventory', body: { ...property, status: 'DRAFT', verificationStatus: 'NEEDS_REVIEW' } }));
+    },
+  },
+  {
+    name: 'edit_inventory',
+    description: 'Update explicitly requested fields on a property using the revision returned by get_inventory.',
+    roles: BROKERS,
+    write: true,
+    parameters: obj({ id: str('Exact inventory record ID'), revision: num('Current inventory revision'), ...propertyFields }, ['id', 'revision']),
+    summary: (args) => `Update property ${args.id} • ${JSON.stringify(propertyInput(args))}`,
+    run: async (args, { call }) => slimInventory(await call({ method: 'PATCH', path: `/inventory/${id(args.id)}`,
+      body: { ...propertyInput(args), expectedRevision: args.revision } })),
+  },
+  {
+    name: 'list_requirements',
+    description: 'Find requirements available in the active brokerage workspace.',
+    roles: BROKERS,
+    parameters: obj({ search: str('Requirement or location search'), page: num('Results page starting at 1') }),
+    run: async (args, { call }) => {
+      const r = await call({ method: 'GET', path: `/broker-requirements${qs({ search: args.search, page: args.page })}` });
+      return { total: r.total, items: (r.items ?? []).slice(0, 10).map((item: any) => ({
+        id: item.id, title: item.title, intent: item.intent, sector: item.sector, propertyType: item.propertyType, convertedAt: item.convertedAt,
+      })) };
+    },
+  },
+  {
+    name: 'owner_properties',
+    description: 'List the signed-in property owner’s own linked properties. Search by property code when known.',
+    roles: ['PROPERTY_OWNER'],
+    parameters: obj({ search: str('Exact property code'), page: num('Results page starting at 1') }),
+    run: async (args, { call }) => {
+      const r = await call({ method: 'GET', path: `/owner/properties${qs({ search: args.search, page: args.page })}` });
+      return { hasMore: r.hasMore, items: (r.items ?? []).map(slimInventory) };
+    },
+  },
+  {
+    name: 'send_whatsapp',
+    description: 'Send the user’s exact WhatsApp text to a known CRM lead or inbox conversation using the existing firm send policy.',
+    roles: BROKERS,
+    write: true,
+    parameters: obj({ leadId: str('Exact lead ID from search_leads'), conversationId: str('Exact inbox conversation ID'), text: str('Exact message text to send') }, ['text']),
+    summary: (args) => `WhatsApp to ${args.conversationId ?? args.leadId} • ${args.text}`,
+    run: async (args, { call }) => {
+      const sent = await call({ method: 'POST', path: '/whatsapp/send', body: {
+        leadId: args.leadId, conversationId: args.conversationId, text: args.text,
+      } });
+      return { id: sent.id, status: sent.status };
+    },
+  },
+  {
+    name: 'list_pdf_inventory',
+    description: 'Read recent rows from the firm’s separate PDF Inventory.',
+    roles: ['BROKER_ADMIN'],
+    parameters: obj({ sector: str('Exact sector') }),
+    run: async (args, { call }) => {
+      const r = await call({ method: 'GET', path: `/inventory-pdf${qs({ sector: args.sector })}` });
+      return { total: r.total, items: (r.items ?? []).slice(0, 10).map(slimInventory) };
+    },
+  },
+  {
+    name: 'organic_runs',
+    description: 'Read current status, counts and source evidence coverage in the Super Admin Organic workflows.',
+    roles: ['SUPER_ADMIN'],
+    parameters: obj({}),
+    run: async (_args, { call }) => {
+      const r = await call({ method: 'GET', path: '/admin/organic/executions' });
+      return { searchMode: r.webSearchMode, workerEnabled: r.workerEnabled, runs: (r.executions ?? []).slice(0, 10).map((run: any) => ({
+        id: run.runId, kind: run.kind, status: run.status, startedAt: run.createdAt, counts: run.report,
+      })) };
+    },
+  },
+  {
+    name: 'list_broadcast_groups',
+    description: 'Find the firm’s existing WhatsApp broadcast contact groups and exact group IDs.',
+    roles: ['BROKER_ADMIN'],
+    parameters: obj({}),
+    run: async (_args, { call }) => {
+      const r: BroadcastWorkspace = await call({ method: 'GET', path: BROADCAST_API });
+      return { groups: r.groups.map(({ id, name, contactIds }) => ({ id, name, size: contactIds.length })) };
+    },
+  },
+  {
+    name: 'import_broadcast_contacts',
+    description: 'Save WhatsApp contacts from the user’s name and phone lines. The firm records consent separately in Broadcast.',
+    roles: ['BROKER_ADMIN'],
+    write: true,
+    parameters: obj({ csv: str('Name and phone CSV') }, ['csv']),
+    summary: (args) => {
+      const rows = parseBroadcastContacts(String(args.csv ?? ''));
+      if (!rows.length) throw new Error('Contact rows are required');
+      return `Save ${rows.length} contacts • ${rows.map(({ name, phone }) => name + ' ' + phone).join(', ')}`;
+    },
+    run: async (args, { call }) => {
+      const rows = broadcastContactInput.array().min(1).max(500).parse(parseBroadcastContacts(String(args.csv ?? '')).map(({ name, phone }) => ({ name, phone })));
+      const result = await call({ method: 'POST', path: BROADCAST_API + '/contacts', body: { contacts: rows } });
+      return { status: 'SAVED', saved: result.contacts.length };
+    },
+  },
+  {
+    name: 'create_broadcast_group',
+    description: 'Create a group from known BrokerIQ WhatsApp contact IDs. Ask the user for IDs if they are not known.',
+    roles: ['BROKER_ADMIN'],
+    write: true,
+    parameters: obj({ name: str('Group name'), contactIds: { type: 'array', items: str('Exact contact ID') } }, ['name', 'contactIds']),
+    summary: (args) => `Create group ${args.name} • ${broadcastGroupInput.parse(args).contactIds.join(', ')}`,
+    run: (args, { call }) => call({ method: 'POST', path: BROADCAST_API + '/groups', body: broadcastGroupInput.parse(args) }),
+  },
+  {
+    name: 'prepare_whatsapp_broadcast',
+    description: 'Calculate a preview for a service reply in eligible open sessions. Use the user’s exact text and specified groups. Paid promotional campaigns are prepared in the Broadcast workspace.',
+    roles: ['BROKER_ADMIN'],
+    write: true,
+    parameters: obj({ name: str('Broadcast name'), groupIds: { type: 'array', items: str('Exact group ID') }, text: str('Exact service reply') }, ['name', 'groupIds', 'text']),
+    summary: (args) => `Prepare broadcast to ${args.groupIds} • ${args.text}`,
+    run: (args, { call }) => call({ method: 'POST', path: BROADCAST_API + '/preview',
+      body: broadcastDraftInput.parse({ name: args.name, groupIds: args.groupIds, message: { type: 'text', text: args.text }, allowMetaCharges: false }) }),
+  },
+  {
+    name: 'queue_whatsapp_broadcast',
+    description: 'Queue the exact previously approved cost preview. Only use a quote ID the user has explicitly selected.',
+    roles: ['BROKER_ADMIN'],
+    write: true,
+    parameters: obj({ id: str('Exact recent preview ID explicitly chosen by the user') }, ['id']),
+    summary: (args) => `Send the broadcast for preview ${args.id}`,
+    run: (args, { call }) => call({ method: 'POST', path: BROADCAST_API + '/' + id(args.id) + '/queue' }),
+  },
   // ------------------------------------------------------------------ marketplace (everyone)
   {
     name: 'search_rentals',
@@ -540,7 +718,7 @@ export const TOOLS: Tool[] = [
   {
     name: 'moderation_queue',
     description: 'Listings waiting for approval.',
-    roles: ['SUPER_ADMIN'],
+    roles: ['SUPER_ADMIN', 'MODERATOR'],
     parameters: obj({}),
     run: async (_a, { call }) => {
       const r = await call({ method: 'GET', path: '/admin/moderation/listings' });
@@ -552,7 +730,7 @@ export const TOOLS: Tool[] = [
   {
     name: 'moderate_listing',
     description: 'Approve or reject a pending listing (reject needs a reason).',
-    roles: ['SUPER_ADMIN'],
+    roles: ['SUPER_ADMIN', 'MODERATOR'],
     write: true,
     parameters: obj({ id: str('listing id'), action: str('approve | reject'), reason: str('reason for rejection') }, ['id', 'action']),
     summary: (a) => (a.action === 'reject' ? `Listing reject: ${a.reason ?? ''}` : 'Listing approve करके live करना'),

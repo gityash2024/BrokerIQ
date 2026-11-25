@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import { moduleAllowed, type PublicConfig } from '@brokeriq/shared';
+import { hasDelegatedAccess, moduleAllowed, type PublicConfig } from '@brokeriq/shared';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ConfigProvider, useConfig } from '@/lib/config';
 import { ApiError, registerAuthCacheReset } from '@/lib/api';
@@ -65,10 +65,14 @@ export function Providers({ children, config }: { children: React.ReactNode; con
 
 function OptionalWidgets() {
   const config = useConfig();
-  const role = useAuth().user?.role ?? '';
+  const { user } = useAuth();
+  const role = user?.role ?? '';
+  const assistantRole = role === 'PROPERTY_OWNER' ? 'USER' : role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : role;
+  const assistantScope = JSON.stringify([user?.id, role, user?.organization?.id, user?.delegatedPermissions, user?.rolePermissions]);
+
   return (
     <>
-      {moduleAllowed(config.modules, 'assistant', role) && <AssistantWidget />}
+      {user && hasDelegatedAccess(user, 'assistant', 'view') && moduleAllowed(config.modules, 'assistant', assistantRole) && <AssistantWidget key={assistantScope} />}
       {moduleAllowed(config.modules, 'web_push', role) && <WebPushPrompt />}
       {moduleAllowed(config.modules, 'legacy', role) && <FeedbackWidget />}
     </>

@@ -109,6 +109,13 @@ export class ModuleGuard implements CanActivate {
       };
       return true;
     }
+    // The assistant uses the signed-in role when it calls product routes. Owner
+    // access here leaves the linked-property scope of every downstream route intact.
+    if (user && /^\/assistant\/(chat|confirm|cancel|transcribe)\/?$/.test(requestPath)) {
+      if (user.rolePermissions) await this.requireFirmPermissions({ ...user, rolePermissions: user.rolePermissions }, req, requestPath, context);
+      await this.modules.assertPath(requestPath, user.role === 'PROPERTY_OWNER' ? 'USER' : user.role);
+      return true;
+    }
     if (user?.role === 'PROPERTY_OWNER') {
       const path = requestPath.replace(/\/+$/, '');
       if (!user.orgId) throw new ForbiddenException('Firm membership required');
