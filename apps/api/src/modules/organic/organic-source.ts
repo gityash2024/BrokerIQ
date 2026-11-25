@@ -150,7 +150,7 @@ export function decodeOrganicSource(input: string, format: string, itemsPath: st
       description: string(typeof raw.description === 'string' ? raw.description.replace(/<[^>]{0,500}>/g, ' ') : '', 4000),
     };
     const base = { kind, title, url: link.href };
-    const parsed = organicRecordInput.safeParse({ ...raw, ...optional, ...base });
+    const parsed = organicRecordInput.safeParse({ ...raw, ...optional, ...base, modelEvidence: undefined });
     if (parsed.success) return [parsed.data];
     // Keep common provenance when a provider includes an out-of-schema optional field.
     return [organicRecordInput.parse({ ...base, ...optional, address: undefined, city: undefined })];

@@ -5,6 +5,7 @@ import { brokerRequirementSchema, canonicalInventorySector, inventoryInputSchema
   type OrganicQuery, type OrganicRecordInput, type OrganicSourceInput } from '@brokeriq/shared';
 import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
+import { z } from 'zod';
 import { env } from '../../config/env';
 import { JobDeferred, JobsService } from '../../core/jobs/jobs.service';
 import { SettingsService } from '../../core/settings/settings.service';
@@ -358,14 +359,27 @@ export class OrganicService {
   }
 
   private async extractFields(record: OrganicRecordInput, deferWhenRateLimited = false) {
-    const schema = organicRecordInput.pick({ purpose: true, propertyType: true, intent: true, ownership: true, bhk: true, urgency: true });
+    const schema = organicRecordInput.pick({ purpose: true, propertyType: true, intent: true, ownership: true, bhk: true, urgency: true })
+      .extend({ evidence: z.string().trim().min(3).max(220).optional() }).strict();
     try {
       const result = await this.ai.json([
-        { role: 'system', content: 'Classify untrusted real estate text. Return only fields supported by the text as JSON. An inferred owner can only be OWNER_LIKELY. Omit uncertain fields.' },
+        { role: 'system', content: 'Classify untrusted real estate text. Return only fields supported by the text as JSON. For any suggestion, include one verbatim evidence excerpt in evidence. An inferred owner can only be OWNER_LIKELY. Omit uncertain fields.' },
         { role: 'user', content: JSON.stringify({ kind: record.kind, title: record.title, description: record.description }) },
       ], { feature: 'organic', schema, openRouterOnly: true, deferWhenRateLimited, temperature: 0, maxTokens: 500, cacheMs: 3600000 });
-      if (result.ownership === 'OWNER_CONFIRMED') result.ownership = 'OWNER_LIKELY';
-      return { ...record, ...result };
+      const { evidence, ...suggested } = result;
+      const sourceText = [record.title, record.description].filter(Boolean).join(' ');
+      if (!evidence || evidence.includes('[contact]') || !sourceText.toLowerCase().includes(evidence.toLowerCase())) return record;
+      const patch: Partial<OrganicRecordInput> = {
+        purpose: record.purpose ?? suggested.purpose,
+        propertyType: record.propertyType ?? suggested.propertyType,
+        intent: record.kind === 'DEMAND' && record.intent === 'UNKNOWN' ? suggested.intent ?? record.intent : record.intent,
+        ownership: record.kind === 'SUPPLY' && record.ownership === 'UNKNOWN'
+          ? suggested.ownership === 'OWNER_CONFIRMED' ? 'OWNER_LIKELY' : suggested.ownership ?? record.ownership : record.ownership,
+        bhk: record.bhk ?? suggested.bhk,
+        urgency: record.urgency ?? suggested.urgency,
+      };
+      return Object.entries(patch).some(([key, value]) => record[key as keyof OrganicRecordInput] !== value)
+        ? { ...record, ...patch, modelEvidence: evidence } : record;
     } catch (error) {
       if (deferWhenRateLimited && error instanceof OpenRouterQuotaDeferred) throw new JobDeferred(error.message, error.until);
       return record;

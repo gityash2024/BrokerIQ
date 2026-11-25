@@ -50,6 +50,7 @@ export const organicRecordInput = z.object({
   registryRegistration: text.optional(),
   registryRegisteredAt: z.iso.date().optional(),
   registryReference: z.boolean().optional(),
+  modelEvidence: z.string().trim().min(3).max(220).optional(),
 });
 export type OrganicRecordInput = z.infer<typeof organicRecordInput>;
 export const organicSourceInput = z.object({

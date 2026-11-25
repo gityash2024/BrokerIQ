@@ -35,6 +35,18 @@ describe('Organic daily delivery', () => {
     expect(nextOrganicTime('07:00', new Date('2026-11-24T01:31:00Z')).toISOString()).toBe('2026-11-25T01:30:00.000Z');
   });
 
+  it('extracts explicit mixed-language property facts and requires review for model-only evidence', () => {
+    const base = { city: 'Gurugram', url: 'https://example.org/source', availability: 'UNKNOWN' as const, amenities: [], sectors: [] };
+    const normalize = (input: Parameters<typeof normalizeOrganicRecord>[0]) => normalizeOrganicRecord(input, [], true);
+    expect(normalize({ ...base, kind: 'DEMAND', title: 'Sec-30 me kiraye pe flat chahiye. Budget 42k.' })?.data)
+      .toMatchObject({ intent: 'TENANT', purpose: 'RENT', maxBudget: 42000, sectors: ['Sector 30'] });
+    expect(normalize({ ...base, kind: 'DEMAND', title: 'Sector 57 mein flat khareedna hai. Budget 85 lakh.' })?.data)
+      .toMatchObject({ intent: 'BUYER', purpose: 'SALE', maxBudget: 8500000, sectors: ['Sector 57'] });
+    expect(normalize({ ...base, kind: 'SUPPLY', title: 'Selling my Sector 56 apartment for ₹1.27 crore' })?.data)
+      .toMatchObject({ purpose: 'SALE', price: 12700000 });
+    expect(normalize({ ...base, kind: 'DEMAND', title: 'Sector 30 tenant inquiry', intent: 'TENANT', modelEvidence: 'tenant inquiry' })?.priority).toBe('REVIEW');
+  });
+
   it('separates confirmed owners, uncertain owners and genuine demand while honoring explicit filters', () => {
     const service = app.get(OrganicService);
     const view = (query: Record<string, string>) => service.where(organicQuery.parse(query));
