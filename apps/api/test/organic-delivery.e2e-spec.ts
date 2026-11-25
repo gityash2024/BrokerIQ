@@ -8,6 +8,7 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { OrganicDeliveryService } from '../src/modules/organic/organic-delivery.service';
+import { OrganicWebSearchService } from '../src/modules/organic/organic-web-search.service';
 import { OrganicService } from '../src/modules/organic/organic.service';
 import * as sourceAdapter from '../src/modules/organic/organic-source';
 import { discoveryPhases, normalizeOrganicRecord, nextOrganicTime, pastOrganicTime } from '../src/modules/organic/organic-record';
@@ -161,6 +162,25 @@ describe('Organic daily delivery', () => {
         await db.organicRun.deleteMany({ where: { key: runKey } });
       }
       await db.organicSource.update({ where: { id: source.id }, data: { enabled: false } });
+    }
+  });
+
+  it('searches through today on manual runs and refines sparse categories only once', async () => {
+    const run = await db.organicRun.create({ data: { key: randomUUID(), kind: 'SUPPLY' } });
+    const provider = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ results: [] })));
+    try {
+      const search = app.get(OrganicWebSearchService);
+      await search.run(run.id, 'SUPPLY', '2026-11-25', true);
+      expect(provider).toHaveBeenCalledTimes(8);
+      for (const [, request] of provider.mock.calls) {
+        expect(JSON.parse(String(request?.body))).toMatchObject({ start_date: '2026-11-24', end_date: '2026-11-26', search_depth: 'basic' });
+      }
+      expect(await db.organicWebSearchQuery.count({ where: { runId: run.id, label: { endsWith: 'targeted follow-up' } } })).toBe(4);
+      await search.run(run.id, 'SUPPLY', '2026-11-25', true);
+      expect(provider).toHaveBeenCalledTimes(8);
+    } finally {
+      provider.mockRestore();
+      await db.organicRun.delete({ where: { id: run.id } });
     }
   });
 
