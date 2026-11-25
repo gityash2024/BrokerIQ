@@ -49,7 +49,10 @@ test('Broker Admin invites a Sub-Broker Admin with one action and the browser us
   await inviteForm.getByLabel('नाम').fill(identity.name);
   await inviteForm.getByLabel('Email').fill(identity.email);
   await inviteForm.getByLabel('Role').selectOption('SUB_BROKER_ADMIN');
-  await inviteForm.getByRole('group', { name: /Inventory/ }).getByRole('checkbox', { name: 'view', exact: true }).check();
+  const inventoryView = inviteForm.getByRole('group', { name: /Inventory/ }).getByRole('checkbox', { name: 'view', exact: true });
+  await expect(inventoryView).toBeChecked();
+  for (const checkbox of await inviteForm.getByRole('checkbox').all()) await checkbox.uncheck();
+  await inventoryView.check();
   const created = page.waitForResponse((res) => res.url().endsWith('/broker/team/invite') && res.request().method() === 'POST');
   await inviteForm.getByRole('button', { name: 'Send invite', exact: true }).click();
   const inviteResponse = await created;

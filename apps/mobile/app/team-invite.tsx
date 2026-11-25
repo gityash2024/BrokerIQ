@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { delegableModules, delegatedGrant } from '@brokeriq/shared';
+import { useConfig } from '@/lib/config';
 import { Share, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
@@ -12,7 +14,10 @@ import { Button, Chip, Input, Txt } from '@/ui';
 export default function TeamInvite() {
   const { isBrokerAdmin } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [selection, setPermissions] = useState<string[] | null>(null);
+  const { modules, loaded } = useConfig();
+  const permissions = selection ?? delegableModules(modules).flatMap(({ key, actions }) =>
+    actions.map((action) => delegatedGrant(key, action)));
   const invite = useApiMutation(
     () =>
       post<{ link: string; emailed: boolean }>('/broker/team/invite', {
@@ -58,7 +63,7 @@ export default function TeamInvite() {
                 ))}
               </View>
               {form.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
-              <Button title="Send invite" loading={invite.isPending} disabled={!form.name || !form.email} onPress={() => invite.mutate(undefined)} />
+              <Button title="Send invite" loading={invite.isPending} disabled={!form.name || !form.email || (form.role === 'SUB_BROKER_ADMIN' && !loaded)} onPress={() => invite.mutate(undefined)} />
             </>
           )}
         </NativeCard>

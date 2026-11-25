@@ -1,6 +1,8 @@
 'use client';
 import { BackButton } from '@/components/ui/back-button';
 import { useState } from 'react';
+import { delegableModules, delegatedGrant } from '@brokeriq/shared';
+import { useConfig, useConfigStatus } from '@/lib/config';
 import { Link2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,7 +16,11 @@ import { useAuth } from '@/lib/auth';
 export default function InvitePage() {
   const { user } = useAuth();
   const [f, setF] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [selection, setPermissions] = useState<string[] | null>(null);
+  const { modules } = useConfig();
+  const { loaded } = useConfigStatus();
+  const permissions = selection ?? delegableModules(modules).flatMap(({ key, actions }) =>
+    actions.map((action) => delegatedGrant(key, action)));
   const [result, setResult] = useState<{ link: string; emailed: boolean } | null>(null);
   const send = useApiMutation(
     () =>
@@ -78,7 +84,7 @@ export default function InvitePage() {
             </div>
           )}
           {!result && (
-            <Button loading={send.isPending} disabled={!f.name || !f.email} onClick={() => send.mutate(undefined)}>
+            <Button loading={send.isPending} disabled={!f.name || !f.email || (f.role === 'SUB_BROKER_ADMIN' && !loaded)} onClick={() => send.mutate(undefined)}>
               <Send className="size-4" /> Send invite
             </Button>
           )}
