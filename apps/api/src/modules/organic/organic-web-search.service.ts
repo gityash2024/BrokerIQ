@@ -52,28 +52,51 @@ const plans = {
 const SYNC_LIMIT = 1_000;
 const GDELT_INTERVAL_MS = 6_000;
 const GDELT_COOLDOWN_MS = 300_000;
+const searchIntents = {
+  SUPPLY: 'owner or developer property for sale or for rent or available for lease',
+  DEMAND: 'buyer or tenant or investor looking for a property to buy rent or lease',
+};
 const publisherChannels = [
-  { label: 'Housing.com public links', domains: ['housing.com'] },
-  { label: '99acres public links', domains: ['99acres.com'] },
   {
-    label: 'Property portals and project publishers',
-    domains: ['magicbricks.com', 'nobroker.in', 'squareyards.com', 'proptiger.com', 'realestateindia.com', 'makaan.com'],
+    label: 'Major property portals',
+    domains: ['housing.com', '99acres.com', 'magicbricks.com', 'nobroker.in', 'squareyards.com', 'proptiger.com'],
+    intents: searchIntents,
   },
-  { label: 'Public classifieds', domains: ['olx.in', 'quikr.com'] },
-  { label: 'Public property discussions', domains: ['reddit.com', 'facebook.com'] },
+  {
+    label: 'Residential and commercial listings',
+    domains: ['realestateindia.com', 'makaan.com', 'commonfloor.com', 'nestoria.in'],
+    intents: searchIntents,
+  },
+  {
+    label: 'Local property classifieds',
+    domains: ['olx.in', 'quikr.com', 'quikrhomes.com', 'sulekha.com', 'click.in'],
+    intents: searchIntents,
+  },
+  {
+    label: 'Managed rentals, co-living and workspaces',
+    domains: ['nestaway.com', 'zolostays.com', 'stanzaliving.com', 'colive.com', 'myhq.in', 'cofynd.com', 'awfis.com', 'wework.co.in'],
+    intents: {
+      SUPPLY: '(available rental homes OR rooms OR paying guest OR coliving OR coworking office space) for rent',
+      DEMAND: '(looking for OR required OR wanted) (managed rental OR PG OR coliving room OR coworking office)',
+    },
+  },
+  {
+    label: 'Public property discussions and groups',
+    domains: ['reddit.com', 'facebook.com'],
+    intents: {
+      SUPPLY: 'property groups and discussions about flats, builder floors or rooms available for sale or rent',
+      DEMAND: 'property groups and discussions with buyers or tenants looking for housing or commercial property',
+    },
+  },
   {
     label: 'Government, bank and developer property notices',
-    domains: ['hsvphry.org.in', 'hsiidc.org.in', 'globalcitygurugram.in', 'baanknet.com', 'sbi.co.in', 'eprocure.gov.in'],
+    domains: ['hsvphry.org.in', 'hbh.gov.in', 'hsiidc.org.in', 'globalcitygurugram.in', 'baanknet.com', 'sbi.co.in', 'eprocure.gov.in'],
+    intents: {
+      SUPPLY: 'residential or commercial property sale auction lease availability',
+      DEMAND: 'property required office space lease purchase procurement notice',
+    },
   },
 ];
-const searchIntents = {
-  SUPPLY: '(owner OR developer) (for sale OR for rent OR available for lease)',
-  DEMAND: '(buyer OR tenant OR investor) (looking for OR required OR wanted) (buy OR rent OR lease)',
-};
-const NOTICE_TERMS = {
-  SUPPLY: 'residential or commercial property sale auction lease availability',
-  DEMAND: 'property required office space lease purchase procurement notice',
-};
 // Two nightly workflows fit within the free calendar-month quota even in a 31-day month.
 const MAX_TAVILY_QUERIES_PER_RUN = 16;
 const SECTORS_PER_QUERY = 20;
@@ -180,10 +203,10 @@ export class OrganicWebSearchService {
       queries.push({ label: 'Sector search ' + (index + 1), query: `Gurugram (${names}) ${sectorIntents[kind]}`, sectors });
     }
     queries.push(
-      ...publisherChannels.map(({ label, domains }, index) => ({
+      ...publisherChannels.map(({ label, domains, intents }) => ({
         label,
         domains,
-        query: '(Gurugram OR Gurgaon) ' + (index === publisherChannels.length - 1 ? NOTICE_TERMS[kind] : searchIntents[kind]),
+        query: '(Gurugram OR Gurgaon) ' + intents[kind],
       })),
     );
     for (const { label, query, alternate, domains, sectors } of queries) {
