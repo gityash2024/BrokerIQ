@@ -90,6 +90,38 @@ export function whatsappComposerMode(input: {
   return input.connected && input.windowOpen && !input.preferDraft ? 'send' : 'draft';
 }
 
+export function inventoryDateFilter(value: string, end = false) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+  const date = new Date(value + 'T00:00:00Z');
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return '';
+  return new Date(value + (end ? 'T23:59:59.999+05:30' : 'T00:00:00+05:30')).toISOString();
+}
+
+export function inventoryFilterDay(value: string): string {
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time + 330 * 60000).toISOString().slice(0, 10) : '';
+}
+
+const MESSAGE_TIME_ZONE = 'Asia/Kolkata';
+const messageDay = new Intl.DateTimeFormat('en-CA', { timeZone: MESSAGE_TIME_ZONE, dateStyle: 'short' });
+const messageTime = new Intl.DateTimeFormat('en-IN', { timeZone: MESSAGE_TIME_ZONE, hour: 'numeric', minute: '2-digit' });
+const messageDate = new Intl.DateTimeFormat('en-IN', { timeZone: MESSAGE_TIME_ZONE, month: 'short', day: 'numeric' });
+
+export function conversationMessageTime(value: string | Date | null | undefined, now = new Date()): string {
+  if (!value) return '';
+  const message = new Date(value);
+  if (!Number.isFinite(message.valueOf())) return '';
+  const time = messageTime.format(message);
+  return messageDay.format(message) === messageDay.format(now) ? time : `${messageDate.format(message)} · ${time}`;
+}
+
+export function leadDialUrl(phone: string | null | undefined): string | undefined {
+  if (!phone) return;
+  const compact = phone.trim().replace(/[ ().-]/g, '');
+  if (!/^\+?\d{7,15}$/.test(compact)) return;
+  return 'tel:' + (normalizeIndianPhone(compact) ?? compact);
+}
+
 export function maskPhone(phone: string | null | undefined): string {
   if (!phone) return '';
   const d = phone.replace(/[^\d]/g, '');
