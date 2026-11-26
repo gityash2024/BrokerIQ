@@ -1,9 +1,9 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Header, Post, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
-import { assistantChatSchema, assistantConfirmSchema, transcribeSchema, type AssistantPhase } from '@brokeriq/shared';
+import { assistantChatSchema, assistantConfirmSchema, hasDelegatedAccess, transcribeSchema, type AssistantPhase } from '@brokeriq/shared';
 import { ClientIp, CurrentUser, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -33,6 +33,25 @@ export class AssistantController {
     return { ...user, name: u?.name };
   }
 
+  private async assertAccess(user: RequestUser) {
+    await this.access.assertAllowed(user, 'ai');
+    if (!hasDelegatedAccess(user.delegatedActor ? { ...user, role: 'SUB_BROKER_ADMIN' } : user, 'assistant', 'view'))
+      throw new ForbiddenException('Ask your Broker Admin for Assistant access.');
+  }
+
+  @Get('history')
+  @Header('Cache-Control', 'no-store')
+  async history(@CurrentUser() user: RequestUser) {
+    await this.assertAccess(user);
+    return this.assistant.history(user);
+  }
+
+  @Delete('history')
+  async clearHistory(@CurrentUser() user: RequestUser) {
+    await this.assertAccess(user);
+    return this.assistant.clearHistory(user);
+  }
+
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('chat')
   async chat(
@@ -41,7 +60,7 @@ export class AssistantController {
     @Body(new ZodPipe(assistantChatSchema)) body: z.infer<typeof assistantChatSchema>,
     @ClientIp() ip?: string,
   ) {
-    await this.access.assertAllowed(user, 'ai');
+    await this.assertAccess(user);
     return this.assistant.chat(await this.withName(user), String(req.headers.authorization ?? ''), body, ip, this.report(req, body.requestId));
   }
 
@@ -53,7 +72,7 @@ export class AssistantController {
     @Body(new ZodPipe(assistantConfirmSchema)) body: z.infer<typeof assistantConfirmSchema>,
     @ClientIp() ip?: string,
   ) {
-    await this.access.assertAllowed(user, 'ai');
+    await this.assertAccess(user);
     return this.assistant.confirm(
       await this.withName(user),
       String(req.headers.authorization ?? ''),
@@ -72,7 +91,7 @@ export class AssistantController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('transcribe')
   async transcribe(@CurrentUser() user: RequestUser, @Body(new ZodPipe(transcribeSchema)) body: z.infer<typeof transcribeSchema>) {
-    await this.access.assertAllowed(user, 'ai');
+    await this.assertAccess(user);
     return this.assistant.transcribe(user, body.audio, body.mime, body.lang);
   }
 }

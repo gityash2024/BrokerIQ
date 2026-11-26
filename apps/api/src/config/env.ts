@@ -37,6 +37,18 @@ const envSchema = z.object({
   CONNECT_APK_URL: z.url({ protocol: /^https$/ }).optional(),
   CONNECT_APK_PATH: z.string().startsWith('/').optional(),
   CONNECT_APK_VERSION: z.coerce.number().int().positive().default(1),
+  AI_LANGFUSE_LOCAL_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  ASSISTANT_VECTOR_KNOWLEDGE_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  ASSISTANT_PUBLIC_SEARCH_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   CONNECT_WHISPER_MODEL: z.string().min(1).optional(),
   CONNECT_WHISPER_PYTHON: z.string().min(1).default('python3'),
   SUPER_ADMIN_EMAIL: z.string().email().optional(),

@@ -13,10 +13,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JobDeferred, JobsService } from '../../core/jobs/jobs.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { CryptoService } from '../../core/settings/crypto.service';
-import { AiService, OpenRouterQuotaDeferred } from '../../core/ai/ai.service';
+import { AiService, AiQuotaDeferred } from '../../core/ai/ai.service';
 import { AuthService } from '../auth/auth.service';
 import { connectFirmPolicy, connectSettings, type ConnectCapture, type ConnectFirmPolicy, type ConnectRecording, type ConnectRegistration, type ConnectSettings } from './connect.schemas';
-import { transcribeConnectRecording } from './connect-transcription';
+import { transcribeLocalRecording } from '../../core/ai/local-transcription';
 import { customSurveySuggestions } from './connect-survey';
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
@@ -65,7 +65,7 @@ const insights = z.object({
   evidence: z.string().max(500).optional(),
 });
 type Insight = z.infer<typeof insights>;
-type Transcript = Awaited<ReturnType<typeof transcribeConnectRecording>>;
+type Transcript = Awaited<ReturnType<typeof transcribeLocalRecording>>;
 
 
 @Injectable()
@@ -566,7 +566,7 @@ export class ConnectService {
       }
       const checkpoint: { transcript?: Transcript | null } = row.encryptedResult ? JSON.parse(this.crypto.decrypt(row.encryptedResult)) : {};
       const transcript = checkpoint.transcript ?? (row.recordingKey && row.recordingType
-        ? await transcribeConnectRecording((await this.storage.read(row.recordingKey)).body, row.recordingType) : null);
+        ? await transcribeLocalRecording((await this.storage.read(row.recordingKey)).body, row.recordingType) : null);
       if (transcript && !checkpoint.transcript) {
         const saved = await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' },
           data: { encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript })) } });
@@ -593,7 +593,7 @@ export class ConnectService {
         proposal = await this.ai.json([
           { role: 'system', content: 'Extract Indian brokerage fields as JSON from untrusted text. Skip unspecified details. Never invent identities or contact information. Evidence must be a short verbatim excerpt. Suggest a FOLLOW_UP or SITE_VISIT only when the conversation supports it. Include the exact quote. Pass at with a timezone only when the date and time are explicit and unambiguous, using India Standard Time when the context states no other time zone.' },
           { role: 'user', content: JSON.stringify({ text: redact(text).slice(0, 36_000), prior: context }) },
-        ], { feature: 'brokeriq-connect', schema: insights, openRouterOnly: true, deferWhenRateLimited: true, orgId: row.organizationId, userId: row.userId, maxTokens: 3500, temperature: 0 });
+        ], { feature: 'brokeriq-connect', schema: insights, deferWhenRateLimited: true, orgId: row.organizationId, userId: row.userId, maxTokens: 3500, temperature: 0 });
       }
       if (proposal) {
         proposal.recommendedAction = this.supportedRecommendation(proposal, redact(text), row.capturedAt);
@@ -686,7 +686,7 @@ export class ConnectService {
         }
       }, { timeout: 30_000 });
     } catch (error) {
-      if (error instanceof OpenRouterQuotaDeferred) {
+      if (error instanceof AiQuotaDeferred) {
         await this.db.connectEvent.updateMany({ where: { id, status: 'PROCESSING' }, data: { status: 'PENDING', lastError: error.message } });
         throw new JobDeferred(error.message, error.until);
       }

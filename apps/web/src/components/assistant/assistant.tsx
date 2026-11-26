@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, X } from 'lucide-react';
+import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, Trash2, X } from 'lucide-react';
 import { assistantDestination, languageOf, type AssistantPhase, type AssistantProgress } from '@brokeriq/shared';
 import { useRealtime } from '@/lib/realtime';
 import { api, ApiError, errorMessage } from '@/lib/api';
@@ -62,6 +62,23 @@ function AssistantSession() {
   const lang = useLang();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [memoryReady, setMemoryReady] = useState(false);
+  const userId = user?.id;
+  useEffect(() => {
+    if (!open || !userId || memoryReady) return;
+    let active = true;
+    void api<{ messages: Msg[] }>('/assistant/history')
+      .then(({ messages }) => {
+        if (active) {
+          setMsgs((current) => (current.length ? current : messages));
+          setMemoryReady(true);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [open, userId, memoryReady]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [phases, setPhases] = useState<AssistantPhase[]>([]);
@@ -126,7 +143,13 @@ function AssistantSession() {
     try {
       const r = await api<any>('/assistant/chat', {
         method: 'POST',
-        body: { requestId, messages: history.slice(-16).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })), lang, context: context() },
+        body: {
+          requestId,
+          rememberConversation: memoryReady,
+          messages: (memoryReady ? history.slice(-1) : history.slice(-16)).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
+          lang,
+          context: context(),
+        },
       });
       setMsgs((m) => [...m, { role: 'assistant', content: r.reply, cards: r.cards, pending: r.pending }]);
       say(r.reply);
@@ -134,7 +157,10 @@ function AssistantSession() {
       const notConfigured = e instanceof ApiError && e.isNotConfigured;
       setMsgs((m) => [
         ...m,
-        { role: 'assistant', content: notConfigured ? 'AI assistant के लिए Admin → Settings → Integrations में OpenRouter जाँचें।' : `⚠️ ${errorMessage(e)}` },
+        {
+          role: 'assistant',
+          content: notConfigured ? 'AI assistant के लिए Admin → Settings → Integrations में AI providers जाँचें।' : `⚠️ ${errorMessage(e)}`,
+        },
       ]);
     } finally {
       finish();
@@ -241,6 +267,28 @@ function AssistantSession() {
                 <p className="font-display font-bold">BrokerIQ Assistant</p>
                 <p className="truncate text-xs text-white/70">बोलकर या लिखकर — आपके account में, आपकी अनुमति से</p>
               </div>
+              {memoryReady && msgs.length > 0 && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="grid size-8 place-items-center rounded-lg hover:bg-white/10 disabled:opacity-50"
+                  aria-label="Clear assistant history"
+                  onClick={async () => {
+                    if (!window.confirm('Clear your saved BrokerIQ Assistant history?')) return;
+                    setBusy(true);
+                    try {
+                      await api('/assistant/history', { method: 'DELETE' });
+                      setMsgs([]);
+                    } catch (error) {
+                      setMsgs((m) => [...m, { role: 'assistant', content: errorMessage(error) }]);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              )}
               <button onClick={() => setSpeak(!speak)} className="grid size-8 place-items-center rounded-lg hover:bg-white/10" aria-label="Voice replies">
                 {speak ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
               </button>

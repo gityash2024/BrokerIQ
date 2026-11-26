@@ -1,0 +1,53 @@
+services:
+  searxng:
+    profiles: [research]
+    image: '${BROKERIQ_SEARXNG_IMAGE:-searxng/searxng@sha256:a7fc607aa6723f5a8982105bcc5ffba4d1b9fc7c6922a31a88d6e4cba49ef12a}'
+    ports:
+      - '127.0.0.1:18091:8080'
+    environment:
+      SEARXNG_SECRET: '${BROKERIQ_SEARXNG_SECRET:-}'
+    volumes:
+      - ./searxng.yml:/etc/searxng/settings.yml:ro
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+
+  qdrant:
+    profiles: [knowledge]
+    image: '${BROKERIQ_QDRANT_IMAGE:-qdrant/qdrant:v1.18.0}'
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks: [knowledge]
+    mem_limit: 768m
+
+  knowledge:
+    profiles: [knowledge]
+    build:
+      context: .
+      dockerfile: Dockerfile.knowledge
+      args:
+        PYTHON_IMAGE: '${BROKERIQ_KNOWLEDGE_PYTHON_IMAGE:-python:3.12-slim}'
+    depends_on:
+      - qdrant
+    restart: on-failure:5
+    ports:
+      - '127.0.0.1:18092:8080'
+    environment:
+      BGE_CONTAINER: 'true'
+      BGE_EMBEDDING_PATH: /models/embedding
+      BGE_RERANKER_PATH: /models/reranker
+    volumes:
+      - '${BROKERIQ_KNOWLEDGE_MODEL_DIR:-./models}:/models:ro'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 3g
+    networks: [knowledge]
+
+volumes:
+  qdrant-data:
+
+networks:
+  knowledge:
+    internal: true

@@ -324,7 +324,7 @@ export class PdfInventoryService {
       const values = await this.ai.json([
         { role: 'system', content: 'Normalize only the provided floor abbreviations. Return JSON array of {row, floor}. Skip uncertain abbreviations.' },
         { role: 'user', content: JSON.stringify(selected) },
-      ], { feature: 'capture', orgId, openRouterOnly: true, schema: inferredFloors, temperature: 0, maxTokens: 600 });
+      ], { feature: 'capture', orgId, dataScope: 'non-sensitive', schema: inferredFloors, temperature: 0, maxTokens: 600 });
       for (const value of values) {
         const source = selected.find(({ index }) => index === value.row);
         if (source && floorInterpretations[source.code].includes(value.floor)) rows[value.row].floor = value.floor;

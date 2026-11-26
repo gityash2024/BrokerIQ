@@ -424,6 +424,7 @@ enum TicketStatus {
 // ============================================================ Identity
 
 model User {
+  assistantMemories   AssistantMemory[]
   blockedReason       String?
   /**
    * Per-user limits set by BrokerIQ: post, chat, enquire, review, ai.
@@ -3097,6 +3098,26 @@ model OpenRouterDailyQuota {
   attempts Int
 }
 
+
+model AssistantMemory {
+  userId String
+  scope String
+  revision Int @default(0)
+  encryptedMessages String
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, scope])
+  @@index([expiresAt])
+}
+
+model AiProviderDailyQuota {
+  provider String
+  day DateTime @db.Date
+  attempts Int
+
+  @@id([provider, day])
+}
 
 model InventoryDetailAccess {
   id String @id @default(cuid())

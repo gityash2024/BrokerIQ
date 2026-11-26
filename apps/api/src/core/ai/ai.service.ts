@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { toJSONSchema, type ZodType } from 'zod';
+import { toJSONSchema, z, type ZodType } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { IntegrationFailedException, IntegrationNotConfiguredException } from '../../common/exceptions';
 import { env } from '../../config/env';
+import { transcribeLocalRecording } from './local-transcription';
+import { AiTelemetry } from './ai-telemetry';
 import { isFreeOpenRouterModel, openRouterFreeRouting, OPENROUTER_DAILY_LIMIT } from './openrouter-policy';
 
 export interface ChatMessage {
@@ -23,6 +25,8 @@ interface Provider {
   visionModels: string[];
   structuredApproved?: boolean;
   disableReasoning?: boolean;
+  allowPrivateData?: boolean;
+  dailyLimit?: number;
 }
 
 interface CallOpts {
@@ -38,21 +42,47 @@ interface CallOpts {
   responseSchema?: ZodType;
   strictSchema?: boolean;
   openRouterOnly?: boolean;
+  preferFreeRouter?: boolean;
+  /** The calling service constructs the input entirely from non-identifying known values. */
+  dataScope?: 'non-sensitive';
   deferWhenRateLimited?: boolean;
   deadlineAt?: number;
   onFallback?: () => void;
 }
 
-const PROVIDERS: ProviderName[] = ['qwen_local', 'openrouter', 'groq', 'gemini'];
+const PROVIDERS: ProviderName[] = ['groq', 'openrouter', 'gemini', 'qwen_local'];
+const GROQ_MODEL = 'openai/gpt-oss-120b';
+const GEMINI_FLASH = 'gemini-3.8-flash';
+const FREE_ROUTER = 'openrouter/free';
 const URLS: Record<ProviderName, string> = {
   qwen_local: 'http://127.0.0.1:18080/v1/chat/completions',
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
   groq: 'https://api.groq.com/openai/v1/chat/completions',
   gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
 };
+const assistantMessage = z.object({
+  content: z.string().max(40_000).nullable().optional(),
+  tool_calls: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(160),
+        type: z.literal('function'),
+        function: z.object({ name: z.string().min(1).max(80), arguments: z.string().max(20_000) }),
+      }),
+    )
+    .max(8)
+    .optional(),
+});
 const TEXT_TIMEOUT_MS = 45_000;
 const VISION_TIMEOUT_MS = 90_000;
 const CACHE_MAX = 300;
+function nextPacificDay(now: number) {
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', dateStyle: 'short' });
+  const today = date.format(now);
+  let end = now;
+  while (date.format(end) === today) end += 3_600_000;
+  return Math.floor(end / 3_600_000) * 3_600_000 + 10_000;
+}
 const NOT_CONFIGURED = 'AI configured नहीं है। Super Admin → Settings → Credentials में Local Qwen या सक्षम free AI provider configure करें।';
 
 const list = (v: unknown) =>
@@ -73,38 +103,40 @@ class RetryableError extends Error {
 /** The provider itself is unusable (bad key, no credit) — skip all its models. */
 class ProviderError extends Error {}
 
-export class OpenRouterQuotaDeferred extends Error {
+export class AiQuotaDeferred extends Error {
   constructor(
     readonly until: Date,
     readonly daily = false,
+    readonly provider: ProviderName = 'openrouter',
   ) {
-    super(daily ? 'OpenRouter daily request limit reached' : 'Free OpenRouter capacity is temporarily unavailable');
+    super(daily ? 'Free AI daily request limit reached' : 'Free AI capacity is temporarily unavailable');
   }
 }
+export { AiQuotaDeferred as OpenRouterQuotaDeferred };
+
 function nextUtcDay() {
   const day = new Date();
   day.setUTCHours(24, 0, 10, 0);
   return day;
 }
 
-/**
- * Provider-agnostic AI client. Tries free OpenRouter before the configured fallback providers
- * and, inside each, the primary then backup models — so a busy free model or a rate limit falls through to
- * the next one. JSON answers can be checked against a zod schema with one automatic repair attempt.
- */
+/** Shared inference policy for Assistant, extraction, Connect and automation jobs. */
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly cache = new Map<string, { at: number; ttl: number; text: string }>();
-  private readonly openRouterRetryAt = new Map<string, number>();
+  private readonly retryAt = new Map<string, number>();
   private openRouterDailyResetAt = 0;
   private readonly openRouterMandatoryReasoning = new Set<string>();
   private localBusy = false;
   private localRetryAt = 0;
+  private readonly telemetry: AiTelemetry;
   constructor(
     private readonly settings: SettingsService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) {
+    this.telemetry = new AiTelemetry(this.settings);
+  }
 
   // ------------------------------------------------------------------ providers
   private toProvider(name: ProviderName, v: Record<string, unknown>): Provider {
@@ -124,39 +156,41 @@ export class AiService {
         apiKey,
         url: URLS[name],
         disableReasoning: v.disableReasoning === true || v.disableReasoning === 'true',
+        allowPrivateData: true,
         textModels: [...new Set([...list(v.textModel), ...list(v.fallbackModels)].filter(isFreeOpenRouterModel))],
         visionModels: [...new Set([...list(v.visionModel), ...list(v.visionFallbackModels)].filter(isFreeOpenRouterModel))],
       };
-    if (name === 'groq')
-      return { name, apiKey, url: URLS[name], textModels: list(v.textModel || 'llama-3.3-70b-versatile'), visionModels: list(v.visionModel) };
-    return { name, apiKey, url: URLS[name], textModels: list(v.model || 'gemini-2.5-flash'), visionModels: list(v.model || 'gemini-2.5-flash') };
+    const freeTier = v.freeTierConfirmed === true || v.freeTierConfirmed === 'true';
+    if (name === 'groq') {
+      const privateData = v.zeroDataRetentionConfirmed === true || v.zeroDataRetentionConfirmed === 'true';
+      return { name, apiKey, url: URLS[name], textModels: freeTier ? [GROQ_MODEL] : [], visionModels: [], dailyLimit: 1000, allowPrivateData: privateData };
+    }
+    const dailyLimit = Number(v.dailyRequestLimit);
+    const enabled = freeTier && Number.isInteger(dailyLimit) && dailyLimit > 0 && dailyLimit <= 2_147_483_647;
+    const models = enabled ? [GEMINI_FLASH] : [];
+    return { name, apiKey, url: URLS[name], textModels: models, visionModels: models, dailyLimit };
   }
 
-  /** Try free OpenRouter first, then configured alternatives. */
-  async providers(captureVision = false, freeOnly = false): Promise<Provider[]> {
-    const app = await this.settings.getAppConfig();
-    const order = [...new Set(['openrouter', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName =>
-      (PROVIDERS as string[]).includes(p),
+  async providers(captureVision = false, openRouterOnly = false, nonSensitive = false): Promise<Provider[]> {
+    const configured = await Promise.all(
+      PROVIDERS.map(async (name) => {
+        if (openRouterOnly && name !== 'openrouter') return null;
+        const values = await this.settings.resolve(name).catch(() => null);
+        if (!values || !(values.apiKey || (name === 'qwen_local' && values.textModel))) return null;
+        const provider = this.toProvider(name, values);
+        if (name === 'gemini' && !nonSensitive) return null;
+        if (name === 'groq' && !nonSensitive && !provider.allowPrivateData) return null;
+        if (name === 'openrouter') {
+          provider.allowPrivateData = !nonSensitive;
+          if (openRouterOnly) provider.textModels = [...new Set([...provider.textModels, FREE_ROUTER])];
+          if (captureVision || openRouterOnly) provider.visionModels = [...new Set([...provider.visionModels, FREE_ROUTER])];
+          if (!provider.textModels.length && !values.textModel) provider.textModels = [FREE_ROUTER];
+          if (!provider.visionModels.length && !values.visionModel && captureVision) provider.visionModels = [FREE_ROUTER];
+        }
+        return provider.textModels.length || provider.visionModels.length ? provider : null;
+      }),
     );
-    const out: Provider[] = [];
-    for (const name of order) {
-      const v = await this.settings.resolve(name).catch(() => null);
-      if (v && (v.apiKey || (name === 'qwen_local' && v.textModel))) {
-        const provider = this.toProvider(name, v);
-        if (name === 'openrouter' && freeOnly) {
-          provider.textModels = [...new Set([...provider.textModels, 'openrouter/free'])];
-          provider.visionModels = [...new Set([...provider.visionModels, 'openrouter/free'])];
-        }
-        if (captureVision) {
-          if (name !== 'openrouter') continue;
-          provider.visionModels = [...new Set([...provider.visionModels, 'openrouter/free'])];
-        }
-        // Paid fallback is never used by the broker-first launch.
-        if (env().BROKER_FIRST && name !== 'openrouter' && name !== 'qwen_local') continue;
-        if (provider.textModels.length || provider.visionModels.length) out.push(provider);
-      }
-    }
-    return out;
+    return configured.filter((provider): provider is Provider => provider !== null);
   }
 
   async isAvailable(kind: 'text' | 'vision' | 'tools' | 'json' = 'text', feature?: string) {
@@ -278,83 +312,29 @@ export class AiService {
       );
       const choice = data.choices?.[0];
       if (choice?.finish_reason === 'length') throw new RetryableError('incomplete assistant response');
-      const m = choice?.message;
-      if (!m || (!m.content && !m.tool_calls?.length)) throw new RetryableError('empty answer');
-      message = m;
-      return { text: m.content ?? '', tokens: data.usage?.total_tokens ?? 0 };
+      const parsed = assistantMessage.safeParse(choice?.message);
+      if (!parsed.success || (!parsed.data.content && !parsed.data.tool_calls?.length)) throw new RetryableError('invalid assistant response');
+      message = { content: parsed.data.content ?? null, tool_calls: parsed.data.tool_calls };
+      return { text: message.content ?? '', tokens: data.usage?.total_tokens ?? 0 };
     });
     return message;
   }
 
-  /** Speech → text for the assistant's voice input (Groq Whisper, else Gemini audio). OpenRouter has no audio. */
+  /** Keep raw voice recordings inside the existing Faster Whisper worker runtime. */
   async transcribe(audioBase64: string, mime: string, lang: string | undefined, opts: { userId?: string; orgId?: string | null }) {
     const bytes = Buffer.from(audioBase64.replace(/^data:[^,]+,/, ''), 'base64');
-    const providers = (await this.providers()).filter((p) => p.name === 'groq' || p.name === 'gemini');
-    if (!providers.length)
-      throw new IntegrationNotConfiguredException('groq', 'Voice input के लिए Groq या Gemini key चाहिए — तब तक phone का voice typing इस्तेमाल करें।');
-    let lastError = '';
-    for (const p of providers) {
-      try {
-        let text: string;
-        if (p.name === 'groq') {
-          const form = new FormData();
-          const ext = mime.includes('webm')
-            ? 'webm'
-            : mime.includes('ogg')
-              ? 'ogg'
-              : mime.includes('wav')
-                ? 'wav'
-                : mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac')
-                  ? 'm4a'
-                  : 'mp3';
-          form.append('file', new Blob([bytes], { type: mime }), `voice.${ext}`);
-          form.append('model', 'whisper-large-v3-turbo');
-          form.append('response_format', 'json');
-          if (lang && lang !== 'en') form.append('language', lang);
-          const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${p.apiKey}` },
-            body: form,
-            signal: AbortSignal.timeout(TEXT_TIMEOUT_MS),
-          });
-          const data: any = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data?.error?.message ?? `Groq HTTP ${res.status}`);
-          text = String(data.text ?? '').trim();
-        } else {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(p.textModels[0])}:generateContent?key=${p.apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [
-                  {
-                    role: 'user',
-                    parts: [
-                      { text: 'Transcribe this voice note exactly, in the language spoken. Reply with the transcript only.' },
-                      { inline_data: { mime_type: mime, data: bytes.toString('base64') } },
-                    ],
-                  },
-                ],
-              }),
-              signal: AbortSignal.timeout(TEXT_TIMEOUT_MS),
-            },
-          );
-          const data: any = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data?.error?.message ?? `Gemini HTTP ${res.status}`);
-          text = (data.candidates?.[0]?.content?.parts ?? [])
-            .map((x: any) => x.text)
-            .join('')
-            .trim();
-        }
-        await this.track(p.name, p.name === 'groq' ? 'whisper-large-v3-turbo' : p.textModels[0], { feature: 'assistant-voice', ...opts }, true, 0);
-        return text;
-      } catch (e) {
-        lastError = (e as Error).message;
-        await this.track(p.name, 'voice', { feature: 'assistant-voice', ...opts }, false, 0);
-      }
+    try {
+      const result = await transcribeLocalRecording(bytes, mime, {
+        timeoutMs: 30_000,
+        lang: lang && /^(?:en|hi)$/.test(lang) ? lang : undefined,
+      });
+      await this.track('faster_whisper', 'local', { feature: 'assistant-voice', ...opts }, true, 0);
+      return result.segments.map(({ text }) => text).join(' ');
+    } catch (error) {
+      if (error instanceof IntegrationNotConfiguredException) throw error;
+      await this.track('faster_whisper', 'local', { feature: 'assistant-voice', ...opts }, false, 0);
+      throw new IntegrationFailedException('connect_transcription', 'Voice transcription अभी उपलब्ध नहीं है। फिर कोशिश करें।');
     }
-    throw new IntegrationFailedException(providers[0].name, lastError);
   }
 
   // ------------------------------------------------------------------ core loop
@@ -363,28 +343,28 @@ export class AiService {
     kind: 'text' | 'vision' | 'tools' | 'json',
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
-    const providers = (await this.providers(kind === 'vision' && (opts.feature === 'capture' || opts.feature === 'property_video'), opts.openRouterOnly))
-      .filter((p) => !opts.openRouterOnly || p.name === 'openrouter')
-      .filter((p) =>
-        kind === 'vision'
-          ? p.visionModels.length > 0
-          : (kind !== 'tools' || p.name !== 'qwen_local') &&
-            (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
-            p.textModels.length > 0,
-      );
+    const providers = (await this.providers(kind === 'vision', opts.openRouterOnly, opts.dataScope === 'non-sensitive')).filter((p) =>
+      kind === 'vision'
+        ? p.visionModels.length > 0
+        : (kind !== 'tools' || p.name !== 'qwen_local') &&
+          (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
+          p.textModels.length > 0,
+    );
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
     const rateLimited: Date[] = [];
     for (const p of providers) {
-      const models = kind === 'vision' ? p.visionModels : p.textModels;
+      const configured = kind === 'vision' ? p.visionModels : p.textModels;
+      const models = p.name === 'openrouter' && opts.preferFreeRouter ? [...new Set([FREE_ROUTER, ...configured])] : configured;
       for (const model of models) {
         if (opts.deadlineAt != null && Date.now() >= opts.deadlineAt) break;
-        const retryAt = this.openRouterRetryAt.get(model) ?? 0;
-        if (p.name === 'openrouter' && Date.now() < retryAt) {
+        const retryAt = this.retryAt.get(p.name + '/' + model) ?? 0;
+        if (Date.now() < retryAt) {
           rateLimited.push(new Date(retryAt));
-          errors.push(`openrouter/${model}: waiting for Retry-After`);
+          errors.push(`${p.name}/${model}: waiting for capacity`);
           continue;
         }
+        const started = Date.now();
         try {
           if (errors.length) opts.onFallback?.();
           let out;
@@ -394,25 +374,30 @@ export class AiService {
             // One bounded retry for network/5xx glitches; rate limits immediately
             // follow the configured fallback chain and retain Retry-After.
             if (opts.deadlineAt != null || p.name !== 'openrouter' || !(error instanceof RetryableError) || !error.transient) throw error;
-            await this.track(p.name, model, opts, false, 0);
+            await this.track(p.name, model, opts, false, 0, started);
             await new Promise((resolve) => setTimeout(resolve, 1000));
             out = await attempt(p, model);
           }
-          await this.track(p.name, model, opts, true, out.tokens);
+          await this.track(p.name, model, opts, true, out.tokens, started);
           return out.text;
         } catch (e) {
-          await this.track(p.name, model, opts, false, 0);
-          errors.push(`${p.name}/${model}: ${(e as Error).message}`.slice(0, 200));
-          if (e instanceof OpenRouterQuotaDeferred) {
+          await this.track(p.name, model, opts, false, 0, started);
+          errors.push(
+            `${p.name}/${model}: ${e instanceof AiQuotaDeferred ? 'quota' : e instanceof ProviderError ? 'credential or billing rejection' : 'attempt failed'}`,
+          );
+          if ((p.name === 'groq' || p.name === 'gemini') && ((e instanceof RetryableError && e.transient) || e instanceof ProviderError)) {
+            this.retryAt.set(p.name + '/' + model, Date.now() + 30_000);
+          }
+          if (e instanceof AiQuotaDeferred) {
             if (e.daily && opts.openRouterOnly && opts.deferWhenRateLimited) throw e;
             rateLimited.push(e.until);
           }
-          if (e instanceof ProviderError || (e instanceof OpenRouterQuotaDeferred && e.daily)) break; // skip this provider's other models
+          if (e instanceof ProviderError || (e instanceof AiQuotaDeferred && e.daily)) break; // skip this provider's other models
         }
       }
     }
-    if (opts.openRouterOnly && opts.deferWhenRateLimited && rateLimited.length) {
-      throw new OpenRouterQuotaDeferred(new Date(Math.min(...rateLimited.map((date) => date.valueOf()))));
+    if (opts.deferWhenRateLimited && rateLimited.length) {
+      throw new AiQuotaDeferred(new Date(Math.min(...rateLimited.map((date) => date.valueOf()))));
     }
     this.logger.warn(`AI ${opts.feature} failed on all models: ${errors.join(' | ')}`);
     throw new IntegrationFailedException(providers[0].name, `AI अभी busy है — थोड़ी देर में फिर कोशिश करें। (${errors.length} models tried)`);
@@ -516,13 +501,33 @@ export class AiService {
         ...(p.disableReasoning && !this.openRouterMandatoryReasoning.has(body.model) ? { reasoning: { enabled: false } } : {}),
         provider: {
           ...openRouterFreeRouting,
+          ...(p.allowPrivateData ? { zdr: true } : {}),
           ...(body.tools || (body.response_format as { type?: string } | undefined)?.type === 'json_schema' ? { require_parameters: true } : {}),
         },
       };
     }
+    if (p.name === 'groq' || p.name === 'gemini') {
+      const quotaZone = p.name === 'gemini' ? 'America/Los_Angeles' : 'UTC';
+      const reserved = await this.prisma.$queryRaw<{ attempts: number }[]>`
+        INSERT INTO "AiProviderDailyQuota" ("provider", "day", "attempts")
+        VALUES (${p.name}, (CURRENT_TIMESTAMP AT TIME ZONE ${quotaZone})::date, 1)
+        ON CONFLICT ("provider", "day") DO UPDATE SET "attempts" = "AiProviderDailyQuota"."attempts" + 1
+        WHERE "AiProviderDailyQuota"."attempts" < ${p.dailyLimit}
+        RETURNING "attempts"
+      `;
+      if (!reserved.length) {
+        const now = Date.now();
+        const until = p.name === 'gemini' ? nextPacificDay(now) : nextUtcDay().valueOf();
+        throw new AiQuotaDeferred(new Date(until), true, p.name);
+      }
+      if (p.name === 'groq') {
+        const { max_tokens, ...input } = body;
+        body = { ...input, max_completion_tokens: max_tokens, reasoning_effort: 'low' };
+      }
+    }
     if (p.name === 'openrouter') {
       if (this.openRouterDailyResetAt > Date.now()) {
-        throw new OpenRouterQuotaDeferred(new Date(this.openRouterDailyResetAt), true);
+        throw new AiQuotaDeferred(new Date(this.openRouterDailyResetAt), true);
       }
       // Count upstream requests, including model fallbacks, retries and diagnostics.
       const reserved = await this.prisma.$queryRaw<{ attempts: number }[]>`
@@ -532,31 +537,31 @@ export class AiService {
         WHERE "OpenRouterDailyQuota"."attempts" < ${OPENROUTER_DAILY_LIMIT}
         RETURNING "attempts"
       `;
-      if (!reserved.length) throw new OpenRouterQuotaDeferred(nextUtcDay(), true);
+      if (!reserved.length) {
+        this.openRouterDailyResetAt = nextUtcDay().valueOf();
+        throw new AiQuotaDeferred(new Date(this.openRouterDailyResetAt), true);
+      }
     }
     let res: Response;
     try {
-      res = await fetch(p.url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
+      res = await fetch(p.url, { method: 'POST', headers, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(timeoutMs) });
     } catch (e) {
       throw new RetryableError(`network/timeout: ${(e as Error).message}`, true);
     }
-    if (p.name === 'openrouter' && res.status === 429 && typeof body.model === 'string') {
+    if (res.status === 429 && typeof body.model === 'string') {
       const retryAfter = res.headers?.get('retry-after');
       const now = Date.now();
       const resetAt = Number(res.headers?.get('x-ratelimit-reset'));
       const remaining = res.headers?.get('x-ratelimit-remaining');
       const resetNearMidnight = Math.abs(resetAt - nextUtcDay().valueOf()) < 60_000;
-      if (remaining === '0' && resetAt > now && resetNearMidnight) {
+      if (p.name === 'openrouter' && remaining === '0' && resetAt > now && resetNearMidnight) {
         this.openRouterDailyResetAt = Math.max(resetAt, nextUtcDay().valueOf());
-        throw new OpenRouterQuotaDeferred(new Date(this.openRouterDailyResetAt), true);
+        throw new AiQuotaDeferred(new Date(this.openRouterDailyResetAt), true);
       }
       const retryAt = !retryAfter ? NaN : /^\d+$/.test(retryAfter) ? now + Number(retryAfter) * 1000 : Date.parse(retryAfter);
-      if (Number.isFinite(retryAt) && retryAt > now) {
-        const until = Math.min(retryAt, now + 86_400_000);
-        this.openRouterRetryAt.set(body.model, until);
-        throw new OpenRouterQuotaDeferred(new Date(until));
-      }
-      throw new OpenRouterQuotaDeferred(new Date(now + 60_000));
+      const until = Number.isFinite(retryAt) && retryAt > now ? Math.min(retryAt, now + 86_400_000) : now + 60_000;
+      this.retryAt.set(p.name + '/' + body.model, until);
+      throw new AiQuotaDeferred(new Date(until), false, p.name);
     }
     const data: any = await res.json().catch(() => ({}));
     const msg = data?.error?.message ?? data?.[0]?.error?.message ?? `HTTP ${res.status}`;
@@ -574,10 +579,10 @@ export class AiService {
       if (remaining < 1) throw new RetryableError('No time left for the reasoning retry');
       return this.postRequest({ ...p, disableReasoning: false }, retry, remaining);
     }
-    if (res.status === 401 || res.status === 403) throw new ProviderError(`key rejected: ${msg}`);
-    if (res.status === 402) throw new ProviderError(`no credit: ${msg}`);
-    if (!res.ok) throw new RetryableError(msg, res.status >= 500); // 400 (e.g. model can't do tools/json/images), 404, 429, 5xx
-    if (data?.error) throw new RetryableError(String(data.error.message ?? 'provider error'));
+    if (res.status === 401 || res.status === 403) throw new ProviderError(`key rejected (HTTP ${res.status})`);
+    if (res.status === 402) throw new ProviderError('billing rejected (HTTP 402)');
+    if (!res.ok) throw new RetryableError(`model request rejected (HTTP ${res.status})`, res.status >= 500);
+    if (data?.error) throw new RetryableError('provider returned an invalid completion');
     return data;
   }
 
@@ -586,24 +591,32 @@ export class AiService {
     this.cache.set(key, { at: Date.now(), ttl, text });
   }
 
-  private async track(provider: string, model: string, opts: { feature: string; orgId?: string | null; userId?: string }, success: boolean, tokens: number) {
+  private async track(
+    provider: string,
+    model: string,
+    opts: { feature: string; orgId?: string | null; userId?: string },
+    success: boolean,
+    tokens: number,
+    started = Date.now(),
+  ) {
     await this.prisma.aiUsage
       .create({ data: { provider, model, feature: opts.feature, organizationId: opts.orgId ?? null, userId: opts.userId, success, tokens } })
       .catch(() => undefined);
+    if (env().AI_LANGFUSE_LOCAL_ENABLED) this.telemetry.record({ provider, model, feature: opts.feature, started, success, tokens });
   }
 
   // ------------------------------------------------------------------ admin
   /** Credentials Center "Test": one tiny call, plus (OpenRouter) the free models available right now. */
   async test(key: ProviderName, values: Record<string, unknown>) {
     const p = this.toProvider(key, values);
-    if (env().BROKER_FIRST) {
-      if (key !== 'openrouter' && key !== 'qwen_local')
-        throw new IntegrationNotConfiguredException('openrouter', 'Launch AI uses local Qwen or OpenRouter free models only.');
+    if (!p.textModels.length && (key === 'groq' || key === 'gemini')) {
+      throw new IntegrationNotConfiguredException(key, 'Confirm the provider project is on the free tier and save its required quota settings.');
     }
+    p.allowPrivateData = false; // The diagnostic sends only a fixed public prompt.
     const errors: string[] = [];
     for (const model of p.textModels) {
       try {
-        const data = await this.post(p, { model, messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 5 }, 20_000);
+        const data = await this.post(p, { model, messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 128 }, 20_000);
         const ok = String(data.choices?.[0]?.message?.content ?? '').trim();
         if (!ok) throw new RetryableError('empty diagnostic response');
         const [free, quota] =
@@ -622,7 +635,7 @@ export class AiService {
           .join('\n');
       } catch (e) {
         errors.push(`${model}: ${(e as Error).message}`);
-        if (e instanceof ProviderError || (e instanceof OpenRouterQuotaDeferred && e.daily)) break;
+        if (e instanceof ProviderError || (e instanceof AiQuotaDeferred && e.daily)) break;
       }
     }
     throw new Error(errors.join(' | ') || 'No model configured');

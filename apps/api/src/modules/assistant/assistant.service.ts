@@ -1,17 +1,21 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import type { Prisma, Role } from '@prisma/client';
 import { assistantDestination, languageOf, type AssistantPhase } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from '../../core/settings/crypto.service';
 import { sha256 } from '../../common/utils';
-import { AiService } from '../../core/ai/ai.service';
+import { AiService, type ChatMessage } from '../../core/ai/ai.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { env } from '../../config/env';
 import { INTERNAL_CALL_HEADER, INTERNAL_CALL_TOKEN } from '../../common/internal';
 import type { RequestUser } from '../../common/decorators';
 import { toOpenAi, toolsFor, type Call, type ToolCtx } from './tools';
 import { assistantSystem } from '../../core/ai/prompts';
+import { ModulesService } from '../../core/features/modules.service';
+import { researchGurugram, retrieveWorkspaceKnowledge } from './assistant-retrieval';
 
 export interface AssistantReply {
   reply: string;
@@ -26,6 +30,11 @@ export interface AssistantReply {
 const MAX_ROUNDS = 5;
 const TURN_BUDGET_MS = 32_000;
 type ReportProgress = (phase: AssistantPhase) => void;
+const assistantState = Annotation.Root({
+  rounds: Annotation<number>,
+  message: Annotation<Awaited<ReturnType<AiService['chatWithTools']>> | null>,
+  response: Annotation<AssistantReply | null>,
+});
 
 function asksForModerationCount(message: string) {
   const question = message
@@ -37,6 +46,9 @@ function asksForModerationCount(message: string) {
     question,
   );
 }
+const MEMORY_TTL = 30 * 86_400_000;
+const MEMORY_MESSAGES = 16;
+type MemoryMessage = { role: Exclude<ChatMessage['role'], 'system'>; content: string };
 const PENDING_TTL = 5 * 60_000;
 
 /**
@@ -51,6 +63,7 @@ export class AssistantService {
     private readonly audit: AuditService,
     private readonly db: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly modules: ModulesService,
   ) {}
 
   private base() {
@@ -58,7 +71,7 @@ export class AssistantService {
   }
 
   /** Loopback call as the user (same guards/validation as the app). */
-  private ctx(auth: string, ip?: string, deadlineAt = Infinity): ToolCtx {
+  private ctx(auth: string, user: RequestUser, ip?: string, deadlineAt = Infinity): ToolCtx {
     const call = async (c: Call) => {
       const timeLeft = Math.min(15_000, deadlineAt - Date.now());
       if (timeLeft < 1) throw new Error('Assistant request timed out');
@@ -85,7 +98,18 @@ export class AssistantService {
       return data;
     };
     let meCache: any;
-    return { call, me: async () => (meCache ??= await call({ method: 'GET', path: '/auth/me' })) };
+    return {
+      call,
+      me: async () => (meCache ??= await call({ method: 'GET', path: '/auth/me' })),
+      workspaceKnowledge: async (query) => retrieveWorkspaceKnowledge(user, await this.modules.all(), query, Math.min(4000, deadlineAt - Date.now())),
+      research: env().ASSISTANT_PUBLIC_SEARCH_ENABLED
+        ? async (input) => {
+            const budget = Math.min(6_000, deadlineAt - Date.now());
+            if (budget < 1) throw new Error('Public research timed out.');
+            return researchGurugram(input, budget);
+          }
+        : undefined,
+    };
   }
 
   private system(user: RequestUser & { name?: string }, lang: string, context?: { path?: string; entityId?: string }) {
@@ -115,11 +139,14 @@ export class AssistantService {
   private availableTools(user: RequestUser) {
     const tools = toolsFor(user.role).filter(
       (tool) =>
+        (tool.name !== 'research_gurugram' || env().ASSISTANT_PUBLIC_SEARCH_ENABLED) &&
         (!user.delegatedActor || !/broadcast/.test(tool.name)) &&
         (user.agentChatEnabled !== false || tool.name !== 'send_whatsapp') &&
         (user.role !== 'PROPERTY_OWNER' ||
           [
             'my_workspace',
+            'workspace_guide',
+            'research_gurugram',
             'owner_properties',
             'report_owner_availability',
             'search_properties',
@@ -170,17 +197,98 @@ export class AssistantService {
     );
   }
 
+  private memoryScope(user: RequestUser) {
+    return {
+      userId: user.id,
+      scope: sha256(
+        JSON.stringify([
+          user.orgId,
+          user.role,
+          user.delegatedActor === true,
+          [...(user.rolePermissions ?? [])].sort(),
+          [...(user.delegatedPermissions ?? [])].sort(),
+          user.agentChatEnabled,
+        ]),
+      ),
+    };
+  }
+
+  private async readMemory(user: RequestUser) {
+    const scope = this.memoryScope(user);
+    const row = await this.db.assistantMemory.findUnique({ where: { userId_scope: scope } });
+    const messages: MemoryMessage[] = row && row.expiresAt.getTime() > Date.now() ? JSON.parse(this.crypto.decrypt(row.encryptedMessages)) : [];
+    return { scope, revision: row?.revision ?? null, messages };
+  }
+
+  async history(user: RequestUser) {
+    return { messages: (await this.readMemory(user)).messages };
+  }
+
+  async clearHistory(user: RequestUser) {
+    const scope = this.memoryScope(user);
+    const encryptedMessages = this.crypto.encrypt('[]');
+    const expiresAt = new Date(Date.now() + MEMORY_TTL);
+    // Keep a new revision so a response in flight cannot resurrect cleared history.
+    await this.db.assistantMemory.upsert({
+      where: { userId_scope: scope },
+      create: { ...scope, revision: 1, encryptedMessages, expiresAt },
+      update: { revision: { increment: 1 }, encryptedMessages, expiresAt },
+    });
+    return { messages: [] };
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async expireHistory() {
+    if (env().JOBS_ENABLED) await this.db.assistantMemory.deleteMany({ where: { expiresAt: { lte: new Date() } } });
+  }
+
   async chat(
     user: RequestUser & { name?: string },
     auth: string,
-    body: { messages: { role: 'user' | 'assistant'; content: string }[]; lang: string; context?: { path?: string; entityId?: string } },
+    body: { messages: MemoryMessage[]; lang: string; rememberConversation?: boolean; context?: { path?: string; entityId?: string } },
+    ip?: string,
+    progress?: ReportProgress,
+  ): Promise<AssistantReply> {
+    if (!body.rememberConversation) return this.runTurn(user, auth, body, ip, progress);
+    const latest = body.messages.at(-1);
+    if (!latest || latest.role !== 'user') throw new BadRequestException('A user message is required.');
+    const memory = await this.readMemory(user);
+    const response = await this.runTurn(user, auth, { ...body, messages: [...memory.messages.slice(-(MEMORY_MESSAGES - 1)), latest] }, ip, progress);
+    // Re-fetch CRM records under current grants. Do not replay record data or action proposals from memory.
+    const assistant: MemoryMessage = {
+      role: 'assistant',
+      content:
+        response.used?.length || response.pending
+          ? body.lang === 'hi'
+            ? 'उस request के लिए live data देखा गया। ताज़ा जानकारी फिर से देखी जा सकती है।'
+            : 'That request used live data. I can retrieve it again with your current access.'
+          : response.reply.slice(0, 4000),
+    };
+    const encryptedMessages = this.crypto.encrypt(JSON.stringify([...memory.messages, latest, assistant].slice(-MEMORY_MESSAGES)));
+    const expiresAt = new Date(Date.now() + MEMORY_TTL);
+    // A concurrent turn can win the revision. Its request and a clear action both take precedence over this stale write.
+    if (memory.revision === null) {
+      await this.db.assistantMemory.createMany({ data: [{ ...memory.scope, encryptedMessages, expiresAt }], skipDuplicates: true });
+    } else {
+      await this.db.assistantMemory.updateMany({
+        where: { ...memory.scope, revision: memory.revision },
+        data: { encryptedMessages, expiresAt, revision: { increment: 1 } },
+      });
+    }
+    return response;
+  }
+
+  private async runTurn(
+    user: RequestUser & { name?: string },
+    auth: string,
+    body: { messages: MemoryMessage[]; lang: string; context?: { path?: string; entityId?: string } },
     ip?: string,
     progress?: ReportProgress,
   ): Promise<AssistantReply> {
     const deadlineAt = Date.now() + TURN_BUDGET_MS;
     progress?.('understanding');
     const allowed = this.availableTools(user);
-    const ctx = this.ctx(auth, ip, deadlineAt);
+    const ctx = this.ctx(auth, user, ip, deadlineAt);
     const latest = body.messages.at(-1);
     const moderation = allowed.find((tool) => tool.name === 'moderation_queue');
     if (moderation && latest?.role === 'user' && asksForModerationCount(latest.content)) {
@@ -213,91 +321,104 @@ export class AssistantService {
       cards,
       used,
     });
-    for (let round = 0; round < MAX_ROUNDS && Date.now() < deadlineAt; round++) {
-      if (round > 0) progress?.('composing');
-      let m;
-      try {
-        m = await this.ai.chatWithTools(msgs, tools, {
-          feature: 'assistant',
-          openRouterOnly: true,
-          orgId: user.orgId,
-          userId: user.id,
-          deadlineAt,
-          onFallback: () => progress?.('retrying'),
-        });
-      } catch (error) {
-        if (cards) return fallback();
-        throw error;
-      }
-      if (!m.tool_calls?.length) {
-        const reply = (m.content ?? '').trim();
-        return reply ? { reply, cards, used } : fallback();
-      }
-      msgs.push({ role: 'assistant', content: m.content ?? '', tool_calls: m.tool_calls });
-      for (const tc of m.tool_calls) {
-        const tool = allowed.find((t) => t.name === tc.function.name);
-        let args: Record<string, unknown> | undefined;
+    if (Date.now() >= deadlineAt) return fallback();
+    const graph = new StateGraph(assistantState)
+      .addNode('plan', async ({ rounds }) => {
+        if (rounds > 0) progress?.('composing');
         try {
-          const parsed: unknown = JSON.parse(tc.function.arguments || '{}');
-          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed as Record<string, unknown>;
-        } catch {
-          /* model sent bad JSON */
+          const message = await this.ai.chatWithTools(msgs, tools, {
+            feature: 'assistant',
+            preferFreeRouter: true,
+            orgId: user.orgId,
+            userId: user.id,
+            deadlineAt,
+            onFallback: () => progress?.('retrying'),
+          });
+          return { rounds: rounds + 1, message, response: null };
+        } catch (error) {
+          if (cards) return { response: fallback() };
+          throw error;
         }
-        if (!tool) {
-          msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: 'This action is not available for this user.' }) });
-          continue;
+      })
+      .addNode('resolveTools', async ({ message: m }) => {
+        if (!m?.tool_calls?.length) {
+          const reply = (m?.content ?? '').trim();
+          return { response: reply ? { reply, cards, used } : fallback() };
         }
-        if (!args) {
-          msgs.push({ role: 'tool', tool_call_id: tc.id, content: '{"error":"Provide a valid argument object."}' });
-          continue;
-        }
-        if (tool.write) {
-          progress?.('confirming');
-          let summary: string;
+        msgs.push({ role: 'assistant', content: m.content ?? '', tool_calls: m.tool_calls });
+        for (const tc of m.tool_calls) {
+          const tool = allowed.find((t) => t.name === tc.function.name);
+          let args: Record<string, unknown> | undefined;
           try {
-            summary = tool.summary?.(args) ?? tool.name;
+            const parsed: unknown = JSON.parse(tc.function.arguments || '{}');
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed as Record<string, unknown>;
           } catch {
-            msgs.push({ role: 'tool', tool_call_id: tc.id, content: '{"error":"Some required fields are missing or invalid."}' });
+            /* model sent bad JSON */
+          }
+          if (!tool) {
+            msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: 'This action is not available for this user.' }) });
             continue;
           }
-          const token = randomBytes(18).toString('base64url');
-          await this.db.$transaction([
-            this.db.assistantConfirmation.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
-            this.db.assistantConfirmation.create({
-              data: {
-                ...this.confirmationOwner(user),
-                tokenHash: sha256(token),
-                tool: tool.name,
-                expiresAt: new Date(Date.now() + PENDING_TTL),
-                encryptedArgs: this.crypto.encrypt(JSON.stringify(args)),
-              },
-            }),
-          ]);
-          const reply = (m.content ?? '').trim() || `${summary} — क्या मैं यह कर दूँ?`;
-          return { reply, pending: { token, tool: tool.name, summary }, cards, used };
-        }
-        const key = tool.name + JSON.stringify(Object.entries(args).sort(([a], [b]) => a.localeCompare(b)));
-        let result = results.get(key);
-        if (!results.has(key)) {
-          progress?.('retrieving');
-          if (!used.includes(tool.name)) used.push(tool.name);
-          try {
-            result = await tool.run(args, ctx);
-            cards = this.cardsFor(tool.name, result) ?? cards;
-          } catch (e) {
-            result = { error: (e as Error).message };
+          if (!args) {
+            msgs.push({ role: 'tool', tool_call_id: tc.id, content: '{"error":"Provide a valid argument object."}' });
+            continue;
           }
-          results.set(key, result);
+          if (tool.write) {
+            progress?.('confirming');
+            let summary: string;
+            try {
+              summary = tool.summary?.(args) ?? tool.name;
+            } catch {
+              msgs.push({ role: 'tool', tool_call_id: tc.id, content: '{"error":"Some required fields are missing or invalid."}' });
+              continue;
+            }
+            const token = randomBytes(18).toString('base64url');
+            await this.db.$transaction([
+              this.db.assistantConfirmation.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
+              this.db.assistantConfirmation.create({
+                data: {
+                  ...this.confirmationOwner(user),
+                  tokenHash: sha256(token),
+                  tool: tool.name,
+                  expiresAt: new Date(Date.now() + PENDING_TTL),
+                  encryptedArgs: this.crypto.encrypt(JSON.stringify(args)),
+                },
+              }),
+            ]);
+            const reply = (m.content ?? '').trim() || `${summary} — क्या मैं यह कर दूँ?`;
+            return { response: { reply, pending: { token, tool: tool.name, summary }, cards, used } };
+          }
+          const key = tool.name + JSON.stringify(Object.entries(args).sort(([a], [b]) => a.localeCompare(b)));
+          let result = results.get(key);
+          if (!results.has(key)) {
+            progress?.('retrieving');
+            if (!used.includes(tool.name)) used.push(tool.name);
+            try {
+              result = await tool.run(args, ctx);
+              cards = this.cardsFor(tool.name, result) ?? cards;
+            } catch (e) {
+              result = { error: (e as Error).message };
+            }
+            results.set(key, result);
+          }
+          const content = JSON.stringify(result ?? null);
+          msgs.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: content.length <= 6000 ? content : JSON.stringify({ preview: content.slice(0, 2800), truncated: true }),
+          });
         }
-        const content = JSON.stringify(result ?? null);
-        msgs.push({
-          role: 'tool',
-          tool_call_id: tc.id,
-          content: content.length <= 6000 ? content : JSON.stringify({ preview: content.slice(0, 2800), truncated: true }),
-        });
-      }
-    }
-    return fallback();
+        return {};
+      })
+      .addEdge(START, 'plan')
+      .addConditionalEdges('plan', ({ response }) => (response ? END : 'resolveTools'), ['resolveTools', END])
+      .addConditionalEdges('resolveTools', ({ rounds, response }) => (response || rounds >= MAX_ROUNDS || Date.now() >= deadlineAt ? END : 'plan'), [
+        'plan',
+        END,
+      ])
+      .compile();
+    const result = await graph.invoke({ rounds: 0, message: null, response: null }, { recursionLimit: 2 * MAX_ROUNDS + 2 });
+    return result.response ?? fallback();
   }
 
   /** Runs a confirmed write and returns the actual outcome without a provider call. */
@@ -322,7 +443,7 @@ export class AssistantService {
     let result: unknown;
     let ok = true;
     try {
-      result = await tool.run(args, this.ctx(auth, ip));
+      result = await tool.run(args, this.ctx(auth, user, ip));
     } catch (e) {
       ok = false;
       result = { error: (e as Error).message };

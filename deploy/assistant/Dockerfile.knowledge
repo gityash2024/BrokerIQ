@@ -1,0 +1,8 @@
+ARG PYTHON_IMAGE
+FROM ${PYTHON_IMAGE}
+WORKDIR /srv
+RUN pip install --no-cache-dir numpy==2.2.6 onnxruntime==1.22.1 tokenizers==0.21.4
+COPY knowledge.py /srv/knowledge.py
+ENV PYTHONDONTWRITEBYTECODE=1
+USER 65532:65532
+CMD ["python", "-u", "/srv/knowledge.py"]

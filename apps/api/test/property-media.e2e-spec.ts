@@ -216,7 +216,7 @@ describe('Property identity, watermark and video extraction', () => {
         .expect(200);
       expect(result).toMatchObject({ aiVerified: false, state: 'READY' });
       expect(result.frames).toHaveLength(8);
-      expect(ai).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('distinct room'), expect.objectContaining({ openRouterOnly: true }));
+      expect(ai).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('distinct room'), expect.objectContaining({ feature: 'property_video', strictSchema: true }));
       const save = () =>
         http()
           .post('/api/media/property-video/' + upload.id + '/save')

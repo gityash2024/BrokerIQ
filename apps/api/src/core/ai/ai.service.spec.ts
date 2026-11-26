@@ -9,11 +9,12 @@ describe('AiService', () => {
   let calls: { url: string; model: string; msgs: number }[];
   let respond: (url: string, body: any) => { status: number; json: any; headers?: Headers };
 
-  const settings = (config: Record<string, Record<string, unknown> | null>, order = 'openrouter,groq,gemini') =>
+  const settings = (config: Record<string, Record<string, unknown> | null>) =>
     ({
-      getAppConfig: async () => ({ ai: { providerOrder: order } }),
       resolve: async (key: string) => config[key] ?? null,
     }) as any;
+  const groq = { apiKey: 'groq-test', freeTierConfirmed: true, zeroDataRetentionConfirmed: true };
+  const gemini = { apiKey: 'gemini-test', freeTierConfirmed: true, dailyRequestLimit: 20 };
   const prisma = { aiUsage: { create: jest.fn().mockResolvedValue({}) }, $queryRaw: jest.fn() } as any;
   const ok = (content: string) => ({ status: 200, json: { choices: [{ message: { content } }], usage: { total_tokens: 10 } } });
 
@@ -224,7 +225,8 @@ describe('AiService', () => {
       const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
       await expect(ai.chat([{ role: 'user', content: 'A reviewed draft' }], { feature: 't' })).resolves.toBe('OK');
       expect(bodies).toHaveLength(2);
-      for (const body of bodies) expect(body.provider).toEqual({ data_collection: 'deny', max_price: { prompt: 0, completion: 0, image: 0, request: 0 } });
+      for (const body of bodies)
+        expect(body.provider).toEqual({ data_collection: 'deny', zdr: true, max_price: { prompt: 0, completion: 0, image: 0, request: 0 } });
     } finally {
       spy.mockRestore();
     }
@@ -239,21 +241,47 @@ describe('AiService', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('skips a provider whose key is rejected and moves to the next provider', async () => {
-    respond = (u) => (u.includes('openrouter') ? { status: 401, json: { error: { message: 'bad key' } } } : ok('from groq'));
-    const ai = new AiService(
-      settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' }, groq: { apiKey: 'g', textModel: 'llama' } }),
-      prisma,
-    );
-    await expect(ai.chat([{ role: 'user', content: 'hi' }], { feature: 't' })).resolves.toBe('from groq');
-    expect(calls.map((c) => c.model)).toEqual(['a:free', 'llama']); // b:free not tried after 401
+  it('uses Groq first and respects a cooldown before resuming priority', async () => {
+    const clock = jest.spyOn(Date, 'now');
+    const now = Date.parse('2026-11-26T08:00:00Z');
+    clock.mockReturnValue(now);
+    let limit = true;
+    respond = (url, body) => {
+      if (!url.includes('api.groq.com')) return ok('OpenRouter answer');
+      expect(body.max_completion_tokens).toBe(1500);
+      return limit ? { status: 429, json: {}, headers: new Headers({ 'retry-after': '30' }) } : ok('Groq recovered');
+    };
+    const ai = new AiService(settings({ groq, openrouter: { apiKey: 'k', textModel: 'openrouter/free' } }), prisma);
+    const ask = () => ai.chat([{ role: 'user', content: 'Summarize this listing' }], { feature: 'description' });
+    await expect(ask()).resolves.toBe('OpenRouter answer');
+    await expect(ask()).resolves.toBe('OpenRouter answer');
+    clock.mockReturnValue(now + 31_000);
+    limit = false;
+    await expect(ask()).resolves.toBe('Groq recovered');
+    expect(calls.map(({ model }) => model)).toEqual(['openai/gpt-oss-120b', 'openrouter/free', 'openrouter/free', 'openai/gpt-oss-120b']);
   });
 
-  it('follows the admin provider order', async () => {
-    respond = () => ok('x');
-    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'or' }, gemini: { apiKey: 'g', model: 'gem' } }, 'gemini,openrouter'), prisma);
-    await ai.chat([{ role: 'user', content: 'hi' }], { feature: 't' });
-    expect(calls[0].model).toBe('gem');
+  it('routes only explicitly non-sensitive inputs to Gemini and enforces the configured free cap', async () => {
+    respond = (url) => (url.includes('generativelanguage') ? ok('Flash answer') : { status: 401, json: {} });
+    const ai = new AiService(settings({ groq: { ...groq, zeroDataRetentionConfirmed: false }, gemini }), prisma);
+    const messages = [{ role: 'user' as const, content: 'GF' }];
+    await expect(ai.chat(messages, { feature: 'capture' })).rejects.toMatchObject({ status: 424 });
+    expect(calls).toHaveLength(0);
+    await expect(ai.chat(messages, { feature: 'capture', dataScope: 'non-sensitive' })).resolves.toBe('Flash answer');
+    expect(calls.map(({ model }) => model)).toEqual(['openai/gpt-oss-120b', 'gemini-3.8-flash']);
+    expect(prisma.$queryRaw.mock.calls.map((args: unknown[]) => args.at(-1))).toEqual([1000, 20]);
+    prisma.$queryRaw.mockResolvedValue([]);
+    await expect(ai.chat(messages, { feature: 'capture', dataScope: 'non-sensitive', deferWhenRateLimited: true })).rejects.toBeInstanceOf(
+      OpenRouterQuotaDeferred,
+    );
+    expect(calls).toHaveLength(2);
+  });
+
+  it('leaves unconfirmed provider projects inactive even when they have keys', async () => {
+    const ai = new AiService(settings({ groq: { apiKey: 'g' }, gemini: { apiKey: 'gg', dailyRequestLimit: 20 } }), prisma);
+    await expect(ai.providers(false, false, true)).resolves.toEqual([]);
+    await expect(ai.test('groq', { apiKey: 'g' })).rejects.toMatchObject({ status: 424 });
+    expect(calls).toHaveLength(0);
   });
 
   it('runs validated capture JSON across the configured free model fallback chain', async () => {
@@ -292,13 +320,18 @@ describe('AiService', () => {
     expect(body.response_format.type).toBe('json_schema');
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(body.response_format.json_schema.schema.properties.purpose.enum).toEqual(['RENT', 'SALE']);
-    expect(body.provider).toEqual({ data_collection: 'deny', max_price: { prompt: 0, completion: 0, image: 0, request: 0 }, require_parameters: true });
+    expect(body.provider).toEqual({
+      data_collection: 'deny',
+      zdr: true,
+      max_price: { prompt: 0, completion: 0, image: 0, request: 0 },
+      require_parameters: true,
+    });
   });
 
   it('repairs JSON that does not match the schema, then validates it', async () => {
     let n = 0;
     respond = () => (n++ === 0 ? ok('{"score": "high"}') : ok('```json\n{"score": 80, "label": "HOT"}\n```'));
-    const ai = new AiService(settings({ groq: { apiKey: 'g', textModel: 'llama' } }), prisma);
+    const ai = new AiService(settings({ groq }), prisma);
     const out = await ai.json([{ role: 'user', content: 'rate' }], { feature: 't', schema: z.object({ score: z.number(), label: z.enum(['HOT', 'COLD']) }) });
     expect(out).toEqual({ score: 80, label: 'HOT' });
     expect(calls[1].msgs).toBe(3); // original + bad answer + repair request
@@ -311,7 +344,7 @@ describe('AiService', () => {
 
   it('caches identical answers when asked', async () => {
     respond = () => ok('cached text');
-    const ai = new AiService(settings({ groq: { apiKey: 'g', textModel: 'llama' } }), prisma);
+    const ai = new AiService(settings({ groq }), prisma);
     const msgs = [{ role: 'user' as const, content: 'same' }];
     await ai.chat(msgs, { feature: 'd', cacheMs: 60_000 });
     await ai.chat(msgs, { feature: 'd', cacheMs: 60_000 });
@@ -323,7 +356,7 @@ describe('AiService', () => {
     expect(parseJsonLoose('Sure! {"a":2} hope this helps')).toEqual({ a: 2 });
   });
 
-  it('uses configured local Qwen first without inventing vision, tool or audio capability', async () => {
+  it('uses local Qwen when hosted text is unavailable without inventing tools or voice capability', async () => {
     respond = () => ok('local answer');
     const ai = new AiService(settings({ qwen_local: { textModel: 'qwen2.5-1.5b-instruct', endpoint: 'https://untrusted.example' } }), prisma);
     await expect(ai.chat([{ role: 'user', content: 'summarize' }], { feature: 'capture' })).resolves.toBe('local answer');
@@ -506,6 +539,6 @@ describe('AiService', () => {
     await expect(ai.chat(messages, { feature: 'capture', orgId: 'a' })).rejects.toMatchObject({ status: 502 });
     await expect(ai.chat(messages, { feature: 'capture', orgId: 'b' })).rejects.toMatchObject({ status: 502 });
     expect(localCalls).toBe(1);
-    expect(calls.map((c) => c.model)).toEqual(['a:free', 'qwen', 'a:free']);
+    expect(calls.map((c) => c.model)).toEqual(['a:free', 'qwen']);
   });
 });

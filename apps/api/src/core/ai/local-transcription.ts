@@ -17,19 +17,34 @@ const program = [
   'import json,sys',
   'from faster_whisper import WhisperModel',
   'model=WhisperModel(sys.argv[1],device="cpu",compute_type="int8",local_files_only=True)',
-  'segments,info=model.transcribe(sys.argv[2],beam_size=3,vad_filter=True)',
+  'segments,info=model.transcribe(sys.argv[2],beam_size=3,vad_filter=True,language=(sys.argv[3] or None))',
   'print(json.dumps({"language":info.language,"duration":info.duration,"segments":[{"start":s.start,"end":s.end,"text":s.text.strip()} for s in segments]},ensure_ascii=False))',
 ].join('\n');
 
-export async function transcribeConnectRecording(bytes: Buffer, mime: string) {
+export async function transcribeLocalRecording(bytes: Buffer, mime: string, options?: { timeoutMs: number; lang?: string }) {
   const model = env().CONNECT_WHISPER_MODEL;
-  if (!model) throw new IntegrationNotConfiguredException('connect_transcription', 'Configure a local Faster Whisper model for BrokerIQ Connect');
-  const directory = await mkdtemp(join(tmpdir(), 'biq-connect-audio-'));
+  if (!model) throw new IntegrationNotConfiguredException('connect_transcription', 'Configure the local Faster Whisper model for voice transcription');
+  const directory = await mkdtemp(join(tmpdir(), 'biq-ai-audio-'));
   try {
-    const extension = mime === 'audio/mp4' ? 'm4a' : mime === 'audio/mpeg' ? 'mp3' : mime === 'audio/aac' ? 'aac' : 'wav';
+    const extension =
+      (
+        {
+          'audio/mp4': 'm4a',
+          'audio/x-m4a': 'm4a',
+          'audio/m4a': 'm4a',
+          'audio/mpeg': 'mp3',
+          'audio/aac': 'aac',
+          'audio/webm': 'webm',
+          'audio/ogg': 'ogg',
+          'audio/wav': 'wav',
+        } as Record<string, string>
+      )[mime.split(';')[0]] ?? 'wav';
     const audio = join(directory, 'source.' + extension);
     await writeFile(audio, bytes, { mode: 0o600 });
-    const { stdout } = await run(env().CONNECT_WHISPER_PYTHON, ['-c', program, model, audio], { timeout: 8 * 60_000, maxBuffer: 16 * 1024 * 1024 });
+    const { stdout } = await run(env().CONNECT_WHISPER_PYTHON, ['-c', program, model, audio, options?.lang ?? ''], {
+      timeout: options?.timeoutMs ?? 8 * 60_000,
+      maxBuffer: 16 * 1024 * 1024,
+    });
     const { language, duration, segments } = result.parse(JSON.parse(stdout));
     return {
       language,

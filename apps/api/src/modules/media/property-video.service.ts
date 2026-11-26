@@ -239,7 +239,7 @@ export class PropertyVideoService implements OnModuleInit {
       const answer = await this.ai.vision(
         'data:image/jpeg;base64,' + sheet.toString('base64'),
         'Choose the clearest photo of each distinct room or property area shown. Include useful exterior views. Exclude repeat views of the same room, unreadable images, unrelated subjects, identifiable people and documents. Return only the pictured 1-based labels in {"keep":[1,2]}, or an empty array if none are suitable.',
-        { feature: 'property_video', orgId: row.organizationId, userId: row.userId, maxTokens: 100, responseSchema: verifiedFrames, strictSchema: true, openRouterOnly: true },
+        { feature: 'property_video', orgId: row.organizationId, userId: row.userId, maxTokens: 100, responseSchema: verifiedFrames, strictSchema: true },
       );
       const indices = [...new Set(verifiedFrames.parse(JSON.parse(answer)).keep)];
       if (indices.some((index) => index > frames.length)) return null;

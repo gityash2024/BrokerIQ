@@ -24,6 +24,8 @@ export type Call = { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; path: string; 
 export interface ToolCtx {
   call: (c: Call) => Promise<any>;
   me: () => Promise<any>;
+  workspaceKnowledge?: (query: string) => Promise<unknown>;
+  research?: (input: unknown) => Promise<unknown>;
 }
 export interface Tool {
   name: string;
@@ -132,6 +134,28 @@ const slimInventory = (r: any) => ({
 });
 
 export const TOOLS: Tool[] = [
+  {
+    name: 'workspace_guide',
+    description: 'Find current BrokerIQ features and workflow descriptions enabled for the signed-in account. Use live record tools for current data.',
+    roles: ALL,
+    grants: ['assistant:view'],
+    parameters: obj({ query: str('BrokerIQ feature or workflow') }, ['query']),
+    run: (args, ctx) => ctx.workspaceKnowledge?.(typeof args.query === 'string' ? args.query.slice(0, 200) : '') ?? Promise.resolve([]),
+  },
+  {
+    name: 'research_gurugram',
+    description:
+      'Look up public government sources on Gurugram housing, sale, commercial property or registration. Cite source URLs and do not treat snippets as verified leads.',
+    roles: ALL,
+    grants: ['assistant:view'],
+    parameters: obj({ topic: str('Public research topic', { enum: ['rental', 'sale', 'commercial', 'registry'] }), sector: num('Optional sector number') }, [
+      'topic',
+    ]),
+    run: async (args, ctx) => {
+      if (!ctx.research) throw new Error('Public research is unavailable.');
+      return ctx.research(args);
+    },
+  },
   ...workspaceTools,
   {
     name: 'search_inventory',

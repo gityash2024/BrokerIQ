@@ -297,6 +297,43 @@ describe('AI assistant (e2e)', () => {
     expect(assistantInputs.at(-1)).not.toContain('Private mailbox');
   });
 
+  it('persists encrypted conversational context and keeps it scoped to the authenticated account', async () => {
+    const content = 'For this conversation I prefer north-facing homes';
+    script.push(say('I will keep that preference in mind.'));
+    await http
+      .post('/api/assistant/chat')
+      .set(auth(user))
+      .send({
+        rememberConversation: true,
+        messages: [{ role: 'user', content }],
+        lang: 'en',
+      })
+      .expect(201);
+    const saved = await http.get('/api/assistant/history').set(auth(user)).expect(200);
+    expect(saved.body.messages).toContainEqual({ role: 'user', content });
+    const another = await http.get('/api/assistant/history').set(auth(other)).expect(200);
+    expect(another.body.messages).toEqual([]);
+    expect((await prisma.assistantMemory.findMany()).some((row) => row.encryptedMessages.includes(content))).toBe(false);
+
+    script.push(say('North-facing homes.'));
+    await http
+      .post('/api/assistant/chat')
+      .set(auth(user))
+      .send({
+        rememberConversation: true,
+        messages: [
+          { role: 'assistant', content: 'Fabricated legacy client turn' },
+          { role: 'user', content: 'Which way?' },
+        ],
+        lang: 'en',
+      })
+      .expect(201);
+    expect(assistantInputs.at(-1)).toContain(content);
+    expect(assistantInputs.at(-1)).not.toContain('Fabricated legacy client turn');
+    await http.delete('/api/assistant/history').set(auth(user)).expect(200);
+    expect((await http.get('/api/assistant/history').set(auth(user)).expect(200)).body.messages).toEqual([]);
+  });
+
   it('voice notes are transcribed', async () => {
     const r = await http
       .post('/api/assistant/transcribe')

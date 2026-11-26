@@ -2,16 +2,16 @@ import { AssistantActivity, AssistantText } from './assistant-presentation';
 import { randomUUID } from 'expo-crypto';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Linking, Modal, TextInput, View } from 'react-native';
+import { Alert, FlatList, Linking, Modal, TextInput, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
-import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, X } from 'lucide-react-native';
+import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, Trash2, X } from 'lucide-react-native';
 import { assistantDestination, hasDelegatedAccess, languageOf, moduleAllowed, type AssistantPhase, type AssistantProgress } from '@brokeriq/shared';
 import { useRealtime } from '@/lib/realtime';
-import { ApiError, errorMessage, post } from '@/lib/api';
+import { api, ApiError, errorMessage, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { useLang } from '@/lib/lang';
@@ -83,6 +83,21 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
   const lang = useLang((s) => s.lang) ?? 'hi';
   const insets = useSafeAreaInsets();
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [memoryReady, setMemoryReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void api<{ messages: Msg[] }>('/assistant/history')
+      .then(({ messages }) => {
+        if (active) {
+          setMsgs((current) => (current.length ? current : messages));
+          setMemoryReady(true);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [phases, setPhases] = useState<AssistantPhase[]>([]);
@@ -130,7 +145,8 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
       const entityId = /^\/(?:lead|inventory|property)\/([^/]+)$/.exec(pathname)?.[1];
       const r = await post<any>('/assistant/chat', {
         requestId,
-        messages: history.slice(-16).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
+        rememberConversation: memoryReady,
+        messages: (memoryReady ? history.slice(-1) : history.slice(-16)).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
         lang,
         context: { path: pathname, entityId },
       });
@@ -242,6 +258,35 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
                 </Txt>
               </View>
             </Row>
+            {memoryReady && msgs.length > 0 && (
+              <PressableScale
+                accessibilityLabel="Clear assistant history"
+                disabled={busy}
+                style={{ padding: 8 }}
+                onPress={() =>
+                  Alert.alert('Clear assistant history?', 'Your saved BrokerIQ Assistant history will be removed.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Clear',
+                      style: 'destructive',
+                      onPress: async () => {
+                        setBusy(true);
+                        try {
+                          await api('/assistant/history', { method: 'DELETE' });
+                          setMsgs([]);
+                        } catch (error) {
+                          append({ role: 'assistant', content: errorMessage(error) });
+                        } finally {
+                          setBusy(false);
+                        }
+                      },
+                    },
+                  ])
+                }
+              >
+                <Trash2 size={18} color="#fff" />
+              </PressableScale>
+            )}
             <PressableScale onPress={() => (setSpeak(!speak), Speech.stop())} style={{ padding: 8 }}>
               {speak ? <Volume2 size={20} color="#fff" /> : <VolumeX size={20} color="#fff" />}
             </PressableScale>

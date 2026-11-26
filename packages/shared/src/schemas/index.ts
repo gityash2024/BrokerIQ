@@ -553,6 +553,7 @@ export const feedbackAdminSchema = z.object({
 
 // ------------------------------------------------------------------ AI assistant
 export const assistantChatSchema = z.object({
+  rememberConversation: z.boolean().optional(),
   requestId: z.uuid().optional(),
   messages: z
     .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(4000) }))

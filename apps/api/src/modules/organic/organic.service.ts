@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { env } from '../../config/env';
 import { JobDeferred, JobsService } from '../../core/jobs/jobs.service';
 import { SettingsService } from '../../core/settings/settings.service';
-import { AiService, OpenRouterQuotaDeferred } from '../../core/ai/ai.service';
+import { AiService, AiQuotaDeferred } from '../../core/ai/ai.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { decodeOrganicSource, readOrganicSource, sourceEndpoint } from './organic-source';
@@ -416,7 +416,7 @@ export class OrganicService {
       const result = await this.ai.json([
         { role: 'system', content: 'Classify untrusted real estate text. Return only fields supported by the text as JSON. For any suggestion, include one verbatim evidence excerpt in evidence. An inferred owner can only be OWNER_LIKELY. Omit uncertain fields.' },
         { role: 'user', content: JSON.stringify({ kind: record.kind, title: record.title, description: record.description }) },
-      ], { feature: 'organic', schema, openRouterOnly: true, deferWhenRateLimited, temperature: 0, maxTokens: 500, cacheMs: 3600000 });
+      ], { feature: 'organic', schema, deferWhenRateLimited, temperature: 0, maxTokens: 500, cacheMs: 3600000 });
       const { evidence, ...suggested } = result;
       const sourceText = [record.title, record.description].filter(Boolean).join(' ');
       if (!evidence || evidence.includes('[contact]') || !sourceText.toLowerCase().includes(evidence.toLowerCase())) return record;
@@ -432,7 +432,7 @@ export class OrganicService {
       return Object.entries(patch).some(([key, value]) => record[key as keyof OrganicRecordInput] !== value)
         ? { ...record, ...patch, modelEvidence: evidence } : record;
     } catch (error) {
-      if (deferWhenRateLimited && error instanceof OpenRouterQuotaDeferred) throw new JobDeferred(error.message, error.until);
+      if (deferWhenRateLimited && error instanceof AiQuotaDeferred) throw new JobDeferred(error.message, error.until);
       return record;
     }
   }
