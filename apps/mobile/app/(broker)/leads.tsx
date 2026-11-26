@@ -1,3 +1,4 @@
+import { leadDialUrl } from '@brokeriq/shared';
 import { JumpFlatList } from '@/components/list-jump';
 import { canUseBrokerChat } from '@brokeriq/shared';
 import { openLeadInbox } from '@/lib/inbox-composer';
@@ -16,7 +17,7 @@ import { ChoiceField } from '@/launch/form';
 import { api, qs } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
-import { useDebounced } from '@/lib/hooks';
+import { showError, useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge, TempBadge } from '@/components/crm';
@@ -50,18 +51,21 @@ function LeadItem({ l }: { l: any }) {
   const ref = useRef<SwipeableMethods>(null);
   const enquiry = leadEnquiryOverview(l);
   const summary = enquiry.summary;
+  const dialUrl = leadDialUrl(l.phone);
   return (
     <ReanimatedSwipeable
       friction={2}
       leftThreshold={70}
       rightThreshold={70}
-      renderLeftActions={() => <Action color="#4F46E5" icon={<Phone size={22} color="#fff" />} label="Call" align="left" />}
+      renderLeftActions={dialUrl ? () => <Action color="#4F46E5" icon={<Phone size={22} color="#fff" />} label="Call" align="left" /> : undefined}
       renderRightActions={chatAllowed ? () => <Action color="#16A34A" icon={<MessageCircle size={22} color="#fff" />} label="WhatsApp" align="right" /> : undefined}
       ref={ref}
       onSwipeableOpen={(dir) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
         // "left" = left-side actions revealed (swiped right) → Call
-        if (String(dir) === 'left') Linking.openURL(`tel:${l.phone}`);
+        if (String(dir) === 'left') {
+          if (dialUrl) void Linking.openURL(dialUrl).catch(showError);
+        }
         else if (chatAllowed) openLeadInbox(l.id);
         ref.current?.close();
       }}
@@ -78,7 +82,7 @@ function LeadItem({ l }: { l: any }) {
                 {l.name || l.phone}
               </Txt>
               <Txt v="caption" color="muted">
-                {l.phone}
+                {l.reference && `${l.reference} · `}{l.phone}
               </Txt>
             </View>
           </Row>
@@ -218,7 +222,7 @@ export default function Leads() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={{ gap: 10, paddingBottom: 12 }}>
-            <Input value={text} onChangeText={setText} placeholder="Name / phone" />
+            <Input value={text} onChangeText={setText} placeholder="Lead ID / name / phone" />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               <Button access={hasDelegatedAccess(user, 'leads', 'create')} title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />
               <Button title="Requirements" size="sm" variant="secondary" onPress={() => router.push('/requirements')} />

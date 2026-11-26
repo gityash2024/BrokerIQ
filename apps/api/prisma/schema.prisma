@@ -1161,6 +1161,7 @@ model ListingReport {
 
 model Lead {
   id                String           @id @default(cuid())
+  reference         String           @unique @default(dbgenerated("('LEAD-'::text || (nextval('lead_reference_seq'::regclass))::text)"))
   organizationId    String
   name              String
   phone             String

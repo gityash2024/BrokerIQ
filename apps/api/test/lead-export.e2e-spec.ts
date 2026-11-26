@@ -57,6 +57,20 @@ describe('Lead filters and complete scoped CSV (real PostgreSQL)', () => {
     await send().get('/api/leads/export?stage=INVALID').set(headers()).expect(400);
   });
 
+  it('finds assigned leads by their stable reference without exposing another agent’s lead', async () => {
+    const assigned = await db.lead.findFirstOrThrow({ where: { assignedToId: agentId } });
+    const peer = await db.lead.findFirstOrThrow({ where: { assignedToId: foreignId } });
+    expect(assigned.reference).toMatch(/^LEAD-\d+$/);
+    expect(peer.reference).not.toEqual(assigned.reference);
+    const query = 'q=' + assigned.reference.toLowerCase();
+    const list = await send().get('/api/leads?' + query).set(headers()).expect(200);
+    expect(list.body.items.map((lead: { id: string }) => lead.id)).toEqual([assigned.id]);
+    const pipeline = await send().get('/api/leads/kanban?' + query).set(headers()).expect(200);
+    expect(pipeline.body.flatMap((column: { items: { id: string }[] }) => column.items.map((lead) => lead.id))).toEqual([assigned.id]);
+    const hidden = await send().get('/api/leads?q=' + peer.reference).set(headers()).expect(200);
+    expect(hidden.body.items).toEqual([]);
+  });
+
   it('exports more than 5,000 matching rows, excludes peers and neutralizes spreadsheet formula cells', async () => {
     const result = await send().get('/api/leads/export').set(headers()).expect(200);
     const lines = result.text.trimEnd().split('\n');

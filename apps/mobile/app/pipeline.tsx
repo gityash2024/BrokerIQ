@@ -1,7 +1,8 @@
+import { leadDialUrl } from '@brokeriq/shared';
 import { JumpFlatList } from '@/components/list-jump';
-import { useState } from 'react';
-import { Dimensions, View } from 'react-native';
-import { router } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { BackHandler, Dimensions, Linking, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { ArrowRight } from 'lucide-react-native';
@@ -23,6 +24,14 @@ export default function Pipeline() {
   const canEdit = hasDelegatedAccess(useAuth().user, 'leads', 'edit');
   const q = useQuery({ queryKey: ['kanban'], queryFn: () => api<any[]>('/leads/kanban') });
   const [move, setMove] = useState<any>(null);
+  useFocusEffect(useCallback(() => {
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) return false;
+      router.replace('/(broker)/leads');
+      return true;
+    });
+    return () => listener.remove();
+  }, []));
   const doMove = async (lead: any, to: LeadStage) => {
     setMove(null);
     if (to === 'SHORTLISTED') return router.push({ pathname: '/lead/[id]', params: { id: lead.id, tab: 'shortlist' } });
@@ -39,7 +48,7 @@ export default function Pipeline() {
   if (q.isLoading) return <Loader />;
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
-      <Header title="Pipeline" subtitle="Card पर long-press करके stage बदलें" />
+      <Header title="Pipeline" subtitle="Card पर long-press करके stage बदलें" backFallback="/(broker)/leads" />
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
@@ -69,42 +78,51 @@ export default function Pipeline() {
                   data={col.items}
                   keyExtractor={(x) => x.id}
                   contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
-                  renderItem={({ item: l, index }) => (
-                    <Animated.View entering={FadeInDown.delay(index * 30)} layout={LinearTransition.springify()}>
-                      <PressableScale
-                        onPress={() => router.push(`/lead/${l.id}`)}
-                        onLongPress={canEdit ? () => setMove(l) : undefined}
-                        delayLongPress={250}
-                        style={{ padding: 12, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, gap: 6 }}
-                      >
-                        <Row style={{ justifyContent: 'space-between' }}>
-                          <Txt v="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
-                            {l.name || l.phone}
-                          </Txt>
-                          <TempBadge t={l.temperature} />
-                        </Row>
-                        <Txt v="caption" color="muted" numberOfLines={1}>
-                          {[
-                            l.requirement?.bedrooms?.length ? `${l.requirement.bedrooms.join('/')} BHK` : null,
-                            l.requirement?.maxBudget ? `≤ ${formatPriceShort(l.requirement.maxBudget)}` : null,
-                            l.listing?.title,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ') || l.phone}
-                        </Txt>
-                        <Row style={{ justifyContent: 'space-between' }}>
-                          <SourceBadge source={l.source} />
-                          <Txt v="caption" color="subtle">
-                            {timeAgo(l.lastActivityAt ?? l.createdAt)}
-                          </Txt>
-                        </Row>
-                        <Row wrap gap={6}>
-                          <LeadContactActions lead={l} />
-                          <Button title="Move stage" access={canEdit} size="sm" variant="secondary" onPress={() => setMove(l)} />
-                        </Row>
-                      </PressableScale>
-                    </Animated.View>
-                  )}
+                  renderItem={({ item: l, index }) => {
+                    const dialUrl = leadDialUrl(l.phone);
+                    return (
+                      <Animated.View entering={FadeInDown.delay(index * 30)} layout={LinearTransition.springify()}>
+                        <View style={{ padding: 12, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, gap: 6 }}>
+                          <PressableScale
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open lead ${l.name || l.reference || ''}`}
+                            onPress={() => router.push(`/lead/${l.id}`)}
+                            onLongPress={canEdit ? () => setMove(l) : undefined}
+                            delayLongPress={250}
+                            style={{ gap: 6 }}
+                          >
+                            <Row style={{ justifyContent: 'space-between' }}>
+                              <Txt v="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
+                                {l.name || l.phone}
+                              </Txt>
+                              <TempBadge t={l.temperature} />
+                            </Row>
+                            <Txt v="caption" color="muted" numberOfLines={1}>
+                              {[
+                                l.requirement?.bedrooms?.length ? `${l.requirement.bedrooms.join('/')} BHK` : null,
+                                l.requirement?.maxBudget ? `≤ ${formatPriceShort(l.requirement.maxBudget)}` : null,
+                                l.listing?.title,
+                                l.reference,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ') || l.phone}
+                            </Txt>
+                            <Row style={{ justifyContent: 'space-between' }}>
+                              <SourceBadge source={l.source} />
+                              <Txt v="caption" color="subtle">
+                                {timeAgo(l.lastActivityAt ?? l.createdAt)}
+                              </Txt>
+                            </Row>
+                          </PressableScale>
+                          <Row wrap gap={6}>
+                            {!!dialUrl && <Chip label="Call" onPress={() => void Linking.openURL(dialUrl).catch(showError)} />}
+                            <LeadContactActions lead={l} />
+                            <Button title="Move stage" access={canEdit} size="sm" variant="secondary" onPress={() => setMove(l)} />
+                          </Row>
+                        </View>
+                      </Animated.View>
+                    );
+                  }}
                   ListFooterComponent={
                     col.count > col.items.length ? (
                       <Button

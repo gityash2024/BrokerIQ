@@ -1,4 +1,5 @@
 'use client';
+import { leadDialUrl } from '@brokeriq/shared';
 import { useFlag, useConfig } from '@/lib/config';
 import { BackLink } from '@/components/ui/back-button';
 import { ConnectLeadActivity } from '@/components/panel/connect-profile';
@@ -221,6 +222,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             </div>
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
               <span className="font-semibold text-fg">{l.phone}</span>
+              {l.reference && <span className="font-mono text-xs">{l.reference}</span>}
               {l.email && <span>{l.email}</span>}
               <SourceBadge source={l.source} />
               {l.sourceDetail && <span className="text-xs">{l.sourceDetail}</span>}
@@ -244,7 +246,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button href={`tel:${l.phone}`} onClick={() => setTimeout(() => setTab('timeline'), 300)}>
+            <Button href={leadDialUrl(l.phone)} disabled={!leadDialUrl(l.phone)} onClick={() => setTimeout(() => setTab('timeline'), 300)}>
               <Phone className="size-4" /> Call
             </Button>
             {allowed('legacy') && <ClickToCall leadId={l.id} onDone={refresh} />}

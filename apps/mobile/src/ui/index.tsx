@@ -131,7 +131,9 @@ export function Screen({
   );
 }
 
-export function Header({ title, subtitle, right, back = true }: { title?: string; subtitle?: string; right?: React.ReactNode; back?: boolean }) {
+export function Header({ title, subtitle, right, back = true, backFallback }: {
+  title?: string; subtitle?: string; right?: React.ReactNode; back?: boolean; backFallback?: import('expo-router').Href;
+}) {
   const { c } = useTheme();
   return (
     <View
@@ -149,7 +151,7 @@ export function Header({ title, subtitle, right, back = true }: { title?: string
       }}
     >
       {back && (
-        <IconBtn accessibilityLabel="Back" onPress={() => goBack()}>
+        <IconBtn accessibilityLabel="Back" onPress={() => goBack(backFallback)}>
           <ChevronLeft size={24} color={c.fg} />
         </IconBtn>
       )}

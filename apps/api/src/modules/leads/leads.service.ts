@@ -338,6 +338,7 @@ export class LeadsService {
         OR: [
           { name: { contains: s, mode: 'insensitive' } },
           { phone: { contains: s.replace(/\s/g, '') } },
+          { reference: { equals: s.toUpperCase() } },
           { email: { contains: s, mode: 'insensitive' } },
           { sourceDetail: { contains: s, mode: 'insensitive' } },
         ],
@@ -398,7 +399,9 @@ export class LeadsService {
     const base: Prisma.LeadWhereInput = {
       AND: [this.scope(user), ...(q.assignedToId ? [{ assignedToId: q.assignedToId }] : [])],
       ...(q.source ? { source: { in: q.source.split(',') as LeadSource[] } } : {}),
-      ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }] } : {}),
+      ...(q.q
+        ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }, { reference: q.q.toUpperCase() }] }
+        : {}),
     };
     const stages: LeadStage[] = [
       'NEW',

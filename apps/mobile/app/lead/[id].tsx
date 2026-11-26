@@ -1,3 +1,4 @@
+import { leadDialUrl } from '@brokeriq/shared';
 import { NativeConnectLeadActivity } from '@/launch/connect-profile';
 import { useFlag, useConfig } from '@/lib/config';
 import { goBack } from '@/lib/navigation';
@@ -157,9 +158,11 @@ export default function LeadDetail() {
       </SafeAreaView>
     );
   const l = q.data;
+  const dialUrl = leadDialUrl(l.phone);
   const call = () => {
+    if (!dialUrl) return;
     callPending.current = true;
-    Linking.openURL(`tel:${l.phone}`).catch((error) => {
+    Linking.openURL(dialUrl).catch((error) => {
       callPending.current = false;
       showError(error);
     });
@@ -225,6 +228,7 @@ export default function LeadDetail() {
             <Avatar name={l.name} size={60} />
             <View style={{ flex: 1, gap: 3 }}>
               <Txt v="h2">{l.name || 'Unknown'}</Txt>
+              {l.reference && <Txt v="caption" color="muted" selectable>{l.reference}</Txt>}
               <Txt color="muted">
                 {l.phone}
                 {l.email ? ` · ${l.email}` : ''}
@@ -242,7 +246,7 @@ export default function LeadDetail() {
             </View>
           </Row>
           <Row gap={8} wrap>
-            <Button accessibilityLabel="Call" icon={<Phone size={20} color="#fff" />} style={compactAction} onPress={call} />
+            <Button accessibilityLabel="Call" icon={<Phone size={20} color="#fff" />} style={compactAction} onPress={call} disabled={!dialUrl} />
             <Button
               accessibilityLabel="WhatsApp"
               variant="whatsapp"

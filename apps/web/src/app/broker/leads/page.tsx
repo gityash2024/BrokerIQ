@@ -1,4 +1,5 @@
 'use client';
+import { leadDialUrl } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { canUseBrokerChat } from '@brokeriq/shared';
 import { leadInboxUrl } from '@/lib/inbox-composer';
@@ -140,7 +141,7 @@ function LeadsInner() {
           <Input
             className="h-10 w-64"
             icon={<Search className="size-4" />}
-            placeholder="नाम, phone, project…"
+            placeholder="Lead ID, name, phone…"
             defaultValue={f.q}
             onKeyDown={(e) => e.key === 'Enter' && setF({ q: (e.target as HTMLInputElement).value || null })}
           />
@@ -317,7 +318,7 @@ function LeadsInner() {
                         )}
                       </p>
                       <p className="truncate text-xs text-muted">
-                        {l.phone} · {timeAgo(l.lastActivityAt ?? l.createdAt)}
+                        {l.reference && `${l.reference} · `}{l.phone} · {timeAgo(l.lastActivityAt ?? l.createdAt)}
                         {l.nextFollowUpAt
                           ? ` · ⏰ ${new Date(l.nextFollowUpAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`
                           : ''}
@@ -352,7 +353,7 @@ function LeadsInner() {
                       )}
                     </div>
                     <div className="col-span-2 col-start-2 flex flex-nowrap items-center justify-end gap-1.5 lg:col-span-1 lg:col-start-auto [&>a]:shrink-0 [&>button]:shrink-0">
-                      <Button size="icon-sm" variant="secondary" href={`tel:${l.phone}`} aria-label="Call">
+                      <Button size="icon-sm" variant="secondary" href={leadDialUrl(l.phone)} disabled={!leadDialUrl(l.phone)} aria-label="Call">
                         <Phone className="size-4" />
                       </Button>
                       {canUseBrokerChat(user) && (

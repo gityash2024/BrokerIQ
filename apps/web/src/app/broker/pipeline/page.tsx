@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { KanbanSquare, MessageCircle, Phone, Search } from 'lucide-react';
-import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, formatPriceShort, timeAgo, type LeadStage } from '@brokeriq/shared';
+import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, formatPriceShort, leadDialUrl, timeAgo, type LeadStage } from '@brokeriq/shared';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
@@ -40,8 +40,8 @@ export default function PipelinePage() {
   const team = useAssignees(admin);
   const qc = useQueryClient();
   const [search, setSearch] = useRouteState('pipeline.search', '');
-  const [source, setSource] = useState('');
-  const [agent, setAgent] = useState('');
+  const [source, setSource] = useRouteState('pipeline.source', '');
+  const [agent, setAgent] = useRouteState('pipeline.agent', '');
   const dq = useDebounced(search);
   const key = ['kanban', dq, source, agent];
   const q = useQuery({ queryKey: key, queryFn: () => api<Column[]>(`/leads/kanban${qs({ q: dq, source, assignedToId: agent })}`), placeholderData: (p) => p });
@@ -103,7 +103,7 @@ export default function PipelinePage() {
       />
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="w-full sm:w-72">
-          <Input icon={<Search className="size-4" />} placeholder="नाम या phone…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-10" />
+          <Input icon={<Search className="size-4" />} placeholder="नाम, phone या Lead ID…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-10" />
         </div>
         <Select value={source} onChange={(e) => setSource(e.target.value)} className="h-10 w-44">
           <option value="">सभी sources</option>
@@ -126,7 +126,7 @@ export default function PipelinePage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : (
-        <div className="-mx-3.5 overflow-x-auto px-3.5 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div data-route-scroll="pipeline-board" className="-mx-3.5 overflow-x-auto px-3.5 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex min-w-max gap-4">
             {(q.data ?? Array.from({ length: 7 }, (_, i) => ({ stage: String(i) as LeadStage, label: '', count: 0, items: [] }))).map((col) => {
               const c = LEAD_STAGE_COLORS[col.stage] ?? '#94a3b8';
@@ -163,7 +163,7 @@ export default function PipelinePage() {
                   <div className="mx-3 mb-2 h-1 rounded-full" style={{ background: `${c}33` }}>
                     <div className="h-full rounded-full" style={{ background: c, width: `${Math.min(100, (col.count / Math.max(1, total)) * 100)}%` }} />
                   </div>
-                  <div className="flex max-h-[calc(100dvh-260px)] min-h-40 flex-col gap-2 overflow-y-auto p-2.5">
+                  <div data-route-scroll={`pipeline-${col.stage}`} className="flex max-h-[calc(100dvh-260px)] min-h-40 flex-col gap-2 overflow-y-auto p-2.5">
                     {!q.data && <LoadingArtwork className="col-span-full h-28 rounded-xl" />}
                     <AnimatePresence initial={false}>
                       {col.items.map((l) => (
@@ -196,6 +196,7 @@ export default function PipelinePage() {
                                 l.requirement?.bedrooms?.length ? `${l.requirement.bedrooms.join('/')} BHK` : null,
                                 l.requirement?.maxBudget ? `≤ ${formatPriceShort(Number(l.requirement.maxBudget))}` : null,
                                 l.listing?.title,
+                                l.reference,
                               ]
                                 .filter(Boolean)
                                 .join(' · ') || l.phone}
@@ -211,13 +212,15 @@ export default function PipelinePage() {
                                 <span className="text-[11px] text-amber-600">Unassigned</span>
                               )}
                               <div className="ml-auto flex gap-1 opacity-70 transition group-hover:opacity-100">
-                                <a
-                                  href={`tel:${l.phone}`}
-                                  className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-brand-600"
-                                  aria-label="Call"
-                                >
-                                  <Phone className="size-3.5" />
-                                </a>
+                                {leadDialUrl(l.phone) && (
+                                  <a
+                                    href={leadDialUrl(l.phone)}
+                                    className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-brand-600"
+                                    aria-label="Call"
+                                  >
+                                    <Phone className="size-3.5" />
+                                  </a>
+                                )}
                                 {canUseBrokerChat(user) && (
                                   <>
                                     <a

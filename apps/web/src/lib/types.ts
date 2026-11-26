@@ -74,6 +74,7 @@ export interface Paged<T> {
 
 export interface LeadRow {
   id: string;
+  reference?: string;
   name: string;
   phone: string;
   email: string | null;
