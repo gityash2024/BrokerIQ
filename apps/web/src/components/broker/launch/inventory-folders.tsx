@@ -123,7 +123,7 @@ export function InventoryFoldersPage({
   const activeQuery = leaf ? records : folders;
   const photoCounts = leaf ? records.data?.photoCounts : folders.data?.photoCounts;
   const folderRows = [...(folders.data?.folders ?? []), ...(folders.data?.extraFolders ?? [])];
-  const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', ...filter, ...shelf })}`;
+  const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', openFilters: '1', ...filter, ...shelf })}`;
 
   function changePath(next: InventoryFolder[]) {
     if (pushRouteView({ 'inventory-folders.selectedPath': next, 'inventory-folders.page': 1 })) return;
@@ -305,11 +305,9 @@ export function InventoryFoldersPage({
           >
             <CalendarDays className="size-4 shrink-0" /> {filters.dateFrom || filters.dateTo ? 'Record dates applied' : 'Record dates'}
           </button>
-          {(!survey || leaf) && (
-            <Link href={advancedUrl} className="inline-flex items-center gap-2 col-span-2 py-1 text-sm font-semibold text-brand-600 xl:col-span-6">
-              <SlidersHorizontal className="size-4" /> Advanced filters
-            </Link>
-          )}
+          <Link href={advancedUrl} className="inline-flex items-center gap-2 col-span-2 py-1 text-sm font-semibold text-brand-600 xl:col-span-6">
+            <SlidersHorizontal className="size-4" /> Advanced filters
+          </Link>
         </div>
       </div>
       <nav aria-label="Inventory folder path" className="flex flex-wrap items-center gap-2 text-sm">

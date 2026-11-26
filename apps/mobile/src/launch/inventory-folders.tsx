@@ -38,14 +38,10 @@ import { NativeInventoryTabs } from './inventory-tabs';
 import { NativeInventoryRecordActions } from './inventory-record-actions';
 import { NativeInventoryBulkActions } from '@/launch/inventory-bulk-actions';
 import { NativeInventoryFolderControls } from './inventory-folder-controls';
+import { inventoryDateFilter } from '@brokeriq/shared';
 
 const initialFilters = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
-function normalizeDate(value: string, end = false) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
-  const date = new Date(value + 'T00:00:00Z');
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return '';
-  return new Date(value + (end ? 'T23:59:59.999+05:30' : 'T00:00:00+05:30')).toISOString();
-}
+
 
 export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialMode?: 'AVAILABLE' | 'SURVEY' } = {}) {
   const { user } = useAuth();
@@ -82,8 +78,8 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   const query = {
     ...filters,
     search: survey && !path.length && !normalizePropertyCode(term) ? '' : term,
-    dateFrom: normalizeDate(filters.dateFrom),
-    dateTo: normalizeDate(filters.dateTo, true),
+    dateFrom: inventoryDateFilter(filters.dateFrom),
+    dateTo: inventoryDateFilter(filters.dateTo, true),
     folderMode: mode,
     surveyShelf: survey ? surveyShelf : undefined,
     currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
@@ -440,7 +436,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
           <Button
             title="Apply filters"
             onPress={() => {
-              if ((draft.dateFrom && !normalizeDate(draft.dateFrom)) || (draft.dateTo && !normalizeDate(draft.dateTo))) {
+              if ((draft.dateFrom && !inventoryDateFilter(draft.dateFrom)) || (draft.dateTo && !inventoryDateFilter(draft.dateTo))) {
                 toast.error('Use a valid date in YYYY-MM-DD format');
                 return;
               }
@@ -452,8 +448,14 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
             title="Advanced filters"
             variant="secondary"
             onPress={() => {
+              const dateFrom = inventoryDateFilter(draft.dateFrom);
+              const dateTo = inventoryDateFilter(draft.dateTo, true);
+              if ((draft.dateFrom && !dateFrom) || (draft.dateTo && !dateTo)) {
+                toast.error('Use a valid date in YYYY-MM-DD format');
+                return;
+              }
               setOpenFilters(false);
-              router.push({ pathname: '/(broker)/inventory-ledger', params: query });
+              router.push({ pathname: '/(broker)/inventory-ledger', params: { ...query, ...draft, dateFrom, dateTo, openFilters: '1' } });
             }}
           />
           <Button

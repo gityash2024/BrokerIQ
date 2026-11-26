@@ -28,8 +28,9 @@ import { InventoryTabs } from './inventory-tabs';
 import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { SortableTh } from '@/components/ui/sortable-header';
 
-const initialFilters = {
+const folderScope = {
   folderMode: '',
+  surveyShelf: '',
   currentInventory: '',
   folderYear: '',
   folderMonth: '',
@@ -37,6 +38,9 @@ const initialFilters = {
   folderFurnishing: '',
   folderSector: '',
   customFolderId: '',
+};
+const initialFilters = {
+  ...folderScope,
   archived: '',
   organizationId: '',
   status: '',
@@ -93,7 +97,8 @@ function LedgerInner() {
     ...initialFilters,
     ...Object.fromEntries(Object.keys(initialFilters).flatMap((key) => (params.get(key) ? [[key, params.get(key)!]] : []))),
   });
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useRouteState('inventory-workspace.filterOpen', params.get('openFilters') === '1');
+  const resetFilters = { ...initialFilters, ...Object.fromEntries(Object.keys(folderScope).map((key) => [key, params.get(key) ?? ''])) };
   const [selected, setSelected] = useState<string[]>([]);
   const [sort, setSort] = useRouteState('inventory-workspace.sort', { sortBy: 'createdAt', sortOrder: 'desc' });
   const [layout, setLayout] = useRouteState<'TABLE' | 'CARDS'>('inventory-workspace.layout', 'TABLE');
@@ -306,7 +311,7 @@ function LedgerInner() {
       {!!count && (
         <div className="mb-3 flex flex-wrap gap-2">
           {Object.entries(filters)
-            .filter(([, value]) => value)
+            .filter(([key, value]) => value && !(key in folderScope && params.get(key) === value))
             .map(([key, value]) => (
               <button
                 key={key}
@@ -317,7 +322,7 @@ function LedgerInner() {
                 <X size={12} />
               </button>
             ))}
-          <button onClick={() => setFilters(initialFilters)} className="text-xs text-muted">
+          <button onClick={() => setFilters(resetFilters)} className="text-xs text-muted">
             Reset filters
           </button>
         </div>

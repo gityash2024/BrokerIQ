@@ -5,7 +5,7 @@ import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger, type LedgerItem } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, inventoryDateFilter, inventoryFilterDay, type PagedLedger, type LedgerItem } from '@brokeriq/shared';
 import { ListJumpControls, resultPage, useListJump } from '@/components/list-jump';
 import { api, qs, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -24,8 +24,9 @@ import { NativeInventoryTabs } from '@/launch/inventory-tabs';
 import { NativeInventoryRecordActions } from '@/launch/inventory-record-actions';
 import { NativeInventoryFolderControls, useInventoryFolderDefinitions } from '@/launch/inventory-folder-controls';
 
-const initial = {
+const folderScope = {
   folderMode: '',
+  surveyShelf: '',
   currentInventory: '',
   folderYear: '',
   folderMonth: '',
@@ -33,6 +34,11 @@ const initial = {
   folderFurnishing: '',
   folderSector: '',
   customFolderId: '',
+};
+const initial = {
+  ...folderScope,
+  status: '',
+  archived: '',
   dateFrom: '',
   dateTo: '',
   detailFilters: '',
@@ -75,7 +81,22 @@ export function InventoryLedger() {
   useEffect(() => {
     setFilters({ ...initial, ...JSON.parse(parameterKey) });
   }, [parameterKey]);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const resetFilters = { ...initial, ...Object.fromEntries(Object.keys(folderScope).map((key) => [key, typeof params[key] === 'string' ? params[key] : ''])) };
+  const [filterOpen, setFilterOpen] = useState(params.openFilters === '1');
+  const [dates, setDates] = useState({ from: '', to: '' });
+  useEffect(() => {
+    setDates({ from: inventoryFilterDay(filters.dateFrom), to: inventoryFilterDay(filters.dateTo) });
+  }, [filters.dateFrom, filters.dateTo]);
+  function applyFilters() {
+    const dateFrom = inventoryDateFilter(dates.from);
+    const dateTo = inventoryDateFilter(dates.to, true);
+    if ((dates.from && !dateFrom) || (dates.to && !dateTo)) {
+      toast.error('Use a valid date in YYYY-MM-DD format');
+      return;
+    }
+    setFilters({ ...filters, dateFrom, dateTo });
+    setFilterOpen(false);
+  }
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const qc = useQueryClient();
@@ -108,6 +129,8 @@ export function InventoryLedger() {
   const count = Object.values(filters).filter(Boolean).length;
 
   const choices: Record<string, string[]> = {
+    ...(user?.role !== 'BROKER_AGENT' ? { archived: ['exclude', 'only', 'include'] } : {}),
+    status: ['DRAFT', 'ACTIVE', 'INACTIVE', 'RENTED'],
     sector: sectors.data?.map((s) => s.sector) ?? [],
     purpose: ['RENT', 'SALE'],
     category: ['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND'],
@@ -209,7 +232,7 @@ export function InventoryLedger() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
                 {/* All */}
                 <Pressable
-                  onPress={() => setFilters(initial)}
+                  onPress={() => setFilters(resetFilters)}
                   style={{
                     paddingHorizontal: 13,
                     paddingVertical: 7,
@@ -379,7 +402,7 @@ export function InventoryLedger() {
                   </Txt>
                 </Pressable>
               </View>
-              {count > 0 && <Button title="Reset filters" size="sm" variant="ghost" onPress={() => setFilters(initial)} />}
+              {count > 0 && <Button title="Reset filters" size="sm" variant="ghost" onPress={() => setFilters(resetFilters)} />}
             </View>
 
             {query.error && (
@@ -491,12 +514,18 @@ export function InventoryLedger() {
 
       <Sheet
         open={filterOpen}
-        onClose={() => setFilterOpen(false)}
+        onClose={() => {
+          setDates({ from: inventoryFilterDay(filters.dateFrom), to: inventoryFilterDay(filters.dateTo) });
+          setFilterOpen(false);
+        }}
         title="Filter inventory"
         footer={
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Button title="Reset filters" variant="secondary" style={{ flex: 1 }} onPress={() => setFilters(initial)} />
-            <Button title="Show properties" style={{ flex: 1 }} onPress={() => setFilterOpen(false)} />
+            <Button title="Reset filters" variant="secondary" style={{ flex: 1 }} onPress={() => {
+              setDates({ from: '', to: '' });
+              setFilters(resetFilters);
+            }} />
+            <Button title="Show properties" style={{ flex: 1 }} onPress={applyFilters} />
           </View>
         }
       >
@@ -521,6 +550,8 @@ export function InventoryLedger() {
             containerStyle={{ marginBottom: 12 }}
           />
         ))}
+        <Input label="Record date from (YYYY-MM-DD)" value={dates.from} onChangeText={(from) => setDates({ ...dates, from })} />
+        <Input label="Record date through (YYYY-MM-DD)" value={dates.to} onChangeText={(to) => setDates({ ...dates, to })} />
         <NativeAdvancedFilters filters={filters} onChange={setFilters} />
       </Sheet>
     </BrokerScreen>
