@@ -443,7 +443,7 @@ export default function WaThread() {
             }}
           />
           <IconBtn
-            accessibilityLabel={manualDraft ? 'Open WhatsApp draft' : 'Send'}
+            accessibilityLabel={manualDraft ? 'Open WhatsApp draft' : 'Send in BrokerIQ'}
             disabled={!canSend || !canCompose || sending || attachmentBusy || (!text.trim() && !(attachment && mode === 'send'))}
             onPress={() => manualDraft ? void openDraft() : attachment ? void sendAttachment() : void send({ text })}
             style={{ backgroundColor: '#25D366', width: 46, height: 46, borderRadius: 23, opacity: !canCompose || sending || !text.trim() ? 0.5 : 1 }}
@@ -459,6 +459,7 @@ export default function WaThread() {
                 setText(draft);
                 saveInboxDraft(id, draft, owner).catch(showError);
                 setPropertyOpen(false);
+                if (!sms && !email) toast.success(manualDraft ? 'Property added to the WhatsApp draft' : 'Property ready to send in BrokerIQ');
               }}
             />
           )}

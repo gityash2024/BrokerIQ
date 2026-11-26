@@ -144,7 +144,7 @@ describe('Internal lead composer and conversation ownership', () => {
     await req().post('/api/whatsapp/send').set(h()).send({ conversationId, text: 'must not send' }).expect(403);
     expect(await db.message.count({ where: { conversationId } })).toBe(0);
   });
-  it('keeps a clickable gallery URL while turning off Meta link previews only for property messages', async () => {
+  it('keeps the clickable public gallery URL and requests a Meta link preview', async () => {
     await db.conversation.update({ where: { id: conversationId }, data: { blockedAt: null, lastInboundAt: new Date() } });
     const outbound = jest.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
       if (!String(url).startsWith('https://graph.facebook.com/')) throw new Error('Unexpected external request');
@@ -157,7 +157,7 @@ describe('Internal lead composer and conversation ownership', () => {
         await req().post('/api/whatsapp/send').set(h()).send({ conversationId, text: body }).expect(201);
       }
       expect(outbound.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).text)).toEqual([
-        { body: property, preview_url: false },
+        { body: property, preview_url: true },
         { body: 'Another link https://example.com/listing', preview_url: true },
       ]);
       expect(property).toContain(url);

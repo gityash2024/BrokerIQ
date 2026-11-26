@@ -1,3 +1,4 @@
+import { conversationMessageTime } from '@brokeriq/shared';
 import { JumpFlatList } from '@/components/list-jump';
 import { InlineLoader } from '@/components/request-loader';
 import { useMemo, useState } from 'react';
@@ -185,6 +186,7 @@ export default function Inbox() {
           const hasUnread = (item.unreadCount || 0) > 0;
           const title = item.contactName || item.title || item.contactPhone || 'Visitor';
           const isWhatsApp = channel === 'WHATSAPP' || item.channel === 'WHATSAPP';
+          const messageTime = conversationMessageTime(item.lastMessageAt);
 
           return (
             <TouchableOpacity
@@ -221,9 +223,9 @@ export default function Inbox() {
                   <Txt v="bodyStrong" numberOfLines={1} style={{ flex: 1, fontSize: 15 }}>
                     {title}
                   </Txt>
-                  {item.updatedAt && (
+                  {!!messageTime && (
                     <Txt v="caption" color="muted" style={{ fontSize: 11 }}>
-                      {new Date(item.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {messageTime}
                     </Txt>
                   )}
                 </View>

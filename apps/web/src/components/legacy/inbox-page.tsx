@@ -1,4 +1,5 @@
 'use client';
+import { conversationMessageTime } from '@brokeriq/shared';
 import { hasPreviousPage, useRouteState } from '@/lib/navigation';
 import { broadcastMediaType, whatsappComposerMode, whatsappLink, privateMediaPath } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
@@ -32,7 +33,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { leadInboxDraftTarget, renderTemplate, timeAgo, type WaTemplate, type InboxPage } from '@brokeriq/shared';
+import { leadInboxDraftTarget, renderTemplate, type WaTemplate, type InboxPage } from '@brokeriq/shared';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { moveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { useInboxDraft } from '@/lib/use-inbox-draft';
@@ -422,7 +423,7 @@ function InboxInner() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className={cn('truncate text-sm text-fg', c.unreadCount ? 'font-bold' : 'font-semibold')}>{displayName}</p>
-                    <span className="shrink-0 text-[11px] text-subtle font-medium">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ''}</span>
+                    <span className="shrink-0 text-[11px] text-subtle font-medium">{conversationMessageTime(c.lastMessageAt)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
                     <p className={cn('truncate text-xs', c.unreadCount ? 'font-semibold text-fg' : 'text-muted')}>{c.lastPreview ?? '—'}</p>
@@ -528,7 +529,7 @@ function InboxInner() {
                   )}
                   {current?.lastMessageAt && (
                     <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-subtle">
-                      <Clock className="size-3" /> {timeAgo(current.lastMessageAt)}
+                      <Clock className="size-3" /> {conversationMessageTime(current.lastMessageAt)}
                     </span>
                   )}
                 </div>
@@ -937,7 +938,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             variant="whatsapp"
             loading={sending || attachmentBusy}
             disabled={!ready || !canCompose || (!text.trim() && !(attachment && mode === 'send')) || sending || attachmentBusy}
-            aria-label={manualDraft ? 'Open WhatsApp draft' : 'Send'}
+            aria-label={manualDraft ? 'Open WhatsApp draft' : 'Send in BrokerIQ'}
             className="size-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-md active:scale-95 shrink-0"
           >
             {!sending && <Send className="size-4" />}
@@ -968,6 +969,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           onDraft={(draft) => {
             setText(draft);
             setShareOpen(false);
+            toast.success(manualDraft ? 'Property added to the WhatsApp draft' : 'Property ready to send in BrokerIQ');
           }}
         />
         <details className="mt-4 rounded-xl border border-line p-3">

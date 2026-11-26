@@ -26,17 +26,6 @@ export interface WaCreds {
   values: IntegrationValues;
 }
 
-function hasPropertyGalleryLink(text: string, publicWebUrl: string): boolean {
-  return (text.match(/https?:\/\/[^\s<>]+/gi) ?? []).some((value) => {
-    try {
-      const url = new URL(value.replace(/[).,;!?]+$/, ''));
-      return url.origin === new URL(publicWebUrl).origin && /^\/photos\/[a-f0-9]{48}\/?$/.test(url.pathname) && !url.username && !url.password;
-    } catch {
-      return false;
-    }
-  });
-}
-
 const isWhatsAppOptOut = (message: string) => ['stop', 'unsubscribe', 'stop all', 'band', 'बंद', 'बंद करो']
   .includes(message.trim().toLowerCase().replace(/[.!]+$/, ''));
 
@@ -325,7 +314,7 @@ export class WhatsAppService {
       : await this.prisma.message.create({ data: messageData });
     const payload: Record<string, unknown> = { to: phoneForWhatsApp(phone) };
     if (msg.type === 'text')
-      Object.assign(payload, { type: 'text', text: { body: msg.text, preview_url: !hasPropertyGalleryLink(msg.text, env().PUBLIC_WEB_URL) } });
+      Object.assign(payload, { type: 'text', text: { body: msg.text, preview_url: true } });
     else if (msg.type === 'template')
       Object.assign(payload, {
         type: 'template',
