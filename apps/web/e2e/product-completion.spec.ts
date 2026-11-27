@@ -49,8 +49,8 @@ test('Survey address lookup identifies existing units and returns only the selec
   await expect(page.getByRole('link', { name: draft.propertyCode, exact: true })).toHaveCount(0);
   await page.goto('/broker/inventory?survey=1&sector=Sector%2030');
   await page.getByRole('button', { name: 'Advanced filters' }).click();
-  const filters = page.getByRole('dialog', { name: 'Filter inventory' });
-  await filters.getByLabel('Rooms', { exact: true }).selectOption('3');
+  const filters = page.locator('[role="dialog"]').filter({ hasText: 'Filter inventory' });
+  await filters.getByRole('combobox', { name: 'Rooms', exact: true }).selectOption('3');
   const filtered = page.waitForResponse((response) => response.url().includes('/inventory?') &&
     ['folderMode=SURVEY', 'folderSector=Sector+30', 'bhk=3'].every((part) => response.url().includes(part)));
   await filters.getByRole('button', { name: 'Show results' }).click();
@@ -75,10 +75,10 @@ test('both client screens apply BHK and budget filters against the API', async (
     await page.goto(path);
     await expect(page.getByText('Different rooms', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'BHK & budget', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'BHK and budget filters' });
-    await dialog.getByLabel('BHK', { exact: true }).selectOption('3');
-    await dialog.getByLabel('Minimum budget (₹)').fill('35000');
-    await dialog.getByLabel('Maximum budget (₹)').fill('40000');
+    const dialog = page.locator('[role="dialog"]').filter({ hasText: 'BHK and budget filters' });
+    await dialog.getByRole('combobox', { name: 'BHK', exact: true }).selectOption('3');
+    await dialog.getByRole('spinbutton', { name: 'Minimum budget (₹)', exact: true }).fill('35000');
+    await dialog.getByRole('spinbutton', { name: 'Maximum budget (₹)', exact: true }).fill('40000');
     await dialog.getByRole('button', { name: 'Apply filters' }).click();
     await expect(page.getByText('Matched client', { exact: true })).toBeVisible();
     await expect(page.getByText('Different rooms', { exact: true })).toHaveCount(0);
