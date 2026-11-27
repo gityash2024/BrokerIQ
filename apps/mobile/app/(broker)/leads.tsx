@@ -11,9 +11,18 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { AlarmClock, Inbox, MessageCircle, Phone, Plus, Search } from 'lucide-react-native';
-import { leadEnquiryOverview, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
+import {
+  leadEnquiryOverview,
+  LEAD_STAGES,
+  LEAD_STAGE_LABELS,
+  formatPriceShort,
+  timeAgo,
+  clientRequirementFilterSchema,
+  emptyClientRequirementFilters,
+} from '@brokeriq/shared';
 import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
+import { NativeClientRequirementFilterFields } from '@/launch/client-requirement-filters';
 import { api, qs } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
@@ -58,15 +67,16 @@ function LeadItem({ l }: { l: any }) {
       leftThreshold={70}
       rightThreshold={70}
       renderLeftActions={dialUrl ? () => <Action color="#4F46E5" icon={<Phone size={22} color="#fff" />} label="Call" align="left" /> : undefined}
-      renderRightActions={chatAllowed ? () => <Action color="#16A34A" icon={<MessageCircle size={22} color="#fff" />} label="WhatsApp" align="right" /> : undefined}
+      renderRightActions={
+        chatAllowed ? () => <Action color="#16A34A" icon={<MessageCircle size={22} color="#fff" />} label="WhatsApp" align="right" /> : undefined
+      }
       ref={ref}
       onSwipeableOpen={(dir) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
         // "left" = left-side actions revealed (swiped right) → Call
         if (String(dir) === 'left') {
           if (dialUrl) void Linking.openURL(dialUrl).catch(showError);
-        }
-        else if (chatAllowed) openLeadInbox(l.id);
+        } else if (chatAllowed) openLeadInbox(l.id);
         ref.current?.close();
       }}
     >
@@ -82,7 +92,8 @@ function LeadItem({ l }: { l: any }) {
                 {l.name || l.phone}
               </Txt>
               <Txt v="caption" color="muted">
-                {l.reference && `${l.reference} · `}{l.phone}
+                {l.reference && `${l.reference} · `}
+                {l.phone}
               </Txt>
             </View>
           </Row>
@@ -152,14 +163,18 @@ export default function Leads() {
   const [filters, setFilters] = useState(false);
   const [dateField, setDateField] = useState('createdAt');
   const [responseSla, setResponseSla] = useState('');
+  const [clientFilters, setClientFilters] = useState(emptyClientRequirementFilters);
+  const [clientDraft, setClientDraft] = useState(emptyClientRequirementFilters);
+  const clientValidation = clientRequirementFilterSchema.safeParse(clientDraft);
   const params = useLocalSearchParams();
   const parameterKey = JSON.stringify(
-    ['stage', 'source', 'temperature', 'from', 'to', 'dateField', 'responseSla', 'view', 'q'].map((key) =>
+    ['stage', 'source', 'temperature', 'from', 'to', 'dateField', 'responseSla', 'view', 'q', 'bedrooms', 'minBudget', 'maxBudget'].map((key) =>
       typeof params[key] === 'string' ? params[key] : '',
     ),
   );
   useEffect(() => {
-    const [nextStage, nextSource, nextTemp, nextFrom, nextTo, nextDateField, nextSla, nextView, nextText] = JSON.parse(parameterKey);
+    const [nextStage, nextSource, nextTemp, nextFrom, nextTo, nextDateField, nextSla, nextView, nextText, bedrooms, minBudget, maxBudget] =
+      JSON.parse(parameterKey);
     setStage(nextStage);
     setSource(nextSource);
     setTemperature(nextTemp);
@@ -169,6 +184,7 @@ export default function Leads() {
     setResponseSla(nextSla);
     setView(nextView);
     setText(nextText);
+    setClientFilters({ bedrooms, minBudget, maxBudget });
   }, [parameterKey]);
 
   const now = new Date();
@@ -187,12 +203,14 @@ export default function Leads() {
     setTo('');
     setDateField('createdAt');
     setResponseSla('');
+    setClientFilters(emptyClientRequirementFilters);
+    setClientDraft(emptyClientRequirementFilters);
   };
 
-  const activeCount = [view, stage, source, temperature, from, to].filter(Boolean).length;
+  const activeCount = [view, stage, source, temperature, from, to, ...Object.values(clientFilters)].filter(Boolean).length;
 
   const list = useInfiniteQuery({
-    queryKey: ['leads', q, view, stage, source, temperature, from, to, dateField, responseSla],
+    queryKey: ['leads', q, view, stage, source, temperature, from, to, dateField, responseSla, clientFilters],
     queryFn: ({ pageParam }) =>
       api<any>(
         `/leads${qs({
@@ -205,6 +223,7 @@ export default function Leads() {
           temperature: temperature || undefined,
           from: from || undefined,
           to: to || undefined,
+          ...clientFilters,
           page: pageParam,
           pageSize: 25,
         })}`,
@@ -230,7 +249,10 @@ export default function Leads() {
                 title={activeCount > 0 ? `Filters (${activeCount})` : 'Filters'}
                 size="sm"
                 variant={activeCount > 0 ? 'secondary' : 'ghost'}
-                onPress={() => setFilters(true)}
+                onPress={() => {
+                  setClientDraft(clientFilters);
+                  setFilters(true);
+                }}
               />
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -291,6 +313,12 @@ export default function Leads() {
             onChange={(v) => setTemperature(v ?? '')}
             emptyLabel="All temperatures"
           />
+          <NativeClientRequirementFilterFields value={clientDraft} onChange={setClientDraft} />
+          {!clientValidation.success && (
+            <Txt v="caption" color="danger">
+              {clientValidation.error.issues[0].message}
+            </Txt>
+          )}
 
           <View style={{ gap: 8, marginTop: 4 }}>
             <Txt v="caption" color="muted">
@@ -353,7 +381,14 @@ export default function Leads() {
               <Button title="Reset all" variant="secondary" onPress={resetFilters} />
             </View>
             <View style={{ flex: 1 }}>
-              <Button title="Apply filters" onPress={() => setFilters(false)} />
+              <Button
+                title="Apply filters"
+                disabled={!clientValidation.success}
+                onPress={() => {
+                  setClientFilters(clientDraft);
+                  setFilters(false);
+                }}
+              />
             </View>
           </View>
         </View>

@@ -3,6 +3,7 @@ import { activeInventoryGrant } from '../inventory/inventory-access.service';
 import { randomUUID } from 'node:crypto';
 import { ConflictException, BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { parseLeadQuery } from './lead-query';
+import { clientRequirementWhere } from './client-requirement-filter';
 import { csvCell } from '../../common/csv';
 import { Prisma, type LeadSource, type LeadStage } from '@prisma/client';
 import {
@@ -56,6 +57,9 @@ export interface LeadListQuery {
   assignedToId?: string;
   temperature?: string;
   tag?: string;
+  bedrooms?: string | number;
+  minBudget?: string | number;
+  maxBudget?: string | number;
   from?: string;
   to?: string;
   dateField?: 'createdAt' | 'stageChangedAt';
@@ -311,6 +315,8 @@ export class LeadsService {
   private listQuery(user: RequestUser, input: LeadListQuery) {
     const q = parseLeadQuery(input);
     const and: Prisma.LeadWhereInput[] = [this.scope(user)];
+    const requirement = clientRequirementWhere(input);
+    if (requirement) and.push({ requirement: { is: requirement } });
     if (q.stage) and.push({ stage: { in: q.stage.split(',') as LeadStage[] } });
     if (q.source) and.push({ source: { in: q.source.split(',') as LeadSource[] } });
     if (q.assignedToId) and.push({ assignedToId: q.assignedToId === 'none' ? null : q.assignedToId });

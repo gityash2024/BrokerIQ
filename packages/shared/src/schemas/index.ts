@@ -252,6 +252,45 @@ export const leadRequirementSchema = z.object({
 });
 export type LeadRequirementInput = z.infer<typeof leadRequirementSchema>;
 
+export const clientBedroomChoices = ['1', '2', '3', '4', '5', '6'] as const;
+const clientBudgetBound = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z
+    .union([
+      z
+        .string()
+        .trim()
+        .regex(/^\d{1,12}(?:\.\d{1,2})?$/)
+        .transform(Number),
+      z.number().min(0).max(999999999999.99),
+    ])
+    .optional(),
+);
+export const clientRequirementFilterSchema = z
+  .object({
+    bedrooms: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .union([
+          z
+            .string()
+            .regex(/^\d{1,3}$/)
+            .transform(Number),
+          z.number(),
+        ])
+        .pipe(z.number().int().min(1).max(100))
+        .optional(),
+    ),
+    minBudget: clientBudgetBound,
+    maxBudget: clientBudgetBound,
+  })
+  .refine(({ minBudget, maxBudget }) => minBudget === undefined || maxBudget === undefined || minBudget <= maxBudget, {
+    path: ['maxBudget'],
+    message: 'Maximum budget must be at least the minimum budget.',
+  });
+export const emptyClientRequirementFilters = { bedrooms: '', minBudget: '', maxBudget: '' };
+export type ClientRequirementFilterDraft = typeof emptyClientRequirementFilters;
+
 /** A tenant's stated need, posted from the site / app ("अपनी ज़रूरत बताएँ"). */
 export const tenantRequirementSchema = z.object({
   name: z.string().trim().min(2).max(80),

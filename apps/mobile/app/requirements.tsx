@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { View, Linking, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { formatINR, hasDelegatedAccess, readableValue, moduleAllowed } from '@brokeriq/shared';
+import { formatINR, hasDelegatedAccess, readableValue, moduleAllowed, clientRequirementFilterSchema, emptyClientRequirementFilters, type ClientRequirementFilterDraft } from '@brokeriq/shared';
 import { api, del, qs, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
@@ -13,6 +13,7 @@ import { useConfig } from '@/lib/config';
 import { useApiMutation, useDebounced } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { PropertyCard } from '@/launch/property-card';
+import { NativeClientRequirementFilterFields } from '@/launch/client-requirement-filters';
 import { Button, Txt, ErrorView, Sheet, Input } from '@/ui';
 export default function Requirements() {
   const { user } = useAuth();
@@ -26,10 +27,14 @@ export default function Requirements() {
   const term = useDebounced(search);
   const [selected, setSelected] = useState<string | null>(null);
   const [intent, setIntent] = useState('');
+  const [filters, setFilters] = useState(emptyClientRequirementFilters);
+  const [draft, setDraft] = useState<ClientRequirementFilterDraft | null>(null);
+  const validation = draft === null ? null : clientRequirementFilterSchema.safeParse(draft);
+  const filterCount = Object.values(filters).filter(Boolean).length;
   const [converting, setConverting] = useState<string | null>(null);
   const list = useInfiniteQuery({
-    queryKey: ['broker-requirements', leadId, term, intent],
-    queryFn: ({ pageParam }) => api<any>(`/broker-requirements${qs({ page: pageParam, leadId, search: term, intent: intent || undefined })}`),
+    queryKey: ['broker-requirements', leadId, term, intent, filters],
+    queryFn: ({ pageParam }) => api<any>(`/broker-requirements${qs({ page: pageParam, leadId, search: term, intent, ...filters })}`),
     initialPageParam: 1,
     getNextPageParam: (p) => (p.page < p.totalPages ? p.page + 1 : undefined),
   });
@@ -57,6 +62,7 @@ export default function Requirements() {
               ))}
             </View>
             <Input accessibilityLabel="Search requirements" placeholder="Contact, phone or requirement notes" value={search} onChangeText={setSearch} />
+            <Button title={`BHK & budget${filterCount ? ` (${filterCount})` : ''}`} size="sm" variant="secondary" onPress={() => setDraft(filters)} />
             <Button title={config.flags.connect_whatsapp_cutover ? 'Scan / paste' : 'Scan / paste / WhatsApp export'} variant="secondary" onPress={() => router.push('/capture?target=REQUIREMENT' as any)} />
             <Button title="Add requirement" onPress={() => router.push({ pathname: '/requirement-edit', params: leadId ? { leadId } : {} } as any)} />
           </View>
@@ -178,6 +184,19 @@ export default function Requirements() {
           </NativeCard>
         )}
       />
+      <Sheet open={draft !== null} onClose={() => setDraft(null)} title="BHK and budget filters">
+        {draft && <View style={{ gap: 10 }}>
+          <NativeClientRequirementFilterFields value={draft} onChange={setDraft} />
+          {validation && !validation.success && <Txt v="caption" color="danger">{validation.error.issues[0].message}</Txt>}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button title="Reset" variant="secondary" style={{ flex: 1 }} onPress={() => setDraft(emptyClientRequirementFilters)} />
+            <Button title="Apply filters" style={{ flex: 1 }} disabled={!validation?.success} onPress={() => {
+              setFilters(draft);
+              setDraft(null);
+            }} />
+          </View>
+        </View>}
+      </Sheet>
       <Sheet open={!!selected} onClose={() => setSelected(null)} title="Inventory matches">
         {matches.error ? (
           <ErrorView error={matches.error} onRetry={() => matches.refetch()} />

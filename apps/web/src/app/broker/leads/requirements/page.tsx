@@ -14,6 +14,9 @@ import { moduleAllowed } from '@brokeriq/shared';
 import { formatINR, hasDelegatedAccess, readableValue } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { del, useApiMutation } from '@/lib/hooks';
+import { emptyClientRequirementFilters } from '@brokeriq/shared';
+import { ClientRequirementFilters } from '@/components/broker/launch/client-requirement-filters';
+import { qs } from '@/lib/utils';
 export default function RequirementsPage() {
   return (
     <Suspense>
@@ -33,6 +36,7 @@ function RequirementsInner() {
   const canDelete = hasDelegatedAccess(user, 'leads', 'view', 'delete');
   const removal = useApiMutation((id: string) => del('/broker-requirements/' + id), { invalidate: [['broker-requirements']] });
   const [intent, setIntent] = useRouteState('requirements.intent', '');
+  const [filters, setFilters] = useRouteState('requirements.clientFilters', emptyClientRequirementFilters);
   const [match, setMatch] = useState<string | null>(null);
   const [page, setPage] = useRouteState('requirements.page', 1);
   const requestedId = params.get('record');
@@ -40,8 +44,8 @@ function RequirementsInner() {
     if (requestedId) router.replace(`/broker/leads/requirements/${encodeURIComponent(requestedId)}/edit`);
   }, [requestedId, router]);
   const query = useQuery({
-    queryKey: ['broker-requirements', page, search, intent],
-    queryFn: () => api<any>(`/broker-requirements?page=${page}&search=${encodeURIComponent(search)}${intent ? '&intent=' + intent : ''}`),
+    queryKey: ['broker-requirements', page, search, intent, filters],
+    queryFn: () => api<any>(`/broker-requirements${qs({ page, search, intent, ...filters })}`),
   });
   const matches = useQuery({ queryKey: ['requirement-matches', match], queryFn: () => api<any>(`/broker-requirements/${match}/matches`), enabled: !!match });
   return (
@@ -90,6 +94,15 @@ function RequirementsInner() {
           <option value="UNKNOWN">Needs review</option>
         </Select>
       </div>
+      <div className="mb-5">
+        <ClientRequirementFilters
+          value={filters}
+          onApply={(next) => {
+            setFilters(next);
+            setPage(1);
+          }}
+        />
+      </div>
       {query.error ? (
         <p role="alert">{errorMessage(query.error)}</p>
       ) : (
@@ -131,11 +144,23 @@ function RequirementsInner() {
                   ))}
               </dl>
               <div className="mt-4 flex flex-wrap gap-3">
-                {canEdit && <Link href={`/broker/leads/requirements/${item.id}/edit`} className="text-sm font-semibold text-brand-600">
-                  Review / edit
-                </Link>}
-                {canDelete && <Button size="xs" variant="ghost" disabled={removal.isPending}
-                  onClick={() => { if (window.confirm('Archive this requirement?')) removal.mutate(item.id); }}>Archive requirement</Button>}
+                {canEdit && (
+                  <Link href={`/broker/leads/requirements/${item.id}/edit`} className="text-sm font-semibold text-brand-600">
+                    Review / edit
+                  </Link>
+                )}
+                {canDelete && (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    disabled={removal.isPending}
+                    onClick={() => {
+                      if (window.confirm('Archive this requirement?')) removal.mutate(item.id);
+                    }}
+                  >
+                    Archive requirement
+                  </Button>
+                )}
                 {inventoryAllowed && item.intent === 'OFFER' && !item.convertedAt && item.status === 'OPEN' && (
                   <Link href={`/broker/leads/requirements/${item.id}/convert`} className="text-sm font-semibold text-brand-600">
                     Review and add to inventory →

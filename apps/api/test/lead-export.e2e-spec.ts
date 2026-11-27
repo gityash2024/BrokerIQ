@@ -63,11 +63,20 @@ describe('Lead filters and complete scoped CSV (real PostgreSQL)', () => {
     expect(assigned.reference).toMatch(/^LEAD-\d+$/);
     expect(peer.reference).not.toEqual(assigned.reference);
     const query = 'q=' + assigned.reference.toLowerCase();
-    const list = await send().get('/api/leads?' + query).set(headers()).expect(200);
+    const list = await send()
+      .get('/api/leads?' + query)
+      .set(headers())
+      .expect(200);
     expect(list.body.items.map((lead: { id: string }) => lead.id)).toEqual([assigned.id]);
-    const pipeline = await send().get('/api/leads/kanban?' + query).set(headers()).expect(200);
+    const pipeline = await send()
+      .get('/api/leads/kanban?' + query)
+      .set(headers())
+      .expect(200);
     expect(pipeline.body.flatMap((column: { items: { id: string }[] }) => column.items.map((lead) => lead.id))).toEqual([assigned.id]);
-    const hidden = await send().get('/api/leads?q=' + peer.reference).set(headers()).expect(200);
+    const hidden = await send()
+      .get('/api/leads?q=' + peer.reference)
+      .set(headers())
+      .expect(200);
     expect(hidden.body.items).toEqual([]);
   });
 
@@ -97,6 +106,55 @@ describe('Lead filters and complete scoped CSV (real PostgreSQL)', () => {
     expect(repeated.body.items.map((row: { id: string }) => row.id)).toEqual(ids);
     expect(second.body.items.some((row: { id: string }) => ids.includes(row.id))).toBe(false);
     expect(first.body.total).toBe(5001);
+  });
+
+  it('filters both client lists by BHK and overlapping budgets without exposing peer records', async () => {
+    const requirement = { bedrooms: [3, 4], minBudget: 25_000, maxBudget: 35_000 };
+    const own = await db.lead.findFirstOrThrow({ where: { assignedToId: agentId, name: 'Visible export 4999' } });
+    const peer = await db.lead.findFirstOrThrow({ where: { assignedToId: foreignId } });
+    for (const lead of [own, peer]) {
+      await db.leadRequirement.create({ data: { leadId: lead.id, propertyTypes: [], localityIds: [], ...requirement } });
+    }
+    const matching = await db.brokerRequirement.create({
+      data: {
+        organizationId: orgId,
+        assignedToId: agentId,
+        contactName: 'Matching range',
+        localityNames: [],
+        propertyTypes: [],
+        ...requirement,
+      },
+    });
+    await db.brokerRequirement.create({
+      data: {
+        organizationId: orgId,
+        assignedToId: foreignId,
+        contactName: 'Peer range',
+        localityNames: [],
+        propertyTypes: [],
+        ...requirement,
+      },
+    });
+    for (const [path, id] of [
+      ['leads', own.id],
+      ['broker-requirements', matching.id],
+    ]) {
+      const endpoint = '/api/' + path;
+      const result = await send().get(endpoint).query({ bedrooms: 3, minBudget: 30_000, maxBudget: 40_000 }).set(headers()).expect(200);
+      expect(result.body.items.map((row: { id: string }) => row.id)).toEqual([id]);
+      for (const filter of [{ bedrooms: 2 }, { minBudget: 35_001 }, { maxBudget: 24_999 }]) {
+        await send()
+          .get(endpoint)
+          .query(filter)
+          .set(headers())
+          .expect(200)
+          .expect(({ body }) => expect(body.total).toBe(0));
+      }
+      await send().get(endpoint).query({ minBudget: 40_000, maxBudget: 30_000 }).set(headers()).expect(400);
+    }
+    const csv = await send().get('/api/leads/export?bedrooms=4&maxBudget=30000').set(headers()).expect(200);
+    expect(csv.text.trimEnd().split('\n')).toHaveLength(2);
+    expect(csv.text).toContain(own.name);
   });
   it('commits stage closure and task cancellation atomically, with one activity on concurrent retries', async () => {
     const lead = await db.lead.create({

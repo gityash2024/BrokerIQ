@@ -21,6 +21,7 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { InventoryService, ledgerJson } from './inventory.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { ModulesService } from '../../core/features/modules.service';
+import { clientRequirementWhere } from '../leads/client-requirement-filter';
 
 const paging = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -29,6 +30,9 @@ const paging = z.object({
   organizationId: z.string().optional(),
   intent: z.enum(['DEMAND', 'OFFER', 'UNKNOWN']).optional(),
   converted: z.enum(['true', 'false']).optional(),
+  bedrooms: z.string().optional(),
+  minBudget: z.string().optional(),
+  maxBudget: z.string().optional(),
 });
 @Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('broker-requirements')
@@ -47,14 +51,16 @@ export class BrokerRequirementsController {
     };
   }
   @Get() async list(@CurrentUser() user: RequestUser, @Query(new ZodPipe(paging)) q: z.infer<typeof paging>) {
+    const filters = clientRequirementWhere(q);
     const where: Prisma.BrokerRequirementWhereInput = {
       ...this.scope(user, q.organizationId),
       ...(q.leadId ? { leadId: q.leadId } : {}),
       ...(q.intent ? { intent: q.intent } : {}),
       ...(q.converted ? { convertedAt: q.converted === 'true' ? { not: null } : null } : {}),
-      ...(q.search
-        ? {
-            AND: [
+      AND: [
+        ...(filters ? [filters] : []),
+        ...(q.search
+          ? [
               {
                 OR: [
                   { contactName: { contains: q.search, mode: 'insensitive' as const } },
@@ -63,9 +69,9 @@ export class BrokerRequirementsController {
                   { contactPhone: { contains: q.search } },
                 ],
               },
-            ],
-          }
-        : {}),
+            ]
+          : []),
+      ],
     };
     const [items, total] = await Promise.all([
       this.prisma.brokerRequirement.findMany({ where, skip: (q.page - 1) * 30, take: 30, orderBy: { createdAt: 'desc' } }),

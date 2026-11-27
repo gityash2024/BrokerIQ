@@ -25,6 +25,7 @@ import { Input, Select, Textarea } from '@/components/ui/field';
 import { Avatar, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { ClientRequirementFilters } from '@/components/broker/launch/client-requirement-filters';
 
 const leadColumns = 'lg:grid-cols-[24px_minmax(160px,1.7fr)_minmax(80px,1fr)_104px_minmax(95px,1.2fr)_82px_14rem_minmax(120px,1fr)]';
 
@@ -187,6 +188,10 @@ function LeadsInner() {
               <X className="size-4" /> Clear
             </button>
           )}
+          <ClientRequirementFilters
+            value={{ bedrooms: f.bedrooms ?? '', minBudget: f.minBudget ?? '', maxBudget: f.maxBudget ?? '' }}
+            onApply={(next) => setF(next)}
+          />
         </div>
       </div>
 
@@ -318,7 +323,8 @@ function LeadsInner() {
                         )}
                       </p>
                       <p className="truncate text-xs text-muted">
-                        {l.reference && `${l.reference} · `}{l.phone} · {timeAgo(l.lastActivityAt ?? l.createdAt)}
+                        {l.reference && `${l.reference} · `}
+                        {l.phone} · {timeAgo(l.lastActivityAt ?? l.createdAt)}
                         {l.nextFollowUpAt
                           ? ` · ⏰ ${new Date(l.nextFollowUpAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`
                           : ''}

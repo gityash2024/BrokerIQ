@@ -43,6 +43,46 @@ test('Survey address lookup identifies existing units and returns only the selec
   await quick.getByLabel('House / plot no.', { exact: true }).fill(houseNo);
   await expect(quick.getByText('Ground · Survey', { exact: true })).toBeVisible();
   await expect(quick.getByText('First · Available Inventory', { exact: true })).toBeVisible();
+  const draft = await create({ survey: true, floor: 'Second', details: { possessionDate: '2026-11-27' } });
+  await page.goto(`/broker/inventory/${draft.id}/edit`);
+  await expect(page.getByText('First · Available Inventory', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: draft.propertyCode, exact: true })).toHaveCount(0);
+  await page.goto('/broker/inventory?survey=1&sector=Sector%2030');
+  await page.getByRole('button', { name: 'Advanced filters' }).click();
+  const filters = page.getByRole('dialog', { name: 'Filter inventory' });
+  await filters.getByLabel('Rooms', { exact: true }).selectOption('3');
+  const filtered = page.waitForResponse((response) => response.url().includes('/inventory?') &&
+    ['folderMode=SURVEY', 'folderSector=Sector+30', 'bhk=3'].every((part) => response.url().includes(part)));
+  await filters.getByRole('button', { name: 'Show results' }).click();
+  expect((await filtered).ok()).toBe(true);
+  await expect(page.getByRole('navigation', { name: 'Inventory folder path' }).getByText('Sector 30')).toBeVisible();
+  await expect(page).toHaveURL(/survey=1/);
+});
+
+test('both client screens apply BHK and budget filters against the API', async ({ page, request }) => {
+  const { session } = await createBrokerFixture(request);
+  const headers = { Authorization: 'Bearer ' + session.accessToken };
+  const requirement = { bedrooms: [3], minBudget: 30_000, maxBudget: 38_000 };
+  for (const [index, name] of ['Matched client', 'Different rooms'].entries()) {
+    const fields = { ...requirement, bedrooms: [index ? 2 : 3] };
+    const lead = await request.post(API + '/leads', { headers, data: { name, phone: `981076543${index}`, requirement: fields } });
+    expect(lead.status()).toBe(201);
+    const separate = await request.post(API + '/broker-requirements', { headers, data: { contactName: name, intent: 'DEMAND', purpose: 'RENT', localityNames: ['Sector 30'], ...fields } });
+    expect(separate.status()).toBe(201);
+  }
+  await page.addInitScript((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
+  for (const path of ['/broker/leads', '/broker/leads/requirements']) {
+    await page.goto(path);
+    await expect(page.getByText('Different rooms', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'BHK & budget', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'BHK and budget filters' });
+    await dialog.getByLabel('BHK', { exact: true }).selectOption('3');
+    await dialog.getByLabel('Minimum budget (₹)').fill('35000');
+    await dialog.getByLabel('Maximum budget (₹)').fill('40000');
+    await dialog.getByRole('button', { name: 'Apply filters' }).click();
+    await expect(page.getByText('Matched client', { exact: true })).toBeVisible();
+    await expect(page.getByText('Different rooms', { exact: true })).toHaveCount(0);
+  }
 });
 
 test('scanner and chat exports are discoverable, private drafts survive reload and imports stay in review', async ({ page, request }, testInfo) => {
