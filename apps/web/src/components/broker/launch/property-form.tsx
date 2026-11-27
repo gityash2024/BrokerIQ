@@ -365,8 +365,9 @@ export function PropertyForm({
             )}
           </label>
           {field('houseNo')}
-          {!ownerMode && !('id' in initial) && (
-            <div className="col-span-full empty:hidden"><SurveyPropertyMatches sector={location.sector} houseNo={location.houseNo} /></div>
+          {!ownerMode && (
+            <div className="col-span-full empty:hidden"><SurveyPropertyMatches sector={location.sector} houseNo={location.houseNo}
+              excludeId={'id' in initial ? initial.id : undefined} /></div>
           )}
           {captureSurveyLocation && (
             <div className="col-span-full">

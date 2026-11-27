@@ -17,6 +17,8 @@ import {
   normalizePropertyCode,
   type SurveyWhatsAppNote,
   inventoryDate,
+  inventoryDateFilter,
+  inventoryFilterDay,
   inventoryPrice,
   inventoryCardTitle,
   inventoryConfigurationLabel,
@@ -43,6 +45,7 @@ import { InventoryTabs } from './inventory-tabs';
 import { AvailabilitySwitch } from './inventory-status-actions';
 import { InventoryRecordActions } from './inventory-record-actions';
 import { InventoryFolderControls } from './inventory-folder-controls';
+import { InventoryFilterFields } from './inventory-filter-fields';
 
 const initial = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 const inputClass = 'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm';
@@ -70,7 +73,8 @@ export function InventoryFoldersPage({
   const kind = selectedPath[0]?.kind;
   const path = mode === 'AVAILABLE' && !kind && selectedPath[0]?.key !== current ? [] : selectedPath;
   const [search, setSearch] = useRouteState('inventory-folders.search', '');
-  const [filters, setFilters] = useRouteState('inventory-folders.filters', initial);
+  const [filters, setFilters] = useRouteState<Record<string, string>>('inventory-folders.filters', initial);
+  const [advancedDraft, setAdvancedDraft] = useState<Record<string, string> | null>(null);
   const [datesOpen, setDatesOpen] = useState(false);
   const [dates, setDates] = useState({ from: '', to: '' });
   const [page, setPage] = useRouteState('inventory-folders.page', 1);
@@ -90,8 +94,8 @@ export function InventoryFoldersPage({
   };
   const filter = {
     ...filters,
-    dateFrom: filters.dateFrom ? new Date(filters.dateFrom + 'T00:00:00+05:30').toISOString() : '',
-    dateTo: filters.dateTo ? new Date(filters.dateTo + 'T23:59:59.999+05:30').toISOString() : '',
+    dateFrom: inventoryDateFilter(filters.dateFrom),
+    dateTo: inventoryDateFilter(filters.dateTo, true),
     search: survey && !path.length && !normalizePropertyCode(term) ? '' : term,
   };
   const leaf = !!kind || Boolean(normalizePropertyCode(term)) || (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
@@ -123,7 +127,22 @@ export function InventoryFoldersPage({
   const activeQuery = leaf ? records : folders;
   const photoCounts = leaf ? records.data?.photoCounts : folders.data?.photoCounts;
   const folderRows = [...(folders.data?.folders ?? []), ...(folders.data?.extraFolders ?? [])];
-  const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', openFilters: '1', ...filter, ...shelf })}`;
+  const sectors = useQuery({
+    queryKey: ['ledger-sectors', user?.id, user?.organization?.id, mode],
+    queryFn: () => api<{ sector: string }[]>('/inventory/sectors' + qs({ folderMode: mode })),
+    enabled: !!user && advancedDraft !== null,
+  });
+
+  function applyAdvancedFilters() {
+    if (!advancedDraft) return;
+    if (advancedDraft.dateFrom && advancedDraft.dateTo && advancedDraft.dateFrom > advancedDraft.dateTo) {
+      toast.error('Enter a valid record date range');
+      return;
+    }
+    setFilters({ ...advancedDraft, dateFrom: inventoryFilterDay(advancedDraft.dateFrom), dateTo: inventoryFilterDay(advancedDraft.dateTo) });
+    setPage(1);
+    setAdvancedDraft(null);
+  }
 
   function changePath(next: InventoryFolder[]) {
     if (pushRouteView({ 'inventory-folders.selectedPath': next, 'inventory-folders.page': 1 })) return;
@@ -305,11 +324,20 @@ export function InventoryFoldersPage({
           >
             <CalendarDays className="size-4 shrink-0" /> {filters.dateFrom || filters.dateTo ? 'Record dates applied' : 'Record dates'}
           </button>
-          <Link href={advancedUrl} className="inline-flex items-center gap-2 col-span-2 py-1 text-sm font-semibold text-brand-600 xl:col-span-6">
+          <button type="button" onClick={() => setAdvancedDraft({ ...filters, dateFrom: filter.dateFrom, dateTo: filter.dateTo })}
+            className="inline-flex items-center gap-2 col-span-2 py-1 text-sm font-semibold text-brand-600 xl:col-span-6">
             <SlidersHorizontal className="size-4" /> Advanced filters
-          </Link>
+          </button>
         </div>
       </div>
+      <Dialog open={advancedDraft !== null} onOpenChange={(open) => { if (!open) setAdvancedDraft(null); }} title="Filter inventory">
+        {advancedDraft && <InventoryFilterFields filters={advancedDraft} setFilters={setAdvancedDraft}
+          sectors={sectors.data?.map(({ sector }) => sector) ?? []} canViewArchived={user?.role !== 'BROKER_AGENT'} />}
+        <div className="mt-5 flex gap-2">
+          <Button type="button" variant="secondary" onClick={() => setAdvancedDraft(initial)}>Reset filters</Button>
+          <Button type="button" onClick={applyAdvancedFilters}>Show results</Button>
+        </div>
+      </Dialog>
       <nav aria-label="Inventory folder path" className="flex flex-wrap items-center gap-2 text-sm">
         <button className="font-semibold text-brand-600" onClick={() => changePath([])}>
           {mode === 'AVAILABLE' ? 'Current month' : readableValue(mode)}

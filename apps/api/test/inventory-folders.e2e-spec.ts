@@ -107,6 +107,13 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     ]));
     expect((await lookup(otherAgent)).body).toEqual([]);
     expect((await lookup(agent)).body).toEqual([expect.objectContaining({ id: existing.id, canReturnToSurvey: true })]);
+    const notice = (token: string, excludeId?: string) => api().get('/api/inventory/survey-property-matches')
+      .query({ sector: 'Sec. 64', houseNo, includeRestrictedNotice: 'true', ...(excludeId ? { excludeId } : {}) }).set(headers(token)).expect(200);
+    expect((await notice(otherAgent)).body).toEqual({ items: [], hasRestrictedMatches: true });
+    expect((await notice(admin, pending.id)).body.items.map(({ id }: { id: string }) => id).sort()).toEqual([existing.id, available.id].sort());
+    expect((await api().get('/api/inventory/survey-property-matches').set(headers(outsider))
+      .query({ sector: 'Sector 64', houseNo, excludeId: (await lookup(outsider)).body[0].id, includeRestrictedNotice: 'true' }).expect(200)).body)
+      .toEqual({ items: [], hasRestrictedMatches: false });
     const reopen = (item: { id: string; revision: number }, token = admin) => api().patch(`/api/inventory/${item.id}/reopen-survey`)
       .set(headers(token)).send({ expectedRevision: item.revision });
     await reopen(available).expect(409);
@@ -128,6 +135,14 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     expect((await lookup()).body.find(({ id }: { id: string }) => id === existing.id)).toMatchObject({ view: 'AVAILABLE', canReturnToSurvey: false });
     expect((await api().get(queue).set(headers()).expect(200)).body.items.some(({ id }: { id: string }) => id === existing.id)).toBe(false);
     expect(await db.inventoryItem.count({ where: { organizationId: firmId, houseNo } })).toBe(3);
+  });
+
+  it('matches formatted legacy house numbers without matching a different unit number', async () => {
+    const address = { ...unit, sector: 'Sec-64' };
+    const stored = (await api().post('/api/inventory').set(headers()).send({ ...address, houseNo: 'House No. 764 / B' }).expect(201)).body;
+    await api().post('/api/inventory').set(headers()).send({ ...address, houseNo: '764/B2' }).expect(201);
+    const matches = await api().get('/api/inventory/survey-property-matches').set(headers()).query({ sector: 'Sector 64', houseNo: '#764/b' }).expect(200);
+    expect(matches.body.map(({ id }: { id: string }) => id)).toEqual([stored.id]);
   });
 
   it('separates PDF property access from private contact and source text access', async () => {

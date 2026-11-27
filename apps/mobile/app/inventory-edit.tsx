@@ -376,7 +376,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
                 />
                 {field('houseNo', 'House / plot no.', false, true)}
               </Row>
-              {createSurvey && <SurveyPropertyMatches sector={form.sector} houseNo={form.houseNo} linkToProperty />}
+              <SurveyPropertyMatches sector={form.sector} houseNo={form.houseNo} excludeId={id} />
               {localities.isError && <Button title="Retry sectors" size="sm" variant="ghost" onPress={() => void localities.refetch()} />}
               <SurveyLocationField
                 value={form.directionsUrl}

@@ -104,14 +104,15 @@ export class InventoryController {
   @Get('stats') getStats(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getStats(user, orgId);
   }
-  @Get('sectors') getSectors(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
-    return this.inventory.getSectors(user, orgId);
+  @Get('sectors') getSectors(@Query('organizationId') orgId: string, @Query('folderMode') folderMode: string, @CurrentUser() user: RequestUser) {
+    return this.inventory.getSectors(user, orgId, folderMode === 'SURVEY');
   }
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('survey-property-matches')
   @Header('Cache-Control', 'private, no-store')
-  surveyPropertyMatches(@Query(new ZodPipe(surveyPropertyLookupSchema)) input: SurveyPropertyLookup, @CurrentUser() user: RequestUser) {
-    return this.inventory.surveyPropertyMatches(input, user);
+  async surveyPropertyMatches(@Query(new ZodPipe(surveyPropertyLookupSchema)) input: SurveyPropertyLookup, @CurrentUser() user: RequestUser) {
+    const result = await this.inventory.surveyPropertyMatches(input, user);
+    return input.includeRestrictedNotice === 'true' ? result : result.items;
   }
   @Get(':id/access')
   detailAccess(@Param('id') id: string, @CurrentUser() user: RequestUser) {

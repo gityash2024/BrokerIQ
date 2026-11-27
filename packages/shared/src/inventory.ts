@@ -158,7 +158,12 @@ export const surveyUnitsInputSchema = surveyPhoneInputSchema.options[1].extend({
     }),
 });
 export type SurveyUnitsInput = z.infer<typeof surveyUnitsInputSchema>;
-export const surveyPropertyLookupSchema = z.object({ sector: z.string().trim().min(1).max(200), houseNo: z.string().trim().min(1).max(200) });
+export const surveyPropertyLookupSchema = z.object({
+  sector: z.string().trim().min(1).max(200),
+  houseNo: z.string().trim().min(1).max(200),
+  excludeId: z.string().trim().min(1).max(100).optional(),
+  includeRestrictedNotice: z.literal('true').optional(),
+});
 export type SurveyPropertyLookup = z.infer<typeof surveyPropertyLookupSchema>;
 export const surveyReopenInputSchema = z.strictObject({ expectedRevision: z.number().int().positive() });
 export type SurveyReopenInput = z.infer<typeof surveyReopenInputSchema>;
@@ -172,6 +177,7 @@ export type SurveyPropertyMatch = {
   view: keyof typeof surveyPropertyViews;
   canReturnToSurvey: boolean;
 };
+export type SurveyPropertyMatchSummary = { items: SurveyPropertyMatch[]; hasRestrictedMatches: boolean };
 export const surveyConfigurationChoices = surveyPhoneUnitSchema.shape.configuration.unwrap().options;
 export const surveyFurnishingChoices = surveyPhoneUnitSchema.shape.furnishing.unwrap().options;
 export function inventoryUnitConfigurationFields(configuration?: UnitConfiguration) {
@@ -753,7 +759,8 @@ export const inventoryBulkPreview = z.object({
 });
 const inventoryBulkRow = z.object({ id: z.string().min(1).max(80), revision: z.number().int().nonnegative() });
 export const inventoryBulkApply = z.object({
-  action: inventoryBulkAction, rows: z.array(inventoryBulkRow).min(1).max(INVENTORY_BULK_LIMIT),
+  action: inventoryBulkAction,
+  rows: z.array(inventoryBulkRow).min(1).max(INVENTORY_BULK_LIMIT),
   confirmWithdrawal: z.boolean().default(false),
 });
 export type InventoryBulkAction = keyof typeof inventoryBulkActions;

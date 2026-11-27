@@ -102,7 +102,7 @@ export function SurveyPhoneAction({ allowed, sector, customFolderId }: { allowed
       >
         {!sector && <Input label="Sector / locality" value={manualSector} maxLength={200} editable={!busy} onChangeText={setManualSector} />}
         <Input label="House / plot no." value={houseNo} editable={!busy} onChangeText={setHouseNo} />
-        {open && <SurveyPropertyMatches sector={selectedSector} houseNo={houseNo} />}
+        {open && <SurveyPropertyMatches sector={selectedSector} houseNo={houseNo} onOpenProperty={() => setOpen(false)} />}
         {units.map((unit, index) => (
           <View key={index} style={{ gap: 6 }}>
             <Txt v="bodyStrong">Unit {index + 1}</Txt>

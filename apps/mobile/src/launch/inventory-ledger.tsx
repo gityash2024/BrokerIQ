@@ -5,7 +5,7 @@ import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, inventoryDateFilter, inventoryFilterDay, type PagedLedger, type LedgerItem } from '@brokeriq/shared';
+import { inventoryDateFilter, inventoryFilterDay, type PagedLedger, type LedgerItem } from '@brokeriq/shared';
 import { ListJumpControls, resultPage, useListJump } from '@/components/list-jump';
 import { api, qs, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -16,7 +16,7 @@ import { toast } from '@/lib/toast';
 import { Txt, Input, Button, Sheet, Chip, Row } from '@/ui';
 import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
-import { NativeAdvancedFilters } from '@/launch/advanced-filters';
+import { NativeInventoryFilterFields } from './inventory-filter-fields';
 import { PropertyCard } from '@/launch/property-card';
 import { NativeInventoryEntryActions } from '@/launch/inventory-entry-actions';
 import { NativeInventoryBulkActions } from '@/launch/inventory-bulk-actions';
@@ -76,7 +76,7 @@ export function InventoryLedger() {
   const params = useLocalSearchParams();
   const [search, setSearch] = useState(typeof params.search === 'string' ? params.search : '');
   const term = useDebounced(search);
-  const [filters, setFilters] = useState(initial);
+  const [filters, setFilters] = useState<Record<string, string>>(initial);
   const parameterKey = JSON.stringify(Object.fromEntries(Object.keys(initial).flatMap((key) => (typeof params[key] === 'string' ? [[key, params[key]]] : []))));
   useEffect(() => {
     setFilters({ ...initial, ...JSON.parse(parameterKey) });
@@ -128,20 +128,6 @@ export function InventoryLedger() {
   const rows = query.data?.pages.flatMap((p) => p.items) ?? [];
   const count = Object.values(filters).filter(Boolean).length;
 
-  const choices: Record<string, string[]> = {
-    ...(user?.role !== 'BROKER_AGENT' ? { archived: ['exclude', 'only', 'include'] } : {}),
-    status: ['DRAFT', 'ACTIVE', 'INACTIVE', 'RENTED'],
-    sector: sectors.data?.map((s) => s.sector) ?? [],
-    purpose: ['RENT', 'SALE'],
-    category: ['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND'],
-    propertyType: PROPERTY_TYPES,
-    bhk: ['1', '2', '3', '4', '5', '6'],
-    roomKinds: ['BHK', 'RK', 'STUDIO'],
-    furnishing: ['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'],
-    availability: ['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE'],
-    sourceType: ['MANUAL', 'PDF_REGISTER', 'WHATSAPP', 'CHAT_EXPORT', 'IMAGE', 'TEXT', 'PORTAL'],
-    areaUnit: ['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE'],
-  };
 
   return (
     <BrokerScreen title="All Inventory" subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}>
@@ -529,30 +515,8 @@ export function InventoryLedger() {
           </View>
         }
       >
-        {Object.entries(choices).map(([name, options]) => (
-          <View key={name} style={{ marginBottom: 14 }}>
-            <ChoiceField
-              emptyLabel="Any"
-              label={INVENTORY_FILTER_LABELS[name] ?? name}
-              value={(filters as any)[name] || null}
-              choices={[...options]}
-              onChange={(value) => setFilters({ ...filters, [name]: value ?? '' })}
-            />
-          </View>
-        ))}
-        {['minBudget', 'maxBudget', 'minArea', 'maxArea'].map((name) => (
-          <Input
-            key={name}
-            label={INVENTORY_FILTER_LABELS[name] ?? name}
-            keyboardType="decimal-pad"
-            value={(filters as any)[name]}
-            onChangeText={(value) => setFilters({ ...filters, [name]: value })}
-            containerStyle={{ marginBottom: 12 }}
-          />
-        ))}
-        <Input label="Record date from (YYYY-MM-DD)" value={dates.from} onChangeText={(from) => setDates({ ...dates, from })} />
-        <Input label="Record date through (YYYY-MM-DD)" value={dates.to} onChangeText={(to) => setDates({ ...dates, to })} />
-        <NativeAdvancedFilters filters={filters} onChange={setFilters} />
+        <NativeInventoryFilterFields filters={filters} setFilters={setFilters} sectors={sectors.data?.map(({ sector }) => sector) ?? []}
+          canViewArchived={user?.role !== 'BROKER_AGENT'} dates={dates} setDates={setDates} />
       </Sheet>
     </BrokerScreen>
   );

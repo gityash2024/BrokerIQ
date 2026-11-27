@@ -39,6 +39,7 @@ import { NativeInventoryRecordActions } from './inventory-record-actions';
 import { NativeInventoryBulkActions } from '@/launch/inventory-bulk-actions';
 import { NativeInventoryFolderControls } from './inventory-folder-controls';
 import { inventoryDateFilter } from '@brokeriq/shared';
+import { NativeInventoryFilterFields } from './inventory-filter-fields';
 
 const initialFilters = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 
@@ -71,8 +72,13 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   }, [initialMode, mode, path]));
   const [search, setSearch] = useState('');
   const [openFilters, setOpenFilters] = useState(false);
-  const [filters, setFilters] = useState(initialFilters);
-  const [draft, setDraft] = useState(initialFilters);
+  const [filters, setFilters] = useState<Record<string, string>>(initialFilters);
+  const [draft, setDraft] = useState<Record<string, string>>(initialFilters);
+  const sectors = useQuery({
+    queryKey: ['ledger-sectors', user?.id, user?.organization?.id, mode],
+    queryFn: () => api<{ sector: string }[]>('/inventory/sectors' + qs({ folderMode: mode })),
+    enabled: !!user && openFilters,
+  });
   const [busy, setBusy] = useState('');
   const term = useDebounced(search);
   const query = {
@@ -426,48 +432,25 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
         }
       }} />}
       </View>
-      <Sheet open={openFilters} onClose={() => setOpenFilters(false)} title="Inventory filters">
-        <View style={{ gap: 10 }}>
-          <Input label="Sector / locality" value={draft.sector} onChangeText={(sector) => setDraft({ ...draft, sector })} />
-          <Input label="Minimum price ₹" value={draft.minBudget} keyboardType="numeric" onChangeText={(minBudget) => setDraft({ ...draft, minBudget })} />
-          <Input label="Maximum price ₹" value={draft.maxBudget} keyboardType="numeric" onChangeText={(maxBudget) => setDraft({ ...draft, maxBudget })} />
-          <Input label="Record date from (YYYY-MM-DD)" value={draft.dateFrom} onChangeText={(dateFrom) => setDraft({ ...draft, dateFrom })} />
-          <Input label="Record date through (YYYY-MM-DD)" value={draft.dateTo} onChangeText={(dateTo) => setDraft({ ...draft, dateTo })} />
-          <Button
-            title="Apply filters"
-            onPress={() => {
-              if ((draft.dateFrom && !inventoryDateFilter(draft.dateFrom)) || (draft.dateTo && !inventoryDateFilter(draft.dateTo))) {
-                toast.error('Use a valid date in YYYY-MM-DD format');
+      <Sheet open={openFilters} onClose={() => setOpenFilters(false)} title="Inventory filters"
+        footer={
+          <Row gap={10}>
+            <Button title="Reset filters" variant="secondary" style={{ flex: 1 }} onPress={() => setDraft(initialFilters)} />
+            <Button title="Apply filters" style={{ flex: 1 }} onPress={() => {
+              const from = inventoryDateFilter(draft.dateFrom);
+              const to = inventoryDateFilter(draft.dateTo, true);
+              if ((draft.dateFrom && !from) || (draft.dateTo && !to) || (from && to && from > to)) {
+                toast.error('Enter a valid record date range');
                 return;
               }
               setFilters(draft);
               setOpenFilters(false);
-            }}
-          />
-          <Button
-            title="Advanced filters"
-            variant="secondary"
-            onPress={() => {
-              const dateFrom = inventoryDateFilter(draft.dateFrom);
-              const dateTo = inventoryDateFilter(draft.dateTo, true);
-              if ((draft.dateFrom && !dateFrom) || (draft.dateTo && !dateTo)) {
-                toast.error('Use a valid date in YYYY-MM-DD format');
-                return;
-              }
-              setOpenFilters(false);
-              router.push({ pathname: '/(broker)/inventory-ledger', params: { ...query, ...draft, dateFrom, dateTo, openFilters: '1' } });
-            }}
-          />
-          <Button
-            title="Reset filters"
-            variant="secondary"
-            onPress={() => {
-              setDraft(initialFilters);
-              setFilters(initialFilters);
-              setOpenFilters(false);
-            }}
-          />
-        </View>
+            }} />
+          </Row>
+        }>
+        <NativeInventoryFilterFields filters={draft} setFilters={setDraft} sectors={sectors.data?.map(({ sector }) => sector) ?? []}
+          canViewArchived={user?.role !== 'BROKER_AGENT'} dates={{ from: draft.dateFrom, to: draft.dateTo }}
+          setDates={({ from, to }) => setDraft({ ...draft, dateFrom: from, dateTo: to })} />
       </Sheet>
     </BrokerScreen>
   );

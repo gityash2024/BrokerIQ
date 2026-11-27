@@ -21,7 +21,7 @@ import {
   type SurveyUnitsInput,
   type SurveyCallInput,
   type SurveyPropertyLookup,
-  type SurveyPropertyMatch,
+  type SurveyPropertyMatchSummary,
   type SurveyReopenInput,
   type BrokerRequirementInput,
   ledgerMatch,
@@ -81,8 +81,8 @@ function sectorSelection(label: string): Prisma.InventoryItemWhereInput {
   const normalized = canonicalInventorySector(label);
   const number = /^Sector (.+)$/.exec(normalized)?.[1];
   return number
-    ? { sector: { in: [label, normalized, 'Sec ' + number, 'Sec-' + number, 'Sector-' + number], mode: 'insensitive' } }
-    : { sector: label };
+    ? { sector: { in: [label, normalized, number, 'Sec ' + number, 'Sec-' + number, 'Sec.' + number, 'Sec. ' + number, 'Sector-' + number], mode: 'insensitive' } }
+    : { sector: { equals: label, mode: 'insensitive' } };
 }
 
 const include = {
@@ -153,7 +153,7 @@ export class InventoryService {
         and.push({ assignedToId: q.assignedToId });
       }
     }
-    if (q.sector) where.sector = { equals: q.sector, mode: 'insensitive' };
+    if (q.sector) and.push(sectorSelection(q.sector));
     if (q.folderSector) and.push(sectorSelection(q.folderSector));
     if (q.customFolderId) and.push({ customFolderId: q.customFolderId });
     if (q.houseNo) {
@@ -729,7 +729,7 @@ export class InventoryService {
       published,
     };
   }
-  async getSectors(user: RequestUser, organizationId?: string) {
+  async getSectors(user: RequestUser, organizationId?: string, survey = false) {
     const rows = await this.prisma.inventoryItem.groupBy({
       by: ['sector'],
       where: {
@@ -737,7 +737,7 @@ export class InventoryService {
         deletedAt: null,
         ...this.access.readScope(user),
         sector: { not: null },
-        NOT: pendingSurvey,
+        AND: [survey ? surveyQueue : { NOT: pendingSurvey }],
       },
       _count: { id: true },
       orderBy: { sector: 'asc' },
@@ -929,32 +929,52 @@ export class InventoryService {
     return this.propertyPhotos.inventory(ledgerJson(item));
   }
 
-  async surveyPropertyMatches(input: SurveyPropertyLookup, user: RequestUser): Promise<SurveyPropertyMatch[]> {
+  async surveyPropertyMatches(input: SurveyPropertyLookup, user: RequestUser): Promise<SurveyPropertyMatchSummary> {
     const organizationId = this.orgId(user);
-    const houseNo = input.houseNo.replace(/^#\s*/, '');
-    if (!houseNo) return [];
+    // Apply the same address comparison to current input and historical imports.
+    const prefix = String.raw`^(?:#\s*|(?:house|plot)\s+(?:(?:number|no\.?)\s*[:#-]?\s*)?(?=\d))`;
+    const separator = String.raw`\s*([/-])\s*`;
+    const houseNo = input.houseNo.replace(new RegExp(prefix, 'i'), '').replace(new RegExp(separator, 'g'), '$1').trim();
+    if (!houseNo) return { items: [], hasRestrictedMatches: false };
+    const candidates = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "InventoryItem"
+      WHERE "organizationId" = ${organizationId} AND "deletedAt" IS NULL
+        AND lower(regexp_replace(regexp_replace(btrim("houseNo"), ${prefix}, '', 'i'), ${separator}, ${String.raw`\1`}, 'g')) = lower(${houseNo})
+    `;
+    if (!candidates.length) return { items: [], hasRestrictedMatches: false };
+    const address: Prisma.InventoryItemWhereInput = {
+      organizationId, deletedAt: null,
+      id: { in: candidates.map(({ id }) => id), ...(input.excludeId ? { not: input.excludeId } : {}) },
+      AND: [sectorSelection(input.sector)],
+    };
+    const linked: Prisma.InventoryItemWhereInput = { OR: [
+      { createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } },
+    ] };
+    const isAgent = user.role === 'BROKER_AGENT';
     const rows = await this.prisma.inventoryItem.findMany({
-      where: {
-        organizationId, deletedAt: null,
-        houseNo: { in: [houseNo, '#' + houseNo, '# ' + houseNo], mode: 'insensitive' },
-        AND: [sectorSelection(input.sector), ...(user.role === 'BROKER_AGENT' ? [{ OR: [
-          { createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } },
-        ] }] : [])],
-      },
+      where: { AND: [address, ...(isAgent ? [linked] : [])] },
       select: surveyCandidate, orderBy: [{ floor: 'asc' }, { unitLabel: 'asc' }, { id: 'asc' }], take: 100,
     });
-    if (!rows.length) return [];
+    const hasRestrictedMatches = isAgent && input.includeRestrictedNotice === 'true' && !!(await this.prisma.inventoryItem.findFirst({
+      where: { AND: [address,
+        { OR: [{ createdById: null }, { createdById: { not: user.id } }] },
+        { OR: [{ assignedToId: null }, { assignedToId: { not: user.id } }] },
+        { detailAccess: { none: activeInventoryGrant(user.id) } },
+      ] }, select: { id: true },
+    }));
+    if (!rows.length) return { items: [], hasRestrictedMatches };
     const available = new Set((await this.prisma.inventoryItem.findMany({
       where: { AND: [{ id: { in: rows.map(({ id }) => id) } }, this.availableSurveyPropertyScope(user)] },
       select: { id: true },
     })).map(({ id }) => id));
     const canEdit = !user.delegatedActor || Boolean(user.delegatedPermissions?.includes('inventory:edit'));
-    return rows.map((row) => {
+    const items = rows.map<SurveyPropertyMatchSummary['items'][number]>((row) => {
       const { id, propertyCode, revision, floor, unitLabel } = row;
       const view = inSurveyQueue(row) ? 'SURVEY' : available.has(id) ? 'AVAILABLE' : 'ALL';
-      const scoped = user.role !== 'BROKER_AGENT' || row.createdById === user.id || row.assignedToId === user.id;
+      const scoped = !isAgent || row.createdById === user.id || row.assignedToId === user.id;
       return { id, propertyCode, revision, floor, unitLabel, view, canReturnToSurvey: canEdit && scoped && view === 'ALL' && !hasOpenListing(row) };
     });
+    return { items, hasRestrictedMatches };
   }
 
   private availableSurveyPropertyScope(user: RequestUser) {
